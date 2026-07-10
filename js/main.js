@@ -1,4 +1,4 @@
-function setSrc(s,m){const d=document.getElementById('srcdot'),t=document.getElementById('srctxt');d.className='dot '+(s||'');t.textContent=m;}
+function setSrc(s,m){const d=document.getElementById('srcdot'),t=document.getElementById('srctxt');d.className='dot '+(s||'');d.title=m||'';t.textContent='';}
 function applyRecords(recs,srcLabel){ALL=recs;setSrc('live',srcLabel+' · '+ALL.length+' registros · '+new Date().toLocaleString('pt-BR'));buildFilters();render();}
 function loadEmpty(msg){ALL=fromEmbedded();setSrc(msg?'err':'',msg||'Nenhuma base carregada');buildFilters();render();}
 function loadLocalBase(prefix){

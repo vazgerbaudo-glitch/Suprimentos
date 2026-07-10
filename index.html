@@ -20,7 +20,7 @@
   <button data-t="saving">Saving</button>
   <button data-t="contr">Contratualização</button>
  </nav>
- <div class="src-mini"><span class="dot" id="srcdot"></span><span id="srctxt">Carregando…</span></div>
+ <div class="src-mini"><span class="dot" id="srcdot" title="Carregando…"></span><span id="srctxt"></span></div>
 </div></header>
 <div class="wrap">
  <div class="filters">
@@ -31,6 +31,7 @@
   <div class="fg grow" id="drop"><label>Base de dados (CSV)</label>
    <label for="f_file" class="btn" style="display:inline-block;text-align:center">📁 Carregar CSV &nbsp;<span style="font-weight:400;opacity:.85">ou arraste o arquivo aqui</span></label>
    <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/></div>
+  <div class="fg"><label>Apresentação</label><button class="btn ghost" id="btn_slides">🎞 Prompt p/ slides</button></div>
  </div>
 
  <section class="tab active" id="overview">
@@ -168,5 +169,6 @@
 <script src="js/charts.js"></script>
 <script src="js/render.js"></script>
 <script src="js/filters.js"></script>
+<script src="js/slides.js"></script>
 <script src="js/main.js"></script>
 </body></html>
