@@ -1,6 +1,6 @@
 function setSrc(s,m){const d=document.getElementById('srcdot'),t=document.getElementById('srctxt');d.className='dot '+(s||'');t.textContent=m;}
 function applyRecords(recs,srcLabel){ALL=recs;setSrc('live',srcLabel+' · '+ALL.length+' registros · '+new Date().toLocaleString('pt-BR'));buildFilters();render();}
-function loadEmpty(msg){ALL=fromEmbedded();setSrc(msg?'err':'',msg||'Nenhuma base carregada — deposite um arquivo CSV (UTF-8, separado por vírgula) para visualizar os indicadores.');buildFilters();render();}
+function loadEmpty(msg){ALL=fromEmbedded();setSrc(msg?'err':'',msg||'Nenhuma base carregada');buildFilters();render();}
 function loadLocalBase(prefix){
  fetch(BASE_CSV_PATH).then(r=>{if(!r.ok)throw new Error(r.status);return r.text();}).then(txt=>{const recs=fromCSV(txt).filter(r=>r.dc||r.dl||r.st==='A');if(!recs.length)throw new Error('vazio');applyRecords(recs,'Base local ('+BASE_CSV_PATH+')');}).catch(()=>{loadEmpty(prefix?prefix+' Exibindo base inicial.':null);});
 }
