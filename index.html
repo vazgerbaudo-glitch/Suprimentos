@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Painel Suprimentos 2026 — Compras Ágeis</title>
+<title>Painel 2026 — Compras Ágeis</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="css/variables.css"/>
 <link rel="stylesheet" href="css/base.css"/>
@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="css/components.css"/>
 </head><body>
 <header class="topbar"><div class="topbar-in">
- <div class="brand-mini">Suprimentos <span>2026</span></div>
+ <div class="brand-mini">Ágeis<span>2026</span></div>
  <nav class="pillnav" id="pillnav">
   <span class="pill-indicator" id="pillIndicator"></span>
   <button data-t="overview" class="active">Visão Geral</button>
@@ -28,14 +28,13 @@
   <div class="fg" id="wrap_mes" style="display:none"><label>Mês</label><select id="f_mes"></select></div>
   <div class="fg" id="wrap_sem" style="display:none"><label>Semana</label><select id="f_sem"></select></div>
   <div class="fg"><label>Tipo de compra</label><select id="f_tipo"><option value="GERAL">Geral</option><option value="CS">Contrato e Spot</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option></select></div>
-  <div class="fg"><label>Comprador</label><select id="f_comp"></select></div>
   <div class="fg grow" id="drop"><label>Base de dados (CSV)</label>
    <label for="f_file" class="btn" style="display:inline-block;text-align:center">📁 Carregar CSV &nbsp;<span style="font-weight:400;opacity:.85">ou arraste o arquivo aqui</span></label>
    <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/></div>
  </div>
 
  <section class="tab active" id="overview">
-  <div class="sec-head"><h2>Visão Geral — 2026</h2><p>Panorama consolidado dos 5 módulos no recorte selecionado (Período/Comprador/Tipo). Clique em qualquer painel, linha da tabela ou "→ ver detalhes" para abrir a aba correspondente.</p></div>
+  <div class="sec-head"><h2>Visão Geral — 2026</h2><p>Panorama consolidado dos 5 módulos no recorte selecionado (Período/Tipo do topo e comprador, se selecionado na aba Compradores). Clique em qualquer painel, linha da tabela ou "→ ver detalhes" para abrir a aba correspondente.</p></div>
   <div class="kpis" id="kpi-overview"></div>
   <div class="grid g3">
    <div class="panel jump" data-t="prod"><h3>Itens concluídos por semana <span class="link-tab" data-t="prod">Produtividade →</span></h3><div class="ph">Volume finalizado em 2026</div><div class="cv" style="height:180px"><canvas id="c_ov_prod"></canvas></div></div>
@@ -52,33 +51,40 @@
  </section>
 
  <section class="tab" id="comp">
-  <div class="sec-head"><h2>Compradores</h2><p>Selecione um comprador no filtro <b>Comprador</b> no topo (ou clique numa linha da tabela) para ver a visão geral daquele comprador em específico. Deixe em <b>Geral (todos)</b> para comparar todo o time lado a lado.</p></div>
+  <div class="sec-head"><h2>Compradores</h2><p>Selecione um comprador na lista à esquerda (ou clique numa linha da tabela/bolha) para ver a visão individual. Deixe em <b>Geral (todos)</b> para comparar todo o time lado a lado.</p></div>
 
-  <div id="comp-geral">
-   <div class="kpis" id="kpi-comp"></div>
-   <div class="grid g2"><div class="panel" style="margin-bottom:0"><h3>Produtividade × SLA por comprador</h3><div class="ph">Bolha = volume concluído · cor = aging médio das RCs abertas (verde ≤15d, laranja ≤30d, vermelho &gt;30d, cinza sem RC aberta) · clique numa bolha para abrir a visão individual</div><div class="cv tall"><canvas id="c_compscatter"></canvas></div></div>
-    <div class="panel" style="margin-bottom:0"><h3>Material × Serviço por comprador</h3><div class="ph">Composição da produção concluída · Top 12 por volume</div><div class="cv tall"><canvas id="c_compmix"></canvas></div></div></div>
-   <div class="panel"><h3>Ficha por comprador — comparativo completo</h3><div class="ph">Clique no cabeçalho de uma coluna para ordenar · clique numa linha para abrir a visão individual desse comprador</div>
-    <table id="t_comp"><thead></thead><tbody></tbody></table></div>
-   <div class="insight" id="ins-comp"></div>
-  </div>
+  <div class="comp-master">
+   <aside class="comp-list" id="comp-list"></aside>
+   <div class="comp-detail">
 
-  <div id="comp-individual" style="display:none">
-   <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-    <div><h3 style="margin:0">Visão geral — <span id="ind-nome"></span></h3><div class="ph" style="margin:3px 0 0">Indicadores desse comprador no recorte de Período/Tipo selecionado</div></div>
-    <button class="btn ghost" id="ind-voltar">◀ Ver todos os compradores</button>
+    <div id="comp-geral">
+     <div class="kpis" id="kpi-comp"></div>
+     <div class="grid g2"><div class="panel" style="margin-bottom:0"><h3>Produtividade × SLA por comprador</h3><div class="ph">Bolha = volume concluído · cor = aging médio das RCs abertas (verde ≤15d, laranja ≤30d, vermelho &gt;30d, cinza sem RC aberta) · clique numa bolha para abrir a visão individual</div><div class="cv tall"><canvas id="c_compscatter"></canvas></div></div>
+      <div class="panel" style="margin-bottom:0"><h3>Material × Serviço por comprador</h3><div class="ph">Composição da produção concluída · Top 12 por volume</div><div class="cv tall"><canvas id="c_compmix"></canvas></div></div></div>
+     <div class="panel"><h3>Ficha por comprador — comparativo completo</h3><div class="ph">Clique no cabeçalho de uma coluna para ordenar · clique numa linha para abrir a visão individual desse comprador</div>
+      <table id="t_comp"><thead></thead><tbody></tbody></table></div>
+     <div class="insight" id="ins-comp"></div>
+    </div>
+
+    <div id="comp-individual" style="display:none">
+     <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div class="ind-head"><div class="comp-avatar lg" id="ind-avatar"></div><div><h3 style="margin:0">Visão geral — <span id="ind-nome"></span></h3><div class="ph" style="margin:3px 0 0">Indicadores desse comprador no recorte de Período/Tipo selecionado</div></div></div>
+      <button class="btn ghost" id="ind-voltar">◀ Ver todos os compradores</button>
+     </div>
+     <div class="kpis" id="kpi-individual"></div>
+     <div class="grid g3">
+      <div class="panel"><h3>Itens concluídos por semana <span style="font-weight:400;color:var(--muted);font-size:11px">vs. média do time</span></h3><div class="ph">Volume finalizado em 2026</div><div class="cv" style="height:180px"><canvas id="c_ind_prod"></canvas></div></div>
+      <div class="panel"><h3>Aging — RCs em aberto</h3><div class="ph">Distribuição por faixa de idade</div><div class="cv" style="height:180px"><canvas id="c_ind_aging"></canvas></div></div>
+      <div class="panel"><h3>% dentro do SLA</h3><div class="ph">Evolução semanal desde abr/2026</div><div class="cv" style="height:180px"><canvas id="c_ind_sla"></canvas></div></div>
+     </div>
+     <div class="grid g2">
+      <div class="panel" style="margin-bottom:0"><h3>Saving por semana (R$)</h3><div class="ph">Economia capturada no recorte</div><div class="cv" style="height:190px"><canvas id="c_ind_saving"></canvas></div></div>
+      <div class="panel" style="margin-bottom:0"><h3>Material × Serviço</h3><div class="ph">Composição da produção concluída no recorte</div><div class="cv" style="height:190px"><canvas id="c_ind_mix"></canvas></div></div>
+     </div>
+     <div class="insight" id="ins-individual"></div>
+    </div>
+
    </div>
-   <div class="kpis" id="kpi-individual"></div>
-   <div class="grid g3">
-    <div class="panel"><h3>Itens concluídos por semana</h3><div class="ph">Volume finalizado em 2026</div><div class="cv" style="height:180px"><canvas id="c_ind_prod"></canvas></div></div>
-    <div class="panel"><h3>Aging — RCs em aberto</h3><div class="ph">Distribuição por faixa de idade</div><div class="cv" style="height:180px"><canvas id="c_ind_aging"></canvas></div></div>
-    <div class="panel"><h3>% dentro do SLA</h3><div class="ph">Evolução semanal desde abr/2026</div><div class="cv" style="height:180px"><canvas id="c_ind_sla"></canvas></div></div>
-   </div>
-   <div class="grid g2">
-    <div class="panel" style="margin-bottom:0"><h3>Saving por semana (R$)</h3><div class="ph">Economia capturada no recorte</div><div class="cv" style="height:190px"><canvas id="c_ind_saving"></canvas></div></div>
-    <div class="panel" style="margin-bottom:0"><h3>Material × Serviço</h3><div class="ph">Composição da produção concluída no recorte</div><div class="cv" style="height:190px"><canvas id="c_ind_mix"></canvas></div></div>
-   </div>
-   <div class="insight" id="ins-individual"></div>
   </div>
  </section>
 
@@ -143,7 +149,7 @@
   <div class="insight" id="ins-saving"></div></section>
 
  <section class="tab" id="contr">
-  <div class="sec-head"><h2>Contratualização — Carteira × Tipo</h2><p>Considera apenas RCs liberadas a partir de <b>abril/2026</b>, no mesmo recorte de Período/Comprador/Tipo do topo. Quantidade de RCs que entram por <b>Carteira/Categoria</b>, separadas por Contrato e Spot — mostra onde a demanda se concentra e o mix de tipo por carteira. ~64% da base não tem Carteira/Categoria preenchida; esses casos aparecem como <b>N/D</b>.</p></div>
+  <div class="sec-head"><h2>Contratualização — Carteira × Tipo</h2><p>Considera apenas RCs liberadas a partir de <b>abril/2026</b>, no mesmo recorte de Período/Tipo do topo (e comprador, se selecionado na aba Compradores). Quantidade de RCs que entram por <b>Carteira/Categoria</b>, separadas por Contrato e Spot — mostra onde a demanda se concentra e o mix de tipo por carteira. ~64% da base não tem Carteira/Categoria preenchida; esses casos aparecem como <b>N/D</b>.</p></div>
   <div class="kpis k3" id="kpi-contr"></div>
   <div class="panel"><h3>RCs por Código de Carteira</h3><div class="ph">Quantidade de RCs por código-mãe da Carteira/Categoria (G / S / R e demais) — total do recorte</div><div class="cv"><canvas id="c_ccd"></canvas></div></div>
   <div class="grid g12"><div class="panel"><h3>RCs por Carteira/Categoria</h3><div class="ph">Empilhado por Tipo — Top 15 carteiras por volume no recorte</div><div class="cv tall"><canvas id="c_contrcat"></canvas></div></div>
