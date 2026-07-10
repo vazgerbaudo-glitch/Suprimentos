@@ -1,0 +1,36 @@
+.btn{font-family:inherit;font-size:12.5px;font-weight:600;padding:8px 13px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:8px;cursor:pointer}.btn.ghost{background:#fff;color:var(--steel);border-color:var(--steel)}
+.pillnav{position:relative;display:inline-flex;flex-wrap:wrap;gap:2px;background:var(--paper);border-radius:999px;padding:4px;justify-self:center}
+.pillnav button{position:relative;z-index:2;background:transparent;border:none;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted);padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:color .25s ease}
+.pillnav button:hover{color:var(--ink)}
+.pillnav button.active{color:#fff}
+.pill-indicator{position:absolute;border-radius:999px;background:linear-gradient(135deg,var(--ink),var(--slate));z-index:1;transition:left .35s cubic-bezier(.65,0,.35,1),top .35s cubic-bezier(.65,0,.35,1),width .35s cubic-bezier(.65,0,.35,1),height .35s cubic-bezier(.65,0,.35,1);box-shadow:0 1px 3px rgba(28,35,37,.25)}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 15px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--steel)}
+.kpi.good::before{background:var(--good)}.kpi.warn::before{background:var(--warn)}.kpi.bad::before{background:var(--bad)}
+.kpi .lbl{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.kpi .val{font-size:25px;font-weight:750;margin-top:4px;letter-spacing:-.5px}.kpi .note{font-size:11px;color:var(--muted);margin-top:3px}
+.pill{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;margin-top:6px}
+.p-good{background:var(--good-s);color:var(--good)}.p-warn{background:var(--warn-s);color:var(--warn)}.p-bad{background:var(--bad-s);color:var(--bad)}
+.link-tab{float:right;font-size:11px;font-weight:700;color:var(--steel);cursor:pointer}.link-tab:hover{text-decoration:underline}
+.score tr{cursor:pointer}.score tr:hover td{background:#F4F6F6}
+.panel.jump{cursor:pointer}.panel.jump:hover{box-shadow:0 2px 8px rgba(28,35,37,.14)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--sh);min-width:0;margin-bottom:14px}
+.panel h3{font-size:13.5px;font-weight:700}.panel .ph{font-size:11.5px;color:var(--muted);margin:2px 0 12px}
+.cv{position:relative;height:260px}.cv.tall{height:300px}
+.insight{background:#F4F6F6;border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:11px 14px;font-size:12.5px;color:#293537;margin-top:6px}.insight b{color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:8px 9px;border-bottom:2px solid var(--line)}
+td{padding:7px 9px;border-bottom:1px solid var(--line)}tr:last-child td{border-bottom:none}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.farol{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.f-am{background:#FBD300}.f-or{background:#F78344}.f-rd{background:#BB4A4A}
+.tag-sev{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px}
+.s-am{background:#FBF1CF;color:#8A6D10}.s-or{background:#FCE3D3;color:#9A4520}.s-rd{background:#F6DEDE;color:#7A2E2E}
+/* heatmap */
+.hm{overflow-x:auto}.hm table{border-collapse:separate;border-spacing:2px;min-width:480px}
+.hm th{padding:6px 8px;font-size:10px;text-align:center;border:none}
+.hm td{padding:0;border:none}.hm .rl{font-size:11.5px;font-weight:600;color:var(--ink);text-align:left;padding-right:8px;white-space:nowrap}
+.hm .cell{text-align:center;border-radius:6px;font-size:12px;font-weight:700;padding:9px 6px;color:#1C2325}
+.metabar{display:flex;gap:10px;align-items:center;font-size:12px;margin-top:10px;flex-wrap:wrap}
+.metabar input{width:80px;font-family:inherit;font-size:12.5px;padding:5px 7px;border:1px solid var(--line);border-radius:7px}
+.note-box{background:#FCF6DC;border:1px solid #F4D25A;border-radius:10px;padding:12px 15px;font-size:12px;color:#5C3A0E;margin-top:4px}.note-box b{color:#8A4A12}
