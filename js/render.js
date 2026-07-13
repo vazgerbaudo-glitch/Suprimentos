@@ -104,7 +104,7 @@ function renderProd(){
 }
 function renderAging(){
  // Aging das RCs em aberto — distribuição e KPIs base
- const base=ALLRC.filter(r=>r.st==='A'&&r.dl&&r.dl>=DATA_INI&&periodHit(r.dl)&&compHit(r)&&tpHit(r));
+ const base=ALLRC.filter(r=>r.st==='A'&&r.dl&&r.dl>=DATA_INI_AGING&&periodHit(r.dl)&&compHit(r)&&tpHit(r));
  const ag=base.map(r=>({...r,age:Math.round((HOJE-r.dl)/86400000)})).filter(r=>r.age>=0);
  const FA=[['0-3',0,3],['4-7',4,7],['8-15',8,15],['16-30',16,30],['>30',31,1e9]];
  const FCOL=['#1E9F7F','#7FE06C','#FBD300','#C79100','#D2373C'];
@@ -115,8 +115,8 @@ function renderAging(){
  const avg=arr.length?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length):0;
  const crit=ag.filter(r=>r.age>30).length;
  // Meta de Aging por tipo — Geral x Contrato x Spot (kpi-aging)
- const lifeBase=ALLRC.filter(r=>compHit(r)&&tpHit(r)&&r.dl&&r.dl>=DATA_INI&&periodHit(r.dl)&&(r.td==='Contrato'||r.td==='Spot'));
- const lifeAll=ALLRC.filter(r=>compHit(r)&&tpHit(r)&&r.dl&&r.dl>=DATA_INI&&periodHit(r.dl));
+ const lifeBase=ALLRC.filter(r=>compHit(r)&&tpHit(r)&&r.dl&&r.dl>=DATA_INI_AGING&&periodHit(r.dl)&&(r.td==='Contrato'||r.td==='Spot'));
+ const lifeAll=ALLRC.filter(r=>compHit(r)&&tpHit(r)&&r.dl&&r.dl>=DATA_INI_AGING&&periodHit(r.dl));
  const statsOf=rows=>{
   const openN=rows.filter(r=>r.st==='A').length;
   const lives=rows.map(r=>{if(r.st==='A')return Math.round((HOJE-r.dl)/86400000);if(r.st==='C'&&r.dc)return Math.round((r.dc-r.dl)/86400000);return null;}).filter(a=>a!=null&&a>=0);
@@ -176,7 +176,7 @@ function renderAging(){
  svg+='</svg>';
  document.getElementById('box_aging').innerHTML=boxComps.length?svg:'<div style="color:#46606F;font-size:12px">Dados insuficientes para boxplot no recorte.</div>';
  // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo
- const concl=ALLRC.filter(r=>r.st==='C'&&r.dc&&r.dl&&r.dc>=DATA_INI&&inY(r.dc)&&compHit(r)&&tpHit(r)).map(r=>({w:isoWeek(r.dc),cyc:Math.round((r.dc-r.dl)/86400000)})).filter(r=>r.cyc>=0);
+ const concl=ALLRC.filter(r=>r.st==='C'&&r.dc&&r.dl&&r.dc>=DATA_INI_AGING&&inY(r.dc)&&compHit(r)&&tpHit(r)).map(r=>({w:isoWeek(r.dc),cyc:Math.round((r.dc-r.dl)/86400000)})).filter(r=>r.cyc>=0);
  const byW={};concl.forEach(r=>{(byW[r.w]=byW[r.w]||[]).push(r.cyc);});const wk=Object.keys(byW).sort();
  mkChart('c_agevol',{type:'line',data:{labels:wk.map(wkLabel),datasets:[{label:'Ciclo médio',data:wk.map(w=>Math.round(byW[w].reduce((a,b)=>a+b,0)/byW[w].length)),borderColor:C.blue,backgroundColor:'rgba(14,83,140,.07)',fill:true,tension:.3,borderWidth:2,pointRadius:2}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' dias de ciclo'}}},scales:{x:{...noG,ticks:{maxTicksLimit:10,font:{size:8}}},y:{...soG,beginAtZero:true}}}});
  // Evolução dos itens críticos >30d (c_agcrit)
@@ -188,7 +188,7 @@ function renderAging(){
  document.getElementById('funnel_aging').innerHTML=eta.map((x,i)=>{const w=Math.max(16,Math.round(x[1]/mxE*100));return `<div style="display:flex;align-items:center;gap:10px;margin:5px 0"><div title="${x[0]}" style="width:180px;flex:0 0 180px;font-size:11px;text-align:right;color:#46606F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x[0]}</div><div style="height:26px;width:${w}%;background:hsl(205,${48-i*2}%,${28+i*3}%);border-radius:4px;display:flex;align-items:center;justify-content:center;color:#FFFFFF;font-size:11px;font-weight:700;min-width:32px">${x[1]}</div></div>`;}).join('')||'<div style="color:#46606F;font-size:12px">Sem RCs abertas no recorte.</div>';
  // Tabela detalhada — semáforo de aging (t_aging)
  const sevAg=r=>{if(r.sa>0){if(r.age<=r.sa)return['s-am','Dentro do prazo','f-am'];if(r.age<=r.sa*1.5)return['s-or','Atenção','f-or'];return['s-rd','Crítico','f-rd'];}if(r.age<=7)return['s-am','Dentro do prazo','f-am'];if(r.age<=15)return['s-or','Atenção','f-or'];return['s-rd','Crítico','f-rd'];};
- const tabAll=ALLRC.filter(r=>(r.st==='A'||r.st==='C')&&r.dl&&r.dl>=DATA_INI&&periodHit(r.dl)&&compHit(r)&&tpHit(r)).map(r=>{const isOpen=r.st==='A';const age=isOpen?Math.round((HOJE-r.dl)/86400000):(r.dc?Math.round((r.dc-r.dl)/86400000):null);return{...r,age,isOpen};}).filter(r=>r.age!=null&&r.age>=0);
+ const tabAll=ALLRC.filter(r=>(r.st==='A'||r.st==='C')&&r.dl&&r.dl>=DATA_INI_AGING&&periodHit(r.dl)&&compHit(r)&&tpHit(r)).map(r=>{const isOpen=r.st==='A';const age=isOpen?Math.round((HOJE-r.dl)/86400000):(r.dc?Math.round((r.dc-r.dl)/86400000):null);return{...r,age,isOpen};}).filter(r=>r.age!=null&&r.age>=0);
  const tab=tabAll.slice().sort((a,b)=>b.age-a.age).slice(0,40);
  document.querySelector('#t_aging tbody').innerHTML=tab.map(r=>{const s=sevAg(r);const stBadge=`<span class="tag-sev" style="background:${r.isOpen?'#E1EDF5':'#DFF2EA'};color:${r.isOpen?'#0E538C':'#14705A'}">${r.isOpen?'Em Aberto':'Concluída'}</span>`;return `<tr><td>${r.rc||'-'}</td><td>${r.it||'-'}</td><td>${r.cp}</td><td>${stBadge}</td><td>${r.et.replace(/^\d+\.?\s*/,'')||'-'}</td><td class="num">${r.sa||'-'}</td><td class="num">${r.age}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`;}).join('')||'<tr><td colspan=8 style="color:#46606F">Nenhuma RC no recorte.</td></tr>';
  // Leitura (texto de insight)
