@@ -12,7 +12,7 @@ function gaugeCardHTML(label,val,unit,pct,cor,note){
  return `<div class="kpi ${cor}">
   <div class="lbl">${label}</div>
   ${gaugeSVG(pct)}
-  <div style="text-align:center;margin-top:-4px"><span style="font-size:20px;font-weight:750;letter-spacing:-.5px">${val}</span><span style="font-size:11px;color:var(--muted)"> ${unit}</span></div>
+  <div style="text-align:center;margin-top:-4px"><span style="font-size:20px;font-weight:700;letter-spacing:-.5px;font-variant-numeric:tabular-nums">${val}</span><span style="font-size:11px;color:var(--muted)"> ${unit}</span></div>
   ${note?`<div class="note" style="text-align:center">${note}</div>`:''}
  </div>`;
 }
@@ -167,7 +167,7 @@ function renderAging(){
  const boxComps=cpStats.filter(s=>s.n>=3).sort((a,b)=>b.n-a.n).slice(0,8);
  const gmax=Math.max(1,...boxComps.flatMap(s=>s.ages));
  const W=460,L=95,R=W-14,plot=R-L,sx=v=>L+plot*v/gmax,rowH=26,H=boxComps.length*rowH+30;
- let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;font-family:Segoe UI">`;
+ let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;font-family:'Cera Pro',Verdana,sans-serif">`;
  [0,.25,.5,.75,1].forEach(t=>{const x=L+plot*t;svg+=`<line x1="${x}" y1="20" x2="${x}" y2="${H-8}" stroke="#E5EBEE"/><text x="${x}" y="14" font-size="9" fill="#46606F" text-anchor="middle">${Math.round(gmax*t)}d</text>`;});
  boxComps.forEach((s,i)=>{const a=s.ages,q1=quart(a,.25),md=quart(a,.5),q3=quart(a,.75),mn=a[0],mx=a[a.length-1],y=30+i*rowH,cy=y+7;
   svg+=`<text x="${L-6}" y="${cy+3}" font-size="10.5" fill="#13303F" text-anchor="end">${s.cp}</text>`;
