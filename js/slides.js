@@ -12,7 +12,7 @@ function buildSlidesPrompt(){
  const baseInfo=(document.getElementById('srcdot').title||'Base não identificada');
  const faixas=A.faixaLabels.map((l,i)=>l+' dias: '+A.faixaCounts[i]+' RCs').join(' · ');
  const topCart=(K.top||[]).slice(0,5).map(x=>x.c+' ('+x.tot+' RCs)').join(' · ')||'—';
- return `Você é um especialista em apresentações executivas. Crie uma apresentação de slides do painel "Gestão à Vista — Compras Ágeis (Suprimentos)" com base nos dados abaixo.
+ return `Você é um especialista em apresentações executivas corporativas. Crie uma apresentação de slides do painel "Gestão à Vista — Compras Ágeis (Suprimentos)" com base nos dados abaixo, seguindo rigorosamente a identidade visual e as regras de design da Rumo Logística descritas ao final.
 
 ## Contexto do recorte analisado
 - Gerado em: ${new Date().toLocaleString('pt-BR')}
@@ -52,12 +52,39 @@ ${leitura('ins-overview')}
 - Top carteiras por volume: ${topCart}
 - Leitura do painel: ${leitura('ins-contr')}
 
-## Instruções para os slides
-1. Estruture: capa (título + período do recorte), agenda, 1 slide de visão geral com os KPIs principais, 1 slide por módulo (Produtividade, Aging, SLA, Saving, Contratualização) e 1 slide final de conclusões com plano de ação sugerido.
-2. Em cada slide, destaque o status vs. meta com semáforo (verde = na meta, amarelo = atenção, vermelho = crítico).
-3. Use linguagem executiva, direta e em português do Brasil; números formatados no padrão pt-BR.
-4. Sugira um gráfico apropriado para cada slide (barras, linha, rosca etc.) a partir dos dados fornecidos.
-5. Feche com 3 a 5 recomendações práticas baseadas nos pontos fora da meta.`;
+## Estrutura do deck (siga esta ordem)
+1. Capa: título do painel + período do recorte + data de geração. Comece pela mensagem principal, não pelo dado bruto.
+2. Agenda / sumário executivo: os 3 a 4 pontos que a diretoria precisa reter.
+3. Visão geral: os KPIs principais lado a lado (atingimento de meta, SLA, aging médio, saving), cada um com seu status vs. meta.
+4. Um slide por módulo, nesta ordem: Produtividade & Velocidade, Aging, SLA, Saving, Contratualização.
+5. Slide de pontos críticos: o que está fora da meta e exige decisão.
+6. Slide final de conclusões com 3 a 5 recomendações práticas ligadas aos pontos fora da meta.
+
+## Identidade visual — Rumo Logística (obrigatória)
+- Fonte: "Cera Pro" como primeira opção e Verdana como fallback obrigatório (ex.: font-family: 'Cera Pro', Verdana, sans-serif). Não presuma que Cera Pro está instalada.
+- Cor base: azul institucional #003865 (títulos, textos principais, elementos estruturais, faixas de cabeçalho).
+- Positivo / dentro da meta: verde #1E9F7F e verde-claro #7FE06C.
+- Cinzas de apoio para fundos e divisórias: #F2F5F6, #E5EBEE, #D7E0E5, #CAD6DD. Fundo dos slides claro (branco ou #F2F5F6).
+- Amarelo #FBD300: apenas destaque pontual (um número ou um selo de atenção), no máximo ~10% do slide. Nunca como fundo ou área grande.
+- Vermelho: EXCLUSIVAMENTE para criticidade real (meta estourada, RC crítica, SLA fora do limite). No contexto do agronegócio o vermelho significa "problema" — nunca use como decoração, destaque neutro ou cor de apoio.
+- NÃO use laranja nem roxo (laranja se confunde com o vermelho de criticidade; roxo é associado à Raízen).
+- Grafismo de chanfro Rumo (corte de 45° em um canto): use como assinatura visual pontual, apenas na capa e/ou nas divisórias de seção, com parcimônia. Nunca aplique o chanfro em todos os elementos e não deixe que ele atrapalhe a leitura dos dados.
+
+## Regras de design e narrativa
+- Um conceito por slide. Título forte, subtítulo de apoio e no máximo 3 a 5 bullets curtos. Evite slide com excesso de texto.
+- Margens generosas e respiro (inspirados no grid Rumo, ~10% de margem). Alinhamento consistente entre blocos.
+- Status vs. meta: sinalize com verde (na meta), atenção pontual em amarelo e vermelho apenas quando realmente crítico — não transforme tudo em "semáforo" colorido.
+- Números com destaque tipográfico (KPIs em tamanho maior) e formatação pt-BR. Em tabelas, alinhe os dígitos (tabular).
+- Gráficos com propósito, escolhidos pelo tipo de dado:
+  · Tendência ao longo do tempo → linha.
+  · Comparação entre categorias, compradores ou carteiras → barras.
+  · Composição / mix (ex.: Contrato × Spot) → rosca ou barra 100% empilhada.
+  · Distribuição por faixa (ex.: aging) → barras ordenadas por faixa.
+  Rotule os valores diretamente, evite 3D e evite excesso de cores no mesmo gráfico.
+- Linguagem executiva, direta, em português do Brasil: comece pela conclusão e pelo impacto, depois mostre a evidência.
+
+## Formato de saída
+- Especifique se a entrega é PowerPoint (.pptx, via python-pptx) ou HTML (reveal.js) e gere de acordo. Se .pptx, gere via python-pptx — não converta HTML.`;
 }
 function copySlidesPrompt(){
  const ta=document.getElementById('slides-ta');ta.select();
