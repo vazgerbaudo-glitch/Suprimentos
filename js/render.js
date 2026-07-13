@@ -194,7 +194,7 @@ function renderAging(){
  // Leitura (texto de insight)
  const critSem=ag.filter(r=>sevAg(r)[1]==='Crítico').length;
  document.getElementById('ins-aging').innerHTML=`<b>Leitura:</b> mediana <b>${med}d</b> vs média <b>${avg}d</b> — a maioria flui, mas <b>${crit} RCs passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo. ${topAvg.length?`Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). `:''}Use o funil e o backlog por mês para priorizar a limpeza da carteira.`;
- SUM.aging={open:gSt.open,avg:gSt.avg,meta:STATE.metaAgG,crit,faixaLabels:FA.map(x=>x[0]),faixaCounts:f,faixaColors:FCOL};
+ SUM.aging={open:gSt.open,avg:gSt.avg,meta:STATE.metaAgG,crit,faixaLabels:FA.map(x=>x[0]),faixaCounts:f,faixaColors:FCOL,con:{open:cSt.open,avg:cSt.avg,meta:STATE.metaAgC,pct:cPct},spo:{open:sSt.open,avg:sSt.avg,meta:STATE.metaAgS,pct:sPct},gpct:gPct};
 }
 function renderSLA(){
  // KPIs — aderência ao SLA (kpi-sla)
