@@ -64,6 +64,9 @@
       <div class="panel" style="margin-bottom:0"><h3>Material × Serviço por comprador</h3><div class="ph">Composição da produção concluída · Top 12 por volume</div><div class="cv tall"><canvas id="c_compmix"></canvas></div></div></div>
      <div class="panel"><h3>Ficha por comprador — comparativo completo</h3><div class="ph">Clique no cabeçalho de uma coluna para ordenar · clique numa linha para abrir a visão individual desse comprador</div>
       <table id="t_comp"><thead></thead><tbody></tbody></table></div>
+     <div class="panel"><h3>RCs em aberto — acompanhamento do time</h3><div class="ph" id="sum_rcopen_all"></div>
+      <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · classificação vs. SLA Alvo (faixa fixa quando sem alvo) · Aging = dias desde a liberação · Saldo SLA = SLA Alvo − Aging (negativo = estourou o alvo) · RCs liberadas desde jan/2026, no recorte de Período/Tipo · ordenadas da mais antiga · clique numa linha para abrir o comprador</div>
+      <div class="tbl-scroll"><table id="t_rcopen_all"><thead><tr><th>Comprador</th><th>RC</th><th class="num">Itens</th><th>Tipo</th><th>Etapa atual</th><th class="num">Liberada</th><th class="num">SLA Alvo</th><th class="num">Aging (d)</th><th class="num">Saldo SLA</th><th>Semáforo</th></tr></thead><tbody></tbody></table></div></div>
      <div class="insight" id="ins-comp"></div>
     </div>
 
@@ -82,6 +85,9 @@
       <div class="panel" style="margin-bottom:0"><h3>Saving por semana (R$)</h3><div class="ph">Economia capturada no recorte</div><div class="cv" style="height:190px"><canvas id="c_ind_saving"></canvas></div></div>
       <div class="panel" style="margin-bottom:0"><h3>Material × Serviço</h3><div class="ph">Composição da produção concluída no recorte</div><div class="cv" style="height:190px"><canvas id="c_ind_mix"></canvas></div></div>
      </div>
+     <div class="panel" style="margin-top:18px"><h3>RCs em aberto — acompanhamento individual</h3><div class="ph" id="sum_rcopen_ind"></div>
+      <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · classificação vs. SLA Alvo (faixa fixa quando sem alvo) · Aging = dias desde a liberação · Saldo SLA = SLA Alvo − Aging (negativo = estourou o alvo) · RCs liberadas desde jan/2026, no recorte de Período/Tipo · ordenadas da mais antiga</div>
+      <div class="tbl-scroll"><table id="t_rcopen_ind"><thead><tr><th>RC</th><th class="num">Itens</th><th>Tipo</th><th>Etapa atual</th><th class="num">Liberada</th><th class="num">SLA Alvo</th><th class="num">Aging (d)</th><th class="num">Saldo SLA</th><th>Semáforo</th></tr></thead><tbody></tbody></table></div></div>
      <div class="insight" id="ins-individual"></div>
     </div>
 

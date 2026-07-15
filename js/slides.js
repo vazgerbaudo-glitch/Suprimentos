@@ -158,7 +158,7 @@ function openSlidesModal(){
  const ov=document.createElement('div');ov.className='modal-ov';ov.id='slides-ov';
  ov.innerHTML=`<div class="modal">
   <h3>🎞 Prompt para criação de slides</h3>
-  <div class="ph">Resumo do recorte atual (filtros, KPIs e leituras de todas as abas). Copie e cole em uma IA (Claude, ChatGPT, Copilot, Gamma…) para gerar a apresentação.</div>
+  <div class="ph">Resumo do recorte atual (filtros, KPIs e leituras de todas as abas). Copie e cole em uma IA para gerar a apresentação.</div>
   <textarea id="slides-ta" spellcheck="false"></textarea>
   <div class="modal-actions"><button class="btn" id="slides-copy">📋 Copiar prompt</button><button class="btn ghost" id="slides-close">Fechar</button></div>
  </div>`;

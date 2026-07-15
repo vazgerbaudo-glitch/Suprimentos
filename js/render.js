@@ -24,6 +24,24 @@ function renderCompList(rows){
  document.getElementById('comp-list').innerHTML=html;
  document.querySelectorAll('#comp-list .comp-row').forEach(el=>el.onclick=()=>{STATE.comp=el.dataset.cp;render();});
 }
+function fmtDia(d){return d?String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getFullYear()).slice(2):'—';}
+// Semáforo de RC aberta vs. SLA Alvo — mesma régua da tabela da aba Aging
+function sevOpen(r){if(r.sa>0){if(r.age<=r.sa)return['s-am','Dentro do prazo','f-am'];if(r.age<=r.sa*1.5)return['s-or','Atenção','f-or'];return['s-rd','Crítico','f-rd'];}if(r.age<=7)return['s-am','Dentro do prazo','f-am'];if(r.age<=15)return['s-or','Atenção','f-or'];return['s-rd','Crítico','f-rd'];}
+// RCs abertas para acompanhamento (aba Compradores) — desde jan/2026, mesma base da aba Aging; cp=null traz todo o time
+function openRCsFor(cp){return ALLRC.filter(r=>r.st==='A'&&r.dl&&r.dl>=DATA_INI_AGING&&periodHit(r.dl)&&tpHit(r)&&(!cp||r.cp===cp)).map(r=>({...r,age:Math.round((HOJE-r.dl)/86400000)})).filter(r=>r.age>=0).sort((a,b)=>b.age-a.age);}
+function renderOpenRCPanel(tblId,sumId,rcs,showComp){
+ const cnt={ 'Dentro do prazo':0,'Atenção':0,'Crítico':0 };rcs.forEach(r=>cnt[sevOpen(r)[1]]++);
+ const avg=rcs.length?Math.round(rcs.reduce((a,r)=>a+r.age,0)/rcs.length):0;
+ document.getElementById(sumId).innerHTML=rcs.length?`<b>${rcs.length}</b> RC${rcs.length>1?'s':''} em aberto no recorte · aging médio <b>${avg}d</b> · <span class="tag-sev s-am">Dentro do prazo: ${cnt['Dentro do prazo']}</span> <span class="tag-sev s-or">Atenção: ${cnt['Atenção']}</span> <span class="tag-sev s-rd">Crítico: ${cnt['Crítico']}</span>`:'Nenhuma RC em aberto no recorte.';
+ document.querySelector('#'+tblId+' tbody').innerHTML=rcs.map(r=>{
+  const s=sevOpen(r);
+  const saldo=r.sa>0?r.sa-r.age:null;
+  const saldoTxt=saldo==null?'—':(saldo>=0?'+':'')+saldo+'d';
+  const saldoCol=saldo==null?'color:var(--muted)':saldo>=0?'color:#14705A':'color:#C0272D';
+  return `<tr${showComp?` class="jump" data-cp="${r.cp}" style="cursor:pointer"`:''}>${showComp?`<td>${r.cp}</td>`:''}<td>${r.rc||'-'}</td><td class="num">${r.it}</td><td>${(r.td||'').trim()||'-'}</td><td>${(r.et||'').replace(/^\d+\.?\s*/,'')||'-'}</td><td class="num">${fmtDia(r.dl)}</td><td class="num">${r.sa||'—'}</td><td class="num">${r.age}</td><td class="num" style="${saldoCol}">${saldoTxt}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`;
+ }).join('')||`<tr><td colspan="${showComp?10:9}" style="color:#46606F">Nenhuma RC em aberto no recorte.</td></tr>`;
+ if(showComp)document.querySelectorAll('#'+tblId+' tbody tr.jump').forEach(tr=>tr.onclick=()=>{STATE.comp=tr.dataset.cp;render();});
+}
 function render(){ALLRC=rollupRC(ALL);renderProd();renderAging();renderSLA();renderSaving();renderContr();renderCompradores();renderOverview();}
 
 function renderProd(){
@@ -393,6 +411,8 @@ function renderCompradores(){
  }).join('')||'<tr><td colspan="7" style="color:#46606F">Nenhum comprador com dados no recorte.</td></tr>';
  document.querySelectorAll('#t_comp thead th[data-key]').forEach(th=>th.onclick=()=>{const k=th.dataset.key;if(compSort.key===k)compSort.dir*=-1;else{compSort.key=k;compSort.dir=k==='cp'?1:-1;}renderCompradores();});
  document.querySelectorAll('#t_comp tbody tr.jump').forEach(tr=>tr.onclick=()=>{const cp=tr.dataset.cp;STATE.comp=STATE.comp===cp?'GERAL':cp;render();});
+ // RCs em aberto — acompanhamento do time (t_rcopen_all)
+ renderOpenRCPanel('t_rcopen_all','sum_rcopen_all',openRCsFor(null),true);
  // Leitura
  document.getElementById('ins-comp').innerHTML=comps.length?`<b>Leitura:</b> <b>${comps.length} compradores</b> ativos no recorte, produtividade média de <b>${avgIpd.toFixed(2)} itens/dia</b> e SLA médio de <b>${avgSla.toFixed(1)}%</b>. ${topIpd?`Maior produtividade: <b>${topIpd.cp}</b> (${topIpd.ipd.toFixed(2)} itens/dia). `:''}${topAge?`Maior aging: <b>${topAge.cp}</b> (${topAge.agingAvg}d). `:''}Use a bolha Produtividade × SLA para achar quem produz bem <i>e</i> cumpre prazo (canto superior direito) — e clique numa linha da tabela ou numa bolha para abrir a visão individual.`:'<b>Sem compradores com dados no recorte.</b>';
  // Alterna entre a visão geral (comparativo) e a visão individual do comprador selecionado no filtro do topo
@@ -465,6 +485,8 @@ function renderCompIndividual(cp,team){
  mkChart('c_ind_sla',{type:'line',data:{labels:wkS.map(wkLabel),datasets:[{data:wkS.map(w=>Math.round(bwS[w].i/bwS[w].t*100)),borderColor:C.blue,backgroundColor:'rgba(14,83,140,.08)',fill:true,tension:.3,borderWidth:2,pointRadius:0}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{...noG,ticks:{maxTicksLimit:8,font:{size:8}}},y:{...soG,min:0,max:100,ticks:{callback:v=>v+'%'}}}}});
  mkChart('c_ind_saving',{type:'bar',data:{labels:wkV.map(wkLabel),datasets:[{data:wkV.map(w=>bwV[w]),backgroundColor:C.teal,borderRadius:2}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>BRL(c.parsed.y)}}},scales:{x:{...noG,ticks:{maxTicksLimit:8,font:{size:8}}},y:{...soG,beginAtZero:true,ticks:{callback:Kf}}}}});
  mkChart('c_ind_mix',{type:'doughnut',data:{labels:['Material','Serviço'],datasets:[{data:[matN,servN],backgroundColor:[C.steel,C.blue],borderWidth:2,borderColor:'#FFFFFF'}]},options:{maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:12,usePointStyle:true}}}}});
+ // RCs em aberto — acompanhamento individual (t_rcopen_ind)
+ renderOpenRCPanel('t_rcopen_ind','sum_rcopen_ind',openRCsFor(cp),false);
  document.getElementById('ins-individual').innerHTML=`<b>Leitura:</b> ${cp} concluiu <b>${doneP.length} itens</b> (<b>${ipdVal.toFixed(2)} itens/dia</b>, ${dIpd>=0?'+':''}${dIpd.toFixed(0)}% vs média do time), tem <b>${openP.length} RCs abertas</b>${agingAvg!=null?` (aging médio ${agingAvg}d)`:''} e está em <b>${slaPct!=null?slaPct.toFixed(1)+'%':'—'}</b> dentro do SLA. Saving capturado: <b>${Kf(savTotal)}</b>. Mix de entrada: <b>${nConP} RCs Contrato</b> e <b>${nSpoP} RCs Spot</b>.${critN>0?` <b style="color:#8A6D00">⚠ ${critN} RC(s) com aging acima de 30 dias.</b>`:''}`;
 }
 function scoreRow(t,mod,ind,val,ref,status,label){return `<tr class="jump" data-t="${t}"><td>${mod}</td><td>${ind}</td><td class="num">${val}</td><td class="num">${ref}</td><td><span class="pill p-${status}">${label}</span></td></tr>`;}
