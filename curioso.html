@@ -4,11 +4,17 @@
 <title>Curioso</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#003865;font-family:Verdana,sans-serif}
-.c{text-align:center;color:#FFFFFF}
+body{min-height:100vh;background:#E3E8EC;font-family:Verdana,sans-serif;color:#13303F}
+.side{position:fixed;left:14px;top:14px;bottom:14px;width:90px;background:#FFFFFF;border:1px solid #D7E0E5;border-radius:18px;box-shadow:0 1px 2px rgba(0,42,76,.06),0 8px 22px rgba(0,42,76,.07);padding:16px 14px 14px;display:flex;flex-direction:column;gap:12px}
+.side hr{border:none;border-top:1px solid #E5EBEE;margin:26px 0 0}
+.side .dot{width:8px;height:8px;border-radius:50%;background:#1E9F7F;box-shadow:0 0 0 1px rgba(0,42,76,.10);margin-top:auto}
+.main{margin:14px 14px 14px 118px;min-height:calc(100vh - 28px);background:#FFFFFF;border:1px solid #D7E0E5;border-radius:18px;box-shadow:0 1px 2px rgba(0,42,76,.06),0 8px 22px rgba(0,42,76,.07);display:flex;align-items:center;justify-content:center}
+.c{text-align:center;color:#003865}
 h1{font-size:clamp(48px,10vw,110px);font-weight:700;letter-spacing:-2px}
 .emoji{font-size:clamp(64px,9vw,96px);display:block;margin-top:18px}
+@media(max-width:700px){.side{display:none}.main{margin:14px}}
 </style>
 </head><body>
-<div class="c"><h1>Curioso</h1><span class="emoji">😂</span></div>
+<aside class="side"><hr/><hr/><span class="dot"></span></aside>
+<div class="main"><div class="c"><h1>Curioso</h1><span class="emoji">😂</span></div></div>
 </body></html>

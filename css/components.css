@@ -15,7 +15,7 @@
 .pillnav button:hover{color:var(--brand)}
 .pillnav button.active{color:var(--accent-ink)}
 .pill-indicator{position:absolute;border-radius:999px;background:linear-gradient(135deg,var(--brand),var(--blue));z-index:1;transition:left .35s cubic-bezier(.65,0,.35,1),top .35s cubic-bezier(.65,0,.35,1),width .35s cubic-bezier(.65,0,.35,1),height .35s cubic-bezier(.65,0,.35,1);box-shadow:0 1px 6px rgba(0,56,101,.30)}
-.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px 17px;box-shadow:var(--sh);position:relative;overflow:hidden;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+.kpi{background:var(--card);border:1px solid #C9D6DD;border-radius:16px;padding:15px 17px;box-shadow:0 1px 3px rgba(0,42,76,.07),0 10px 26px rgba(0,42,76,.10);position:relative;overflow:hidden;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
 .kpi:hover{transform:translateY(-3px);border-color:#B9CBD6;box-shadow:0 2px 4px rgba(0,42,76,.08),0 12px 28px rgba(0,42,76,.12)}
 .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:0 3px 3px 0;background:var(--steel);transition:filter .2s ease}
 .kpi:hover::before{filter:brightness(1.1)}
@@ -26,8 +26,8 @@
 .p-good{background:var(--good-s);color:var(--good-t)}.p-warn{background:var(--warn-s);color:var(--warn-t)}.p-bad{background:var(--bad-s);color:var(--bad-t)}
 .link-tab{float:right;font-size:11px;font-weight:700;color:var(--blue);cursor:pointer}.link-tab:hover{text-decoration:underline}
 .score tr{cursor:pointer;transition:background .15s ease}.score tr:hover td{background:rgba(0,56,101,.045)}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--sh);min-width:0;margin-bottom:18px;transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease}
-.panel:hover{border-color:#C3D2DB}
+.panel{background:var(--card);border:1px solid #C9D6DD;border-radius:14px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,42,76,.07),0 10px 26px rgba(0,42,76,.10);min-width:0;margin-bottom:18px;transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease}
+.panel:hover{border-color:#AFC4CF}
 .panel.jump{cursor:pointer}.panel.jump:hover{border-color:var(--blue);box-shadow:0 2px 4px rgba(0,42,76,.08),0 10px 26px rgba(0,42,76,.14);transform:translateY(-2px)}
 .panel h3{font-size:13.5px;font-weight:700;color:var(--brand)}.panel .ph{font-size:11.5px;font-weight:400;color:var(--muted);margin:3px 0 12px}
 .cv{position:relative;height:260px}.cv.tall{height:300px}
@@ -53,7 +53,7 @@ th.num{text-align:right}
 .note-box{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--yellow);border-radius:10px;padding:12px 15px;font-size:12px;color:var(--muted);margin-top:4px}.note-box b{color:var(--warn-t)}
 /* mestre-detalhe — aba Compradores */
 .comp-master{display:flex;align-items:flex-start;gap:18px}
-.comp-list{flex:0 0 260px;display:flex;flex-direction:column;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:var(--sh);position:sticky;top:78px;max-height:calc(100vh - 100px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--steel) var(--card)}
+.comp-list{flex:0 0 260px;display:flex;flex-direction:column;gap:2px;background:var(--card);border:1px solid #C9D6DD;border-radius:14px;padding:8px;box-shadow:0 1px 3px rgba(0,42,76,.07),0 10px 26px rgba(0,42,76,.10);position:sticky;top:20px;max-height:calc(100vh - 48px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--steel) var(--card)}
 .comp-list::-webkit-scrollbar{width:8px}
 .comp-list::-webkit-scrollbar-track{background:var(--card);border-radius:8px}
 .comp-list::-webkit-scrollbar-thumb{background:var(--steel);border-radius:8px;border:2px solid var(--card)}

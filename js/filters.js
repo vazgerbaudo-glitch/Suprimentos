@@ -27,7 +27,7 @@ function movePillIndicator(btn,instant){
  pillIndicator.style.top=btn.offsetTop+'px';
  if(instant){pillIndicator.offsetHeight;pillIndicator.style.transition='';}
 }
-function activateTab(t){document.querySelectorAll('.pillnav button').forEach(x=>x.classList.toggle('active',x.dataset.t===t));document.querySelectorAll('section.tab').forEach(x=>x.classList.toggle('active',x.id===t));movePillIndicator(document.querySelector('.pillnav button.active'));window.scrollTo({top:0,behavior:'smooth'});}
+function activateTab(t){document.querySelectorAll('.pillnav button').forEach(x=>x.classList.toggle('active',x.dataset.t===t));document.querySelectorAll('section.tab').forEach(x=>x.classList.toggle('active',x.id===t));movePillIndicator(document.querySelector('.pillnav button.active'));const mc=document.querySelector('.main-col');if(mc)mc.scrollTo({top:0,behavior:'smooth'});window.scrollTo({top:0,behavior:'smooth'});}
 document.querySelectorAll('.pillnav button').forEach(b=>b.onclick=()=>activateTab(b.dataset.t));
 document.getElementById('overview').addEventListener('click',e=>{const el=e.target.closest('[data-t]');if(el)activateTab(el.dataset.t);});
 window.addEventListener('resize',()=>movePillIndicator(document.querySelector('.pillnav button.active'),true));
