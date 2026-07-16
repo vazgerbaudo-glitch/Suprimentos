@@ -80,5 +80,7 @@ th.num{text-align:right}
 .brick-enter.b{clip-path:polygon(0 0,100% 0,100% calc(100% - var(--cf)),calc(100% - var(--cf)) 100%,var(--cf) 100%,0 calc(100% - var(--cf)))}
 .brick-enter:hover{animation:none;transform:scale(1.06);filter:drop-shadow(0 0 18px rgba(251,211,0,.8))}
 .brick-enter:active{transform:scale(.97)}
+.brick-enter.alt{background:var(--good);animation:none}
+.brick-enter.alt:hover{filter:drop-shadow(0 0 18px rgba(30,159,127,.8))}
 @keyframes wagonPulse{0%,100%{filter:drop-shadow(0 0 5px rgba(251,211,0,.35));transform:scale(1)}50%{filter:drop-shadow(0 0 15px rgba(251,211,0,.7));transform:scale(1.02)}}
 @media (prefers-reduced-motion:reduce){.brick-enter{animation:none}}

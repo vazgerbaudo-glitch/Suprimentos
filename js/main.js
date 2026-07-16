@@ -18,7 +18,7 @@ function buildSplash(){
   const cBtn=(r===1)?Math.round((vw/2-WW/2+shift)/stepX):null;
   let svg=`<svg width="${vw+4*stepX}" height="${H}" style="position:absolute;left:${-2*stepX}px;top:0;overflow:visible">`;
   for(let c=cA;c<=cB;c++){
-   if(c===cBtn)continue;
+   if(c===cBtn||(cBtn!=null&&c===cBtn+1))continue;
    const x=c*stepX-shift+2*stepX;
    if(cBtn!=null&&c===cBtn-1){svg+=`<path d="${locoD(x+WW-LW)}" fill="#003865" stroke="#FFFFFF" stroke-width="${SW}" stroke-linejoin="round"/>`;continue;}
    const k=(((c+r)%2)+2)%2;
@@ -26,24 +26,28 @@ function buildSplash(){
   }
   row.innerHTML=svg+'</svg>';
   if(cBtn!=null){
-   const btn=document.createElement('button');
-   btn.className='brick-enter b';
-   btn.style.left=cBtn*stepX-shift+'px';btn.style.width=WW+'px';btn.style.height=H+'px';btn.style.setProperty('--cf',CF+'px');
-   btn.textContent='Ágeis';
-   btn.setAttribute('aria-label','Entrar no dashboard');
-   btn.onclick=()=>departSplash(el,row,rowsEls);
-   row.appendChild(btn);
+   const mkBtn=(col,cls,label,aria,url)=>{
+    const btn=document.createElement('button');
+    btn.className=cls;
+    btn.style.left=col*stepX-shift+'px';btn.style.width=WW+'px';btn.style.height=H+'px';btn.style.setProperty('--cf',CF+'px');
+    btn.textContent=label;
+    btn.setAttribute('aria-label',aria);
+    btn.onclick=()=>departSplash(el,row,rowsEls,url);
+    row.appendChild(btn);
+   };
+   mkBtn(cBtn,'brick-enter b','Ágeis','Entrar no dashboard');
+   mkBtn(cBtn+1,'brick-enter alt b','teste','Abrir painel de teste','curioso.html');
   }
   rowsEls.push(row);el.appendChild(row);
  }
 }
-function departSplash(el,btnRow,rows){
+function departSplash(el,btnRow,rows,url){
  el.classList.add('depart');
  window.removeEventListener('resize',onSplashResize);
  btnRow.style.transition='transform 1.1s cubic-bezier(.6,0,1,.45)';
  btnRow.style.transform='translateX(-130vw)';
  rows.forEach(o=>{if(o!==btnRow){o.style.transition='opacity .7s ease .1s';o.style.opacity='0';}});
- setTimeout(()=>{el.classList.add('hide');setTimeout(()=>el.remove(),400);},1100);
+ setTimeout(()=>{el.classList.add('hide');if(url)setTimeout(()=>{location.href=url;},250);else setTimeout(()=>el.remove(),400);},1100);
 }
 function onSplashResize(){const s=document.getElementById('splash');if(s&&!s.classList.contains('depart'))buildSplash();}
 buildSplash();
