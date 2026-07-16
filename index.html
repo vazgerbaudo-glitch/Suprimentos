@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="css/layout.css"/>
 <link rel="stylesheet" href="css/components.css"/>
 </head><body>
+<div class="splash" id="splash"></div>
 <header class="topbar"><div class="topbar-in">
  <div class="brand-mini">Ágeis<span>2026</span></div>
  <nav class="pillnav" id="pillnav">
@@ -109,6 +110,7 @@
   <div class="panel"><h3>Produtividade por tipo de demanda</h3><div class="ph">Itens concluídos por semana, empilhados por tipo de RC</div><div class="cv tall"><canvas id="c_tipo"></canvas></div></div>
   <div class="panel"><h3>Entrada × saída por comprador</h3><div class="ph">Demandas recebidas (liberadas) vs concluídas por responsável no recorte</div><div class="cv tall"><canvas id="c_escomp"></canvas></div></div>
   <div class="panel"><h3>Entrada × saída vs meta de capacidade</h3><div class="ph">Linha de meta baseada em 7 itens/dia por comprador · passe o mouse em qualquer ponto da semana para ver Entrada, Saída e Meta juntas</div><div class="cv tall"><canvas id="c_esmeta"></canvas></div></div>
+  <div class="panel"><h3>Itens por faixa de valor de entrada</h3><div class="ph">Quantidade de itens liberados no recorte, por faixa de valor (R$)</div><div class="cv"><canvas id="c_valfaixa"></canvas></div></div>
   <div class="panel"><h3>Mapa de calor — produtividade por comprador × dia da semana</h3><div class="ph">Nº de RCs concluídas no recorte selecionado (período, comprador e tipo) · revela dias de maior/menor produção</div><div class="hm" id="heat_prod"></div></div>
   <div class="insight" id="ins-prod"></div></section>
 

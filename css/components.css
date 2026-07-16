@@ -72,3 +72,13 @@ th.num{text-align:right}
 .comp-row .ci span{font-size:10.5px;color:var(--muted)}
 .comp-row.active .ci b{color:var(--brand)}
 @media(max-width:900px){.comp-master{flex-direction:column}.comp-list{position:static;flex-direction:row;flex-wrap:wrap;max-height:none;width:100%}.comp-row{flex:0 0 auto}.comp-row.geral{border-bottom:none;border-right:1px solid var(--line);margin-bottom:0;padding-bottom:8px}}
+/* tela de abertura — faixa central de vagões, locomotiva puxa o Ágeis */
+.splash{position:fixed;inset:0;z-index:300;overflow:hidden;background:var(--brand);transition:opacity .4s ease,visibility .4s ease}
+.splash.hide{opacity:0;visibility:hidden;pointer-events:none}
+.train-row{position:absolute;left:0;width:100%;will-change:transform}
+.brick-enter{position:absolute;top:0;background:var(--yellow);border:none;padding:0;cursor:pointer;font-family:inherit;font-size:20px;font-weight:700;color:var(--brand);letter-spacing:-.3px;display:flex;align-items:center;justify-content:center;animation:wagonPulse 2.4s ease-in-out infinite}
+.brick-enter.b{clip-path:polygon(0 0,100% 0,100% calc(100% - var(--cf)),calc(100% - var(--cf)) 100%,var(--cf) 100%,0 calc(100% - var(--cf)))}
+.brick-enter:hover{animation:none;transform:scale(1.06);filter:drop-shadow(0 0 18px rgba(251,211,0,.8))}
+.brick-enter:active{transform:scale(.97)}
+@keyframes wagonPulse{0%,100%{filter:drop-shadow(0 0 5px rgba(251,211,0,.35));transform:scale(1)}50%{filter:drop-shadow(0 0 15px rgba(251,211,0,.7));transform:scale(1.02)}}
+@media (prefers-reduced-motion:reduce){.brick-enter{animation:none}}

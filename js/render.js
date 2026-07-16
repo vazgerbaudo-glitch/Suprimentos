@@ -92,6 +92,12 @@ function renderProd(){
  const modeM=(m,def)=>{let b=def,bc=-1;m.forEach((c,v)=>{if(c>bc){bc=c;b=v;}});return b;};
  const metaV=wksES.map(w=>{const o=wkInfo[w];if(!o)return null;const du=modeM(o.du,5);const buyers=STATE.comp==='GERAL'?(o.fa.size?modeM(o.fa,o.bs.size):o.bs.size):1;return 7*buyers*du;});
  mkChart('c_esmeta',{type:'line',plugins:[crosshair],data:{labels:wksES.map(wkLabelFull),datasets:[{label:'Entrada',data:eV,borderColor:C.steel,backgroundColor:'rgba(90,140,174,.16)',fill:true,tension:.3,borderWidth:2,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:C.steel},{label:'Saída',data:sV,borderColor:C.teal,backgroundColor:'rgba(30,159,127,.14)',fill:true,tension:.3,borderWidth:2,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:C.teal},{label:'Meta',data:metaV,borderColor:'#003865',borderDash:[6,4],borderWidth:1.6,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#003865',tension:.2,fill:false}]},options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{boxWidth:11,usePointStyle:true,font:{size:9}}},tooltip:{mode:'index',intersect:false,callbacks:{title:c=>'Semana de '+c[0].label}}},scales:{x:{...soG,ticks:{maxTicksLimit:13,font:{size:8},callback:function(v){return labES[v];}}},y:{...soG,beginAtZero:true}}}});
+ // Itens por faixa de valor de entrada (c_valfaixa)
+ const valB=ALL.filter(r=>r.dl&&r.dl>=DATA_INI&&periodHit(r.dl)&&compHit(r)&&tpHit(r));
+ const VF=[['≤ 200k',C.steel],['200k – 300k',C.blue],['> 300k','#003865']];
+ const vfIdx=v=>v<=200000?0:v<=300000?1:2;
+ const vfCnt=[0,0,0];valB.forEach(r=>{vfCnt[vfIdx(r.vl)]++;});
+ mkChart('c_valfaixa',{type:'bar',plugins:[valLabels],data:{labels:VF.map(x=>x[0]),datasets:[{data:vfCnt,backgroundColor:VF.map(x=>x[1]),borderRadius:4}]},options:{maintainAspectRatio:false,layout:{padding:{top:14}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toLocaleString('pt-BR')+' itens'}}},scales:{x:noG,y:{...soG,beginAtZero:true}}}});
  // Mapa de calor — produtividade por dia da semana (heat_prod)
  const ctxH=ALL.filter(r=>r.st==='C'&&r.dc>=DATA_INI&&periodHit(r.dc)&&compHit(r)&&tpHit(r));
  const DOW=['Seg','Ter','Qua','Qui','Sex'];const hp={};ctxH.forEach(r=>{const wd=r.dc.getDay();if(wd<1||wd>5)return;(hp[r.cp]=hp[r.cp]||[0,0,0,0,0])[wd-1]++;});
