@@ -113,7 +113,7 @@ Paleta (use SOMENTE estes hex):
 | Texto principal | #13303F ou #003865 |
 
 Regras:
-- Fonte: 'Cera Pro' com fallback OBRIGATÓRIO Verdana (font-family: 'Cera Pro', Verdana, sans-serif). Não presuma Cera Pro instalada.
+- Fonte: Verdana (font-family: Verdana, sans-serif) em tudo — pesos 400 e 700 apenas.
 - Fundo dos slides sempre claro (branco ou #F2F5F6). Nunca fundo escuro, nunca gradiente.
 - PROIBIDO laranja e roxo em qualquer elemento (laranja se confunde com o vermelho de criticidade; roxo é associado à concorrente Raízen).
 - Vermelho #D2373C EXCLUSIVAMENTE para indicador estourado / RC crítica / fora do SLA. Nunca como decoração, destaque neutro ou cor de série comum.
