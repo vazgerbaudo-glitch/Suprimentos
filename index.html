@@ -36,7 +36,7 @@
  </div>
 
  <section class="tab active" id="overview">
-  <div class="sec-head"><h2>Visão Geral — 2026</h2><p>Panorama consolidado dos 5 módulos no recorte selecionado (Período/Tipo do topo e comprador, se selecionado na aba Compradores). Clique em qualquer painel, linha da tabela ou "→ ver detalhes" para abrir a aba correspondente.</p></div>
+  <div class="sec-head"><h2>Visão Geral — 2026</h2></div>
   <div class="kpis" id="kpi-overview"></div>
   <div class="grid g3">
    <div class="panel jump" data-t="prod"><h3>Itens concluídos por semana <span class="link-tab" data-t="prod">Produtividade →</span></h3><div class="ph">Volume finalizado em 2026</div><div class="cv" style="height:180px"><canvas id="c_ov_prod"></canvas></div></div>
@@ -47,13 +47,28 @@
    <div class="panel jump" data-t="saving"><h3>Saving por semana (R$) <span class="link-tab" data-t="saving">Saving →</span></h3><div class="ph">Economia capturada no recorte</div><div class="cv" style="height:190px"><canvas id="c_ov_saving"></canvas></div></div>
    <div class="panel jump" data-t="contr"><h3>Mix Contrato × Spot <span class="link-tab" data-t="contr">Contratualização →</span></h3><div class="ph">RCs liberadas no recorte, por tipo</div><div class="cv" style="height:190px"><canvas id="c_ov_contr"></canvas></div></div>
   </div>
+  <div class="subsec">
+   <div class="subsec-title">Material × Serviço</div>
+   <div class="grid g2">
+    <div class="panel jump" data-t="prod" style="margin-bottom:0"><h3>Material × Serviço — quantidade <span class="link-tab" data-t="prod">Produtividade →</span></h3><div class="ph">Itens concluídos por classe no recorte</div><div class="cv" style="height:190px"><canvas id="c_ov_mat_qtd"></canvas></div></div>
+    <div class="panel jump" data-t="prod" style="margin-bottom:0"><h3>Material × Serviço — % <span class="link-tab" data-t="prod">Produtividade →</span></h3><div class="ph">Participação de cada classe na produção</div><div class="cv" style="height:190px"><canvas id="c_ov_mat_pct"></canvas></div></div>
+   </div>
+   <div class="grid g2">
+    <div class="panel jump" data-t="sla" style="margin-bottom:0"><h3>SLA — Material × Serviço (volume) <span class="link-tab" data-t="sla">SLA →</span></h3><div class="ph">RCs avaliadas no SLA, por classe</div><div class="cv" style="height:190px"><canvas id="c_ov_sla_mat_qtd"></canvas></div></div>
+    <div class="panel jump" data-t="sla" style="margin-bottom:0"><h3>SLA — Material × Serviço (%) <span class="link-tab" data-t="sla">SLA →</span></h3><div class="ph">Aderência ao SLA por classe · referência 90%</div><div class="cv" style="height:190px"><canvas id="c_ov_sla_mat_pct"></canvas></div></div>
+   </div>
+   <div class="grid g2">
+    <div class="panel jump" data-t="aging" style="margin-bottom:0"><h3>Aging — Material × Serviço (quantidade) <span class="link-tab" data-t="aging">Aging →</span></h3><div class="ph">RCs em aberto no recorte, por classe</div><div class="cv" style="height:190px"><canvas id="c_ov_aging_mat_qtd"></canvas></div></div>
+    <div class="panel jump" data-t="aging" style="margin-bottom:0"><h3>Aging — Material × Serviço (dias) <span class="link-tab" data-t="aging">Aging →</span></h3><div class="ph">Aging médio por classe · meta geral ≤ meta configurada</div><div class="cv" style="height:190px"><canvas id="c_ov_aging_mat_avg"></canvas></div></div>
+   </div>
+  </div>
   <div class="panel"><h3>Resumo por módulo</h3><div class="ph">Indicador principal de cada aba frente à meta/referência · clique numa linha para abrir a aba</div>
    <table class="score" id="t_overview"><thead><tr><th>Módulo</th><th>Indicador principal</th><th class="num">Valor</th><th class="num">Meta/Referência</th><th>Status</th></tr></thead><tbody></tbody></table></div>
   <div class="insight" id="ins-overview"></div>
  </section>
 
  <section class="tab" id="comp">
-  <div class="sec-head"><h2>Compradores</h2><p>Selecione um comprador na lista à esquerda (ou clique numa linha da tabela/bolha) para ver a visão individual. Deixe em <b>Geral (todos)</b> para comparar todo o time lado a lado.</p></div>
+  <div class="sec-head"><h2>Compradores</h2></div>
 
   <div class="comp-master">
    <aside class="comp-list" id="comp-list"></aside>
@@ -97,7 +112,7 @@
  </section>
 
  <section class="tab" id="prod">
-  <div class="sec-head"><h2>Velocidade & Produtividade</h2><p>Considera apenas RCs a partir de <b>abril/2026</b> (por data de conclusão/liberação). Geral usa <b>itens/dia/comprador</b> (considera os compradores ativos na semana); individual usa <b>itens/dia</b>. Período com várias semanas mostra a <b>média das semanas</b>. Meta ponderada por classe: cada item consome uma fração da meta da sua classe (Material 11/dia · Serviço 3/dia); 100% = essa fração somada no recorte inteiro ÷ (dias úteis × compradores ativos de cada semana, somados). Isso ajusta a meta automaticamente para semana ou mês. Meta de atingimento: 80% / 100% / 150%.</p></div>
+  <div class="sec-head"><h2>Velocidade & Produtividade</h2></div>
   <div class="kpis" id="kpi-prod"></div>
   <div class="panel"><h3>Atingimento da meta de produtividade</h3><div class="ph">% da meta ponderada (Material 11/dia · Serviço 3/dia) no recorte</div><div class="cv" style="height:150px"><canvas id="c_gauge"></canvas></div>
    <div class="metabar">Meta Material (itens/dia): <input id="m_mat" type="number" step="0.5"/> · Meta Serviço (itens/dia): <input id="m_serv" type="number" step="0.5"/> <button class="btn ghost" id="m_apply">Aplicar metas</button></div></div>
@@ -115,7 +130,7 @@
   <div class="insight" id="ins-prod"></div></section>
 
  <section class="tab" id="aging">
-  <div class="sec-head"><h2>Aging — RCs em aberto</h2><p>Considera apenas RCs liberadas a partir de <b>janeiro/2026</b>. Idade das RCs em andamento (dias desde a liberação até hoje). O filtro <b>Período</b> (Mês/Semana) agora recorta esta aba pela <b>data de liberação</b>, então dá para acompanhar o aging de uma leva específica. O risco está na cauda: poucas RCs antigas presas nas etapas iniciais. As duas curvas de evolução usam o tempo de ciclo das RCs concluídas e sempre mostram o período completo desde janeiro/2026, independente do período escolhido (proxy honesto, já que a base é um retrato do momento e não guarda o histórico do backlog).</p></div>
+  <div class="sec-head"><h2>Aging — RCs em aberto</h2></div>
   <div class="panel" style="margin-bottom:14px"><h3>Meta de Aging por tipo</h3><div class="ph">Teto de aging médio (dias) — referência do COE: Contrato 101d · Spot 33d. Aging médio considera RCs concluídas e em aberto (tempo de vida da RC)</div>
    <div class="metabar" style="margin-top:0">Meta Geral (dias): <input id="m_agg" type="number" step="1"/> · Meta Contrato (dias): <input id="m_agc" type="number" step="1"/> · Meta Spot (dias): <input id="m_ags" type="number" step="1"/> <button class="btn ghost" id="m_ag_apply">Aplicar metas</button></div></div>
   <div class="kpis k3" id="kpi-aging"></div>
@@ -133,7 +148,7 @@
   <div class="insight" id="ins-aging"></div></section>
 
  <section class="tab" id="sla">
-  <div class="sec-head"><h2>SLA — Aderência ao prazo</h2><p>Concluídas <b>a partir de abril/2026 (por data de conclusão)</b> com prazo alvo. Meta <b>≥ 90%</b>; faixas 75% / 80% / 90%. Dias em atraso = SLA Real − SLA Alvo.</p></div>
+  <div class="sec-head"><h2>SLA — Aderência ao prazo</h2></div>
   <div class="kpis" id="kpi-sla"></div>
   <div class="grid g12"><div class="panel"><h3>Evolução do % dentro do SLA</h3><div class="ph">Por semana, desde abr/2026 — visão geral, não muda com o filtro de Período · metas pontilhadas: 90% (meta 150%), 80% (meta 100%), 75% (meta 90%)</div><div class="cv tall"><canvas id="c_slatrend"></canvas></div></div>
    <div class="panel"><h3>Gravidade do atraso</h3><div class="ph">Itens fora do SLA por faixa de dias</div><div class="cv tall"><canvas id="c_slafaixa"></canvas></div></div></div>
@@ -145,7 +160,7 @@
   <div class="insight" id="ins-sla"></div></section>
 
  <section class="tab" id="saving">
-  <div class="sec-head"><h2>Saving & Cost Avoidance</h2><p>Economia auditável = <b>1ª proposta − valor negociado</b>, sobre itens com ambos os valores, no recorte atual. Exclui RCs canceladas ou devolvidas.</p></div>
+  <div class="sec-head"><h2>Saving & Cost Avoidance</h2></div>
   <div class="kpis" id="kpi-saving"></div>
   <div class="grid g12"><div class="panel"><h3>Saving por semana (R$)</h3><div class="ph">Economia capturada em 2026</div><div class="cv tall"><canvas id="c_savsem"></canvas></div></div>
    <div class="panel"><h3>Saving por categoria (R$)</h3><div class="ph">Top carteiras com economia informada</div><div class="cv tall"><canvas id="c_savcat"></canvas></div></div></div>
@@ -158,7 +173,7 @@
   <div class="insight" id="ins-saving"></div></section>
 
  <section class="tab" id="contr">
-  <div class="sec-head"><h2>Contratualização — Carteira × Tipo</h2><p>Considera apenas RCs liberadas a partir de <b>abril/2026</b>, no mesmo recorte de Período/Tipo do topo (e comprador, se selecionado na aba Compradores). Quantidade de RCs que entram por <b>Carteira/Categoria</b>, separadas por Contrato e Spot — mostra onde a demanda se concentra e o mix de tipo por carteira. ~64% da base não tem Carteira/Categoria preenchida; esses casos aparecem como <b>N/D</b>.</p></div>
+  <div class="sec-head"><h2>Contratualização — Carteira × Tipo</h2></div>
   <div class="kpis k3" id="kpi-contr"></div>
   <div class="panel"><h3>RCs por Código de Carteira</h3><div class="ph">Quantidade de RCs por código-mãe da Carteira/Categoria (G / S / R e demais) — total do recorte</div><div class="cv"><canvas id="c_ccd"></canvas></div></div>
   <div class="grid g12"><div class="panel"><h3>RCs por Carteira/Categoria</h3><div class="ph">Empilhado por Tipo — Top 15 carteiras por volume no recorte</div><div class="cv tall"><canvas id="c_contrcat"></canvas></div></div>

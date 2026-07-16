@@ -124,7 +124,7 @@ function renderProd(){
  // Leitura (texto de insight)
  const t=ating>=100?`acima da meta (${ating.toFixed(0)}%)`:ating>=80?`em atenção (${ating.toFixed(0)}% da meta)`:`abaixo do mínimo (${ating.toFixed(0)}%)`;
  document.getElementById('ins-prod').innerHTML=`<b>Leitura:</b> ${ger?'a equipe concluiu em média':STATE.comp+' concluiu'} <b>${val.toFixed(2)} ${ger?'itens/dia/comprador':'itens/dia'}</b> no recorte, ${t}. 100% considera o mix real de Material e Serviço concluídos, contra as metas por classe (Material ${STATE.metaMat}/dia · Serviço ${STATE.metaServ}/dia) — ajuste-as acima se os alvos mudarem.${_fb?' <b style="color:#8A6D00">⚠ Valor estimado:</b> a coluna <i>Item/dia/comprador</i> está vazia na base para a(s) semana(s) do recorte, então o itens/dia/comprador foi calculado como Item/dia ÷ compradores ativos. Para o número oficial, preencha o headcount da semana na planilha.':''}`;
- SUM.prod={ating,val,ger,concluidos:base.length,weeks:cwk.map(wkLabel),weekly:cwk.map(w=>cw[w])};
+ SUM.prod={ating,val,ger,concluidos:base.length,weeks:cwk.map(wkLabel),weekly:cwk.map(w=>cw[w]),matLabels:MSc,matQ:msQ,matTot:totMS};
 }
 function renderAging(){
  // Aging das RCs em aberto — distribuição e KPIs base
@@ -138,6 +138,10 @@ function renderAging(){
  const med=arr.length?(arr.length%2?arr[(arr.length-1)/2]:(arr[arr.length/2-1]+arr[arr.length/2])/2):0;
  const avg=arr.length?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length):0;
  const crit=ag.filter(r=>r.age>30).length;
+ // Material x Serviço — RCs abertas e aging médio por classe
+ const MSag=['Material','Serviço'];
+ const msAgQ=MSag.map(c=>ag.filter(r=>r.cl===c).length);
+ const msAgAvg=MSag.map(c=>{const b=ag.filter(r=>r.cl===c);return b.length?Math.round(b.reduce((a,r)=>a+r.age,0)/b.length):0;});
  // Meta de Aging por tipo — Geral x Contrato x Spot (kpi-aging)
  const lifeBase=ALLRC.filter(r=>compHit(r)&&tpHit(r)&&r.dl&&r.dl>=DATA_INI_AGING&&periodHit(r.dl)&&(r.td==='Contrato'||r.td==='Spot'));
  const lifeAll=ALLRC.filter(r=>compHit(r)&&tpHit(r)&&r.dl&&r.dl>=DATA_INI_AGING&&periodHit(r.dl));
@@ -218,7 +222,7 @@ function renderAging(){
  // Leitura (texto de insight)
  const critSem=ag.filter(r=>sevAg(r)[1]==='Crítico').length;
  document.getElementById('ins-aging').innerHTML=`<b>Leitura:</b> mediana <b>${med}d</b> vs média <b>${avg}d</b> — a maioria flui, mas <b>${crit} RCs passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo. ${topAvg.length?`Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). `:''}Use o funil e o backlog por mês para priorizar a limpeza da carteira.`;
- SUM.aging={open:gSt.open,avg:gSt.avg,meta:STATE.metaAgG,crit,faixaLabels:FA.map(x=>x[0]),faixaCounts:f,faixaColors:FCOL,con:{open:cSt.open,avg:cSt.avg,meta:STATE.metaAgC,pct:cPct},spo:{open:sSt.open,avg:sSt.avg,meta:STATE.metaAgS,pct:sPct},gpct:gPct};
+ SUM.aging={open:gSt.open,avg:gSt.avg,meta:STATE.metaAgG,crit,faixaLabels:FA.map(x=>x[0]),faixaCounts:f,faixaColors:FCOL,con:{open:cSt.open,avg:cSt.avg,meta:STATE.metaAgC,pct:cPct},spo:{open:sSt.open,avg:sSt.avg,meta:STATE.metaAgS,pct:sPct},gpct:gPct,matLabels:MSag,matQ:msAgQ,matAvg:msAgAvg};
 }
 function renderSLA(){
  // KPIs — aderência ao SLA (kpi-sla)
@@ -262,7 +266,7 @@ function renderSLA(){
  // Leitura (texto de insight)
  const pior=ca[0],melhor=ca[ca.length-1],topcause=par[0];
  document.getElementById('ins-sla').innerHTML=tot?`<b>Leitura:</b> aderência de <b>${pct.toFixed(1)}%</b> (meta 90%), atraso médio de <b>${atrMed} dias</b> quando fura. ${topcause?`A maior causa de atraso é <b>${topcause[0]}</b> (${Math.round(topcause[1]/tt*100)}% dos casos). `:''}${ca.length>1?`Dispersão: ${melhor[0]} em ${melhor[1].toFixed(0)}% contra ${pior[0]} em ${pior[1].toFixed(0)}%. `:''}Use a tabela-farol para agir nas críticas.`:'<b>Sem RCs concluídas no recorte (desde abr/2026).</b>';
- SUM.sla={pct,tot,fora,atrMed,weeks:wk.map(wkLabel),weekly:wk.map(w=>bw[w]?Math.round(bw[w].i/bw[w].t*100):0)};
+ SUM.sla={pct,tot,fora,atrMed,weeks:wk.map(wkLabel),weekly:wk.map(w=>bw[w]?Math.round(bw[w].i/bw[w].t*100):0),matLabels:MS,matQ:msV,matPct:msP};
 }
 function renderSaving(){
  // KPIs — saving e taxa de economia (kpi-saving)
@@ -306,8 +310,8 @@ function renderSaving(){
  SUM.saving={total:tot,taxa,itens:base.length,weeks:wk.map(wkLabel),weekly:wk.map(w=>bw[w]||0)};
 }
 function renderContr(){
- // RCs liberadas no recorte (mesmo padrão de "entrada" usado no resto do painel)
- const base=ALLRC.filter(r=>r.dl&&r.dl>=DATA_INI&&periodHit(r.dl)&&compHit(r)&&tpHit(r));
+ // RCs liberadas no recorte (mesmo padrão de "entrada" usado no resto do painel) — desde jan/2026
+ const base=ALLRC.filter(r=>r.dl&&r.dl>=DATA_INI_AGING&&periodHit(r.dl)&&compHit(r)&&tpHit(r));
  const CCON='#003865';
  const typeOf=r=>(r.td||'').trim()||'N/D';
  const typeCounts={};base.forEach(r=>{const t=typeOf(r);typeCounts[t]=(typeCounts[t]||0)+1;});
@@ -520,6 +524,12 @@ function renderOverview(){
  mkChart('c_ov_sla',{type:'line',data:{labels:S.weeks,datasets:[{data:S.weekly,borderColor:C.blue,backgroundColor:'rgba(14,83,140,.08)',fill:true,tension:.3,borderWidth:2,pointRadius:0}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{...noG,ticks:{maxTicksLimit:8,font:{size:8}}},y:{...soG,min:0,max:100,ticks:{callback:v=>v+'%'}}}}});
  mkChart('c_ov_saving',{type:'bar',data:{labels:V.weeks,datasets:[{data:V.weekly,backgroundColor:C.teal,borderRadius:2}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>BRL(c.parsed.y)}}},scales:{x:{...noG,ticks:{maxTicksLimit:8,font:{size:8}}},y:{...soG,beginAtZero:true,ticks:{callback:Kf}}}}});
  mkChart('c_ov_contr',{type:'doughnut',data:{labels:['Contrato','Spot','Outros'],datasets:[{data:[K.nCon,K.nSpo,K.nOut],backgroundColor:['#003865',C.steel,'#CAD6DD'],borderWidth:2,borderColor:'#FFFFFF'}]},options:{maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:11,usePointStyle:true,font:{size:10}}}}}});
+ mkChart('c_ov_mat_qtd',{type:'bar',data:{labels:P.matLabels,datasets:[{data:P.matQ,backgroundColor:[C.steel,C.blue],borderRadius:4}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toLocaleString('pt-BR')+' itens'}}},scales:{x:noG,y:{...soG,beginAtZero:true}}}});
+ mkChart('c_ov_mat_pct',{type:'doughnut',data:{labels:P.matLabels,datasets:[{data:P.matQ,backgroundColor:[C.steel,C.blue],borderWidth:2,borderColor:'#FFFFFF'}]},options:{maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:11,usePointStyle:true,font:{size:10}}},tooltip:{callbacks:{label:c=>c.parsed.toLocaleString('pt-BR')+' ('+(P.matTot?Math.round(c.parsed/P.matTot*100):0)+'%)'}}}}});
+ mkChart('c_ov_sla_mat_qtd',{type:'bar',data:{labels:S.matLabels,datasets:[{data:S.matQ,backgroundColor:[C.steel,C.blue],borderRadius:4}]},options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x.toLocaleString('pt-BR')+' RCs'}}},scales:{x:{...soG,beginAtZero:true},y:noG}}});
+ mkChart('c_ov_sla_mat_pct',{type:'bar',data:{labels:S.matLabels,datasets:[{data:S.matPct,backgroundColor:S.matPct.map(p=>p>=90?C.teal:p>=80?'#FBD300':p>=75?'#C79100':C.red),borderRadius:4}]},options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+'% dentro do SLA'}}},scales:{x:{...soG,min:0,max:100,ticks:{callback:v=>v+'%'}},y:noG}}});
+ mkChart('c_ov_aging_mat_qtd',{type:'bar',data:{labels:A.matLabels,datasets:[{data:A.matQ,backgroundColor:[C.steel,C.blue],borderRadius:4}]},options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x.toLocaleString('pt-BR')+' RCs abertas'}}},scales:{x:{...soG,beginAtZero:true},y:noG}}});
+ mkChart('c_ov_aging_mat_avg',{type:'bar',data:{labels:A.matLabels,datasets:[{data:A.matAvg,backgroundColor:A.matAvg.map(v=>v<=A.meta?C.teal:v<=A.meta*1.15?'#FBD300':v<=A.meta*1.3?'#C79100':C.red),borderRadius:4}]},options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+'d de aging médio'}}},scales:{x:{...soG,beginAtZero:true},y:noG}}});
  // Tabela — resumo por módulo
  document.querySelector('#t_overview tbody').innerHTML=[
   scoreRow('prod','Produtividade','Atingimento da meta ponderada',P.ating.toFixed(0)+'%','100% (mín. 80%)',pCor,pCor==='good'?'Na meta':pCor==='warn'?'Atenção':'Abaixo'),
