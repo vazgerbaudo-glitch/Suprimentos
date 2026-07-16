@@ -11,15 +11,15 @@
 <div class="splash" id="splash"></div>
 <aside class="filters-side">
  <div class="fside-brand">Ágeis<span>2026</span></div>
- <div class="subsec-title" style="margin:4px 0 2px">Filtros</div>
+ <hr class="fside-sep"/>
  <div class="fg"><label>Período</label><select id="f_modo"><option value="geral">Geral (2026)</option><option value="mes">Mês</option><option value="atual">Semana atual</option><option value="semana">Semana específica</option></select></div>
  <div class="fg" id="wrap_mes" style="display:none"><label>Mês</label><select id="f_mes"></select></div>
  <div class="fg" id="wrap_sem" style="display:none"><label>Semana</label><select id="f_sem"></select></div>
  <div class="fg"><label>Tipo de compra</label><select id="f_tipo"><option value="GERAL">Geral</option><option value="CS">Contrato e Spot</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option></select></div>
- <div class="fg" id="drop"><label>Base de dados (CSV)</label>
-  <label for="f_file" class="btn" style="display:block;text-align:center">📁 Carregar CSV &nbsp;<span style="font-weight:400;opacity:.85">ou arraste o arquivo aqui</span></label>
+ <hr class="fside-sep"/>
+ <div id="drop"><label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">📁 Carregar CSV</label>
   <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/></div>
- <div class="fg"><label>🎞 Apresentação</label><button class="btn ghost" id="btn_slides" style="width:100%">🎞 Prompt p/ slides</button></div>
+ <button class="btn ghost" id="btn_slides">🎞 Apresentação</button>
  <div class="fside-src"><span class="dot" id="srcdot" title="Carregando…"></span><span id="srctxt"></span></div>
 </aside>
 <div class="main-col">
