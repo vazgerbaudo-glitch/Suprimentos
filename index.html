@@ -9,8 +9,21 @@
 <link rel="stylesheet" href="css/components.css"/>
 </head><body>
 <div class="splash" id="splash"></div>
+<aside class="filters-side">
+ <div class="fside-brand">Ágeis<span>2026</span></div>
+ <div class="subsec-title" style="margin:4px 0 2px">Filtros</div>
+ <div class="fg"><label>Período</label><select id="f_modo"><option value="geral">Geral (2026)</option><option value="mes">Mês</option><option value="atual">Semana atual</option><option value="semana">Semana específica</option></select></div>
+ <div class="fg" id="wrap_mes" style="display:none"><label>Mês</label><select id="f_mes"></select></div>
+ <div class="fg" id="wrap_sem" style="display:none"><label>Semana</label><select id="f_sem"></select></div>
+ <div class="fg"><label>Tipo de compra</label><select id="f_tipo"><option value="GERAL">Geral</option><option value="CS">Contrato e Spot</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option></select></div>
+ <div class="fg" id="drop"><label>Base de dados (CSV)</label>
+  <label for="f_file" class="btn" style="display:block;text-align:center">📁 Carregar CSV &nbsp;<span style="font-weight:400;opacity:.85">ou arraste o arquivo aqui</span></label>
+  <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/></div>
+ <div class="fg"><label>🎞 Apresentação</label><button class="btn ghost" id="btn_slides" style="width:100%">🎞 Prompt p/ slides</button></div>
+ <div class="fside-src"><span class="dot" id="srcdot" title="Carregando…"></span><span id="srctxt"></span></div>
+</aside>
+<div class="main-col">
 <header class="topbar"><div class="topbar-in">
- <div class="brand-mini">Ágeis<span>2026</span></div>
  <nav class="pillnav" id="pillnav">
   <span class="pill-indicator" id="pillIndicator"></span>
   <button data-t="overview" class="active">Visão Geral</button>
@@ -21,19 +34,9 @@
   <button data-t="saving">Saving</button>
   <button data-t="contr">Contratualização</button>
  </nav>
- <div class="src-mini"><span class="dot" id="srcdot" title="Carregando…"></span><span id="srctxt"></span></div>
 </div></header>
-<div class="wrap">
- <div class="filters">
-  <div class="fg"><label>Período</label><select id="f_modo"><option value="geral">Geral (2026)</option><option value="mes">Mês</option><option value="atual">Semana atual</option><option value="semana">Semana específica</option></select></div>
-  <div class="fg" id="wrap_mes" style="display:none"><label>Mês</label><select id="f_mes"></select></div>
-  <div class="fg" id="wrap_sem" style="display:none"><label>Semana</label><select id="f_sem"></select></div>
-  <div class="fg"><label>Tipo de compra</label><select id="f_tipo"><option value="GERAL">Geral</option><option value="CS">Contrato e Spot</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option></select></div>
-  <div class="fg grow" id="drop"><label>Base de dados (CSV)</label>
-   <label for="f_file" class="btn" style="display:inline-block;text-align:center">📁 Carregar CSV &nbsp;<span style="font-weight:400;opacity:.85">ou arraste o arquivo aqui</span></label>
-   <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/></div>
-  <div class="fg"><label>Apresentação</label><button class="btn ghost" id="btn_slides">🎞 Prompt p/ slides</button></div>
- </div>
+<div class="shell">
+ <div class="wrap">
 
  <section class="tab active" id="overview">
   <div class="sec-head"><h2>Visão Geral — 2026</h2></div>
@@ -185,6 +188,8 @@
 
  <div class="note-box"><b>Notas de qualidade dos dados</b> 384 RCs concluídas têm "SLA Real" negativo (datas inconsistentes) — excluídas de todos os cálculos do painel de SLA (%SLA, atraso, gravidade, heatmap, comprador) · as colunas de dias por etapa têm ~30% de valores corrompidos; o Pareto de causas usa apenas valores sãos (≤400 dias) e é indicativo · "Saving/penalty" e "Cost Avoidance" próprias estão vazias, por isso o saving usa 1ª proposta vs. negociado · "Carteira/Categoria" vazia em ~64%.</div>
  <footer>Painel Suprimentos 2026 · base inicial: Base_de_Dados.xlsx · atualizável via Google Sheets</footer>
+ </div>
+</div>
 </div>
 <script src="js/config.js"></script>
 <script src="js/state.js"></script>
