@@ -26,7 +26,7 @@ function renderCompList(rows){
 }
 function fmtDia(d){return d?String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getFullYear()).slice(2):'—';}
 // Semáforo de RC aberta vs. SLA Alvo — mesma régua da tabela da aba Aging
-function sevOpen(r){if(r.sa>0){if(r.age<=r.sa)return['s-am','Dentro do prazo','f-am'];if(r.age<=r.sa*1.5)return['s-or','Atenção','f-or'];return['s-rd','Crítico','f-rd'];}if(r.age<=7)return['s-am','Dentro do prazo','f-am'];if(r.age<=15)return['s-or','Atenção','f-or'];return['s-rd','Crítico','f-rd'];}
+function sevOpen(r){const lim=r.sa>0?r.sa:15;if(r.age>lim)return['s-rd','Crítico','f-rd'];if(lim-r.age<=2)return['s-or','Atenção','f-or'];return['s-am','Dentro do prazo','f-am'];}
 // RCs abertas para acompanhamento (aba Compradores) — desde jan/2026, mesma base da aba Aging; cp=null traz todo o time
 function openRCsFor(cp){return ALLRC.filter(r=>r.st==='A'&&r.dl&&r.dl>=DATA_INI_AGING&&periodHit(r.dl)&&tpHit(r)&&(!cp||r.cp===cp)).map(r=>({...r,age:Math.round((HOJE-r.dl)/86400000)})).filter(r=>r.age>=0).sort((a,b)=>b.age-a.age);}
 function renderOpenRCPanel(tblId,sumId,rcs,showComp){
@@ -78,7 +78,7 @@ function renderProd(){
  const pcb=ALL.filter(r=>r.st==='C'&&r.dc>=DATA_INI&&periodHit(r.dc)&&tpHit(r));const pc={};pcb.forEach(r=>{pc[r.cp]=(pc[r.cp]||0)+1;});const pca=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,12);
  const clByCompP={};pcb.forEach(r=>{const o=clByCompP[r.cp]=clByCompP[r.cp]||{Material:0,Serviço:0};if(r.cl==='Material')o.Material++;else if(r.cl==='Serviço')o.Serviço++;});
  const classColorP=cp=>{const o=clByCompP[cp];if(!o||(!o.Material&&!o.Serviço))return C.steel;return o.Material>=o.Serviço?C.steel:C.blue;};
- mkChart('c_pcomp',{type:'bar',data:{labels:pca.map(x=>x[0]),datasets:[{data:pca.map(x=>x[1]),backgroundColor:pca.map(x=>x[0]===STATE.comp?C.accent:classColorP(x[0])),borderRadius:18}]},options:{legendChips:[['Material',C.steel],['Serviço',C.blue],['Selecionado',C.accent]],indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x.toLocaleString('pt-BR')+' itens'}}},scales:{x:{...soG,beginAtZero:true},y:{...noG,ticks:{font:{size:10}}}}}});
+ mkChart('c_pcomp',{type:'bar',data:{labels:pca.map(x=>x[0]),datasets:[{data:pca.map(x=>x[1]),backgroundColor:pca.map(x=>x[0]===STATE.comp?C.accent:classColorP(x[0])),borderRadius:18,barPercentage:1,categoryPercentage:.85}]},options:{legendChips:[['Material',C.steel],['Serviço',C.blue],['Selecionado',C.accent]],indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x.toLocaleString('pt-BR')+' itens'}}},scales:{x:{...soG,beginAtZero:true},y:{...noG,ticks:{font:{size:10}}}}}});
  // ===== visuais adicionais: tipo de demanda, entrada x saída, meta, heatmap dia =====
  // Produtividade por tipo de demanda (c_tipo)
  const ctxL=ALL.filter(r=>r.dl&&r.dl>=DATA_INI&&inY(r.dl)&&compHit(r)&&tpHit(r));
@@ -119,7 +119,7 @@ function renderProd(){
  const ipdArr=Object.entries(ipdAvg).sort((a,b)=>b[1]-a[1]).slice(0,12);
  const clByCompI={};ipdBase.forEach(r=>{const o=clByCompI[r.cp]=clByCompI[r.cp]||{Material:0,Serviço:0};if(r.cl==='Material')o.Material++;else if(r.cl==='Serviço')o.Serviço++;});
  const classColorI=cp=>{const o=clByCompI[cp];if(!o||(!o.Material&&!o.Serviço))return C.teal;return o.Material>=o.Serviço?C.steel:C.blue;};
- mkChart('c_ipdcomp',{type:'bar',plugins:[refLines([{v:STATE.metaMat,color:C.steel,label:'Meta Material '+STATE.metaMat},{v:STATE.metaServ,color:C.amber,label:'Meta Serviço '+STATE.metaServ}])],data:{labels:ipdArr.map(x=>x[0]),datasets:[{data:ipdArr.map(x=>+x[1].toFixed(2)),backgroundColor:ipdArr.map(x=>x[0]===STATE.comp?C.accent:classColorI(x[0])),borderRadius:18}]},options:{legendChips:[['Material',C.steel],['Serviço',C.blue],['Selecionado',C.accent]],indexAxis:'y',maintainAspectRatio:false,layout:{padding:{top:14}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x.toFixed(2)+' itens/dia'}}},scales:{x:{...soG,beginAtZero:true,suggestedMax:Math.max(STATE.metaMat,STATE.metaServ)},y:{...noG,ticks:{font:{size:10}}}}}});
+ mkChart('c_ipdcomp',{type:'bar',plugins:[refLines([{v:STATE.metaMat,color:C.steel,label:'Meta Material '+STATE.metaMat},{v:STATE.metaServ,color:C.amber,label:'Meta Serviço '+STATE.metaServ}])],data:{labels:ipdArr.map(x=>x[0]),datasets:[{data:ipdArr.map(x=>+x[1].toFixed(2)),backgroundColor:ipdArr.map(x=>x[0]===STATE.comp?C.accent:classColorI(x[0])),borderRadius:18,barPercentage:1,categoryPercentage:.85}]},options:{legendChips:[['Material',C.steel],['Serviço',C.blue],['Selecionado',C.accent]],indexAxis:'y',maintainAspectRatio:false,layout:{padding:{top:14}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x.toFixed(2)+' itens/dia'}}},scales:{x:{...soG,beginAtZero:true,suggestedMax:Math.max(STATE.metaMat,STATE.metaServ)},y:{...noG,ticks:{font:{size:10}}}}}});
  // Material x Serviço — quantidade e % (c_mat_qtd, c_mat_pct)
  const msB=ALL.filter(r=>r.st==='C'&&r.dc>=DATA_INI&&periodHit(r.dc)&&compHit(r)&&tpHit(r));
  const MSc=['Material','Serviço'];const msQ=MSc.map(c=>msB.filter(r=>r.cl===c).length);const totMS=msQ[0]+msQ[1];
@@ -131,7 +131,7 @@ function renderProd(){
  // Leitura (texto de insight)
  const t=ating>=100?`acima da meta (${ating.toFixed(0)}%)`:ating>=80?`em atenção (${ating.toFixed(0)}% da meta)`:`abaixo do mínimo (${ating.toFixed(0)}%)`;
  document.getElementById('ins-prod').innerHTML=`<b>Leitura:</b> ${ger?'a equipe concluiu em média':STATE.comp+' concluiu'} <b>${val.toFixed(2)} ${ger?'itens/dia/comprador':'itens/dia'}</b> no recorte, ${t}. 100% considera o mix real de Material e Serviço concluídos, contra as metas por classe (Material ${STATE.metaMat}/dia · Serviço ${STATE.metaServ}/dia) — ajuste-as acima se os alvos mudarem.${_fb?' <b style="color:#8A6D00">⚠ Valor estimado:</b> a coluna <i>Item/dia/comprador</i> está vazia na base para a(s) semana(s) do recorte, então o itens/dia/comprador foi calculado como Item/dia ÷ compradores ativos. Para o número oficial, preencha o headcount da semana na planilha.':''}`;
- SUM.prod={ating,val,ger,concluidos:base.length,weeks:cwk.map(wkLabel),weekly:cwk.map(w=>cw[w]||0),entries:cwk.map(w=>ew[w]||0),matLabels:MSc,matQ:msQ,matTot:totMS};
+ SUM.prod={ating,val,ger,concluidos:base.length,entradas:entG,weeks:cwk.map(wkLabel),weekly:cwk.map(w=>cw[w]||0),entries:cwk.map(w=>ew[w]||0),matLabels:MSc,matQ:msQ,matTot:totMS};
 }
 function renderAging(){
  // Aging das RCs em aberto — distribuição e KPIs base
@@ -188,7 +188,7 @@ function renderAging(){
  mkChart('c_agcompfaixa',{type:'bar',data:{labels:topVol.map(s=>s.cp),datasets:dsF},options:{maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:9}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:9},maxRotation:40,minRotation:30}},y:{stacked:true,...soG,beginAtZero:true}}}});
  // Top 10 — maior aging médio (c_agtopcomp)
  const topAvg=cpStats.slice().filter(s=>s.n>=2).sort((a,b)=>b.avg-a.avg).slice(0,10);
- mkChart('c_agtopcomp',{type:'bar',data:{labels:topAvg.map(s=>s.cp),datasets:[{data:topAvg.map(s=>Math.round(s.avg)),backgroundColor:topAvg.map(s=>s.avg>30?C.red:s.avg>15?C.amber:C.teal),borderRadius:18}]},options:{legendChips:[['≤15d',C.teal],['16–30d',C.amber],['>30d',C.red]],indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+'d médio ('+topAvg[c.dataIndex].n+' RCs)'}}},scales:{x:{...soG,beginAtZero:true},y:{...noG,ticks:{font:{size:10}}}}}});
+ mkChart('c_agtopcomp',{type:'bar',data:{labels:topAvg.map(s=>s.cp),datasets:[{data:topAvg.map(s=>Math.round(s.avg)),backgroundColor:topAvg.map(s=>s.avg>30?C.red:s.avg>15?C.amber:C.teal),borderRadius:18,barPercentage:1,categoryPercentage:.85}]},options:{legendChips:[['≤15d',C.teal],['16–30d',C.amber],['>30d',C.red]],indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+'d médio ('+topAvg[c.dataIndex].n+' RCs)'}}},scales:{x:{...soG,beginAtZero:true},y:{...noG,ticks:{font:{size:10}}}}}});
  // Mapa de calor — responsável x faixa (heat_aging)
  const rowsH=topVol.map(s=>[s.cp,FA.map((fx,fi)=>byCp[s.cp].filter(a=>faIdx(a)===fi).length),s.n]);
  const mxH=Math.max(1,...rowsH.flatMap(r=>r[1]));
@@ -222,7 +222,7 @@ function renderAging(){
  const eta=Object.entries(et).sort((a,b)=>b[1]-a[1]).slice(0,8);const mxE=Math.max(1,...eta.map(x=>x[1]));
  document.getElementById('funnel_aging').innerHTML=eta.map((x,i)=>{const w=Math.max(16,Math.round(x[1]/mxE*100));return `<div style="display:flex;align-items:center;gap:10px;margin:5px 0"><div title="${x[0]}" style="width:180px;flex:0 0 180px;font-size:11px;text-align:right;color:#46606F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x[0]}</div><div style="height:26px;width:${w}%;background:hsl(205,${48-i*2}%,${28+i*3}%);border-radius:4px;display:flex;align-items:center;justify-content:center;color:#FFFFFF;font-size:11px;font-weight:700;min-width:32px">${x[1]}</div></div>`;}).join('')||'<div style="color:#46606F;font-size:12px">Sem RCs abertas no recorte.</div>';
  // Tabela detalhada — semáforo de aging (t_aging)
- const sevAg=r=>{if(r.sa>0){if(r.age<=r.sa)return['s-am','Dentro do prazo','f-am'];if(r.age<=r.sa*1.5)return['s-or','Atenção','f-or'];return['s-rd','Crítico','f-rd'];}if(r.age<=7)return['s-am','Dentro do prazo','f-am'];if(r.age<=15)return['s-or','Atenção','f-or'];return['s-rd','Crítico','f-rd'];};
+ const sevAg=r=>sevOpen(r);
  const tabAll=ALLRC.filter(r=>(r.st==='A'||r.st==='C')&&r.dl&&r.dl>=DATA_INI_AGING&&periodHit(r.dl)&&compHit(r)&&tpHit(r)).map(r=>{const isOpen=r.st==='A';const age=isOpen?Math.round((HOJE-r.dl)/86400000):(r.dc?Math.round((r.dc-r.dl)/86400000):null);return{...r,age,isOpen};}).filter(r=>r.age!=null&&r.age>=0);
  const tab=tabAll.slice().sort((a,b)=>b.age-a.age).slice(0,40);
  document.querySelector('#t_aging tbody').innerHTML=tab.map(r=>{const s=sevAg(r);const stBadge=`<span class="tag-sev" style="background:${r.isOpen?'#E1EDF5':'#DFF2EA'};color:${r.isOpen?'#0E538C':'#14705A'}">${r.isOpen?'Em Aberto':'Concluída'}</span>`;return `<tr><td>${r.rc||'-'}</td><td>${r.it||'-'}</td><td>${r.cp}</td><td>${stBadge}</td><td>${r.et.replace(/^\d+\.?\s*/,'')||'-'}</td><td class="num">${r.sa||'-'}</td><td class="num">${r.age}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`;}).join('')||'<tr><td colspan=8 style="color:#46606F">Nenhuma RC no recorte.</td></tr>';
@@ -265,7 +265,7 @@ function renderSLA(){
  // % dentro do SLA por comprador (c_slacomp)
  const bc={};base.forEach(r=>{(bc[r.cp]=bc[r.cp]||{i:0,t:0});bc[r.cp].t++;if(r.ss==='I')bc[r.cp].i++;});
  const ca=Object.entries(bc).filter(x=>x[1].t>=5).map(x=>[x[0],x[1].i/x[1].t*100,x[1].t]).sort((a,b)=>a[1]-b[1]);
- mkChart('c_slacomp',{type:'bar',data:{labels:ca.map(x=>x[0]),datasets:[{data:ca.map(x=>Math.round(x[1])),backgroundColor:ca.map(x=>x[1]>=90?C.teal:x[1]>=80?'#FBD300':x[1]>=75?'#C79100':C.red),borderRadius:18}]},options:{legendChips:[['≥90%',C.teal],['80–90%','#FBD300'],['75–80%','#C79100'],['<75%',C.red]],indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+'% ('+ca[c.dataIndex][2]+' itens)'}}},scales:{x:{...soG,min:0,max:100,ticks:{callback:v=>v+'%'}},y:{...noG,ticks:{font:{size:10}}}}}});
+ mkChart('c_slacomp',{type:'bar',data:{labels:ca.map(x=>x[0]),datasets:[{data:ca.map(x=>Math.round(x[1])),backgroundColor:ca.map(x=>x[1]>=90?C.teal:x[1]>=80?'#FBD300':x[1]>=75?'#C79100':C.red),borderRadius:18,barPercentage:1,categoryPercentage:.85}]},options:{legendChips:[['≥90%',C.teal],['80–90%','#FBD300'],['75–80%','#C79100'],['<75%',C.red]],indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+'% ('+ca[c.dataIndex][2]+' itens)'}}},scales:{x:{...soG,min:0,max:100,ticks:{callback:v=>v+'%'}},y:{...noG,ticks:{font:{size:10}}}}}});
  // Tabela detalhada — RCs críticas por farol (t_crit)
  const sev=d=>d>15?['f-rd','s-rd','Crítico']:d>7?['f-or','s-or','Além do normal']:['f-am','s-am','Fora do prazo'];
  const crit=foraR.map(r=>({...r,atr:r.sr-r.sa})).filter(r=>r.atr>0).sort((a,b)=>b.atr-a.atr).slice(0,40);
@@ -273,7 +273,7 @@ function renderSLA(){
  // Leitura (texto de insight)
  const pior=ca[0],melhor=ca[ca.length-1],topcause=par[0];
  document.getElementById('ins-sla').innerHTML=tot?`<b>Leitura:</b> aderência de <b>${pct.toFixed(1)}%</b> (meta 90%), atraso médio de <b>${atrMed} dias</b> quando fura. ${topcause?`A maior causa de atraso é <b>${topcause[0]}</b> (${Math.round(topcause[1]/tt*100)}% dos casos). `:''}${ca.length>1?`Dispersão: ${melhor[0]} em ${melhor[1].toFixed(0)}% contra ${pior[0]} em ${pior[1].toFixed(0)}%. `:''}Use a tabela-farol para agir nas críticas.`:'<b>Sem RCs concluídas no recorte (desde abr/2026).</b>';
- SUM.sla={pct,tot,fora,atrMed,weeks:wk.map(wkLabel),weekly:wk.map(w=>bw[w]?Math.round(bw[w].i/bw[w].t*100):0),matLabels:MS,matQ:msV,matPct:msP};
+ SUM.sla={pct,tot,fora,atrMed,crit:foraR.filter(r=>r.sr-r.sa>15).length,weeks:wk.map(wkLabel),weekly:wk.map(w=>bw[w]?Math.round(bw[w].i/bw[w].t*100):0),matLabels:MS,matQ:msV,matPct:msP};
 }
 function renderSaving(){
  // KPIs — saving e taxa de economia (kpi-saving)
@@ -288,7 +288,7 @@ function renderSaving(){
  mkChart('c_savcat',{type:'bar',data:{labels:cat.map(x=>x[0].slice(0,18)),datasets:[{data:cat.map(x=>x[1]),backgroundColor:C.steel,borderRadius:18}]},options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>BRL(c.parsed.x)}}},scales:{x:{...soG,ticks:{callback:Kf}},y:{...noG,ticks:{font:{size:9}}}}}});
  // Saving por comprador (c_savcomp)
  const bcc={};base.forEach(r=>{bcc[r.cp]=(bcc[r.cp]||0)+(r.vp-r.vn);});const co=Object.entries(bcc).sort((a,b)=>b[1]-a[1]).slice(0,12);
- mkChart('c_savcomp',{type:'bar',data:{labels:co.map(x=>x[0]),datasets:[{data:co.map(x=>x[1]),backgroundColor:co.map(x=>x[0]===STATE.comp?C.accent:C.green),borderRadius:18}]},options:{legendChips:[['Saving',C.green],['Selecionado',C.accent]],indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>BRL(c.parsed.x)}}},scales:{x:{...soG,ticks:{callback:Kf}},y:noG}}});
+ mkChart('c_savcomp',{type:'bar',data:{labels:co.map(x=>x[0]),datasets:[{data:co.map(x=>x[1]),backgroundColor:co.map(x=>x[0]===STATE.comp?C.accent:C.green),borderRadius:18,barPercentage:1,categoryPercentage:.85}]},options:{legendChips:[['Saving',C.green],['Selecionado',C.accent]],indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>BRL(c.parsed.x)}}},scales:{x:{...soG,ticks:{callback:Kf}},y:noG}}});
  // Pareto — categorias que geram 80% do saving (c_savpareto)
  const gcS={};base.forEach(r=>{const k=(r.cat||'').trim()||'N/D';gcS[k]=(gcS[k]||0)+(r.vp-r.vn);});
  const parS=Object.entries(gcS).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
@@ -516,13 +516,13 @@ function renderOverview(){
  const sCor=S.pct>=90?'good':S.pct>=80?'warn':'bad';
  const vCor=V.total>=0?'good':'bad';
  kpi('kpi-overview',[
-  {l:'Itens concluídos',v:P.concluidos.toLocaleString('pt-BR'),c:pCor,n:'atingimento '+P.ating.toFixed(0)+'% da meta Veloc.'},
+  {l:'Entrada de itens',v:P.entradas.toLocaleString('pt-BR'),n:'itens liberados no recorte'},
   {l:'RCs em aberto (aging)',v:A.open.toLocaleString('pt-BR'),c:aCor,n:'idade média '+A.avg+'d (meta ≤'+A.meta+'d)'},
   {l:'% dentro do SLA',v:S.pct.toFixed(1)+'%',c:sCor,n:S.tot?S.fora+' de '+S.tot+' fora do prazo':'sem base avaliada'},
   {l:'Saving capturado',v:Kf(V.total),c:vCor,n:BRL(V.total)+' · '+V.taxa.toFixed(1)+'% de taxa'},
-  {l:'RCs Contrato',v:K.nCon.toLocaleString('pt-BR'),n:K.pctCon.toFixed(0)+'% do recorte'},
-  {l:'RCs Spot',v:K.nSpo.toLocaleString('pt-BR'),n:K.pctSpo.toFixed(0)+'% do recorte'},
+  {l:'Itens concluídos',v:P.concluidos.toLocaleString('pt-BR'),c:pCor,n:'atingimento '+P.ating.toFixed(0)+'% da meta Veloc.'},
   {l:'RCs críticas de aging',v:A.crit.toLocaleString('pt-BR'),c:A.crit>0?'warn':'good',n:'ciclo aberto > 30 dias'},
+  {l:'RCs críticas em SLA',v:S.crit.toLocaleString('pt-BR'),c:S.crit>0?'bad':'good',n:'fora do SLA > 15 dias'},
   {l:'Compradores no recorte',v:STATE.comp==='GERAL'?'Geral':STATE.comp,n:STATE.tp==='GERAL'?'Todos os tipos':STATE.tp}
  ]);
  // Mini-gráficos por módulo

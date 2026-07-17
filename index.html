@@ -20,7 +20,7 @@
  <hr class="fside-sep"/>
  <div id="drop"><label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">📁 Carregar CSV</label>
   <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/></div>
- <button class="btn ghost" id="btn_slides">🔗 Apresentação</button>
+ <button class="btn ghost" id="btn_slides">✔️ Apresentação</button>
  <hr class="fside-sep" style="margin-top:auto"/>
  <a class="side-link" href="curioso.html">Link Teste</a>
  <div class="fside-src"><span class="dot" id="srcdot" title="Carregando…"></span><span id="srctxt"></span></div>
@@ -87,7 +87,7 @@
      <div class="panel"><h3>Ficha por comprador — comparativo completo</h3><div class="ph">Clique no cabeçalho de uma coluna para ordenar · clique numa linha para abrir a visão individual desse comprador</div>
       <table id="t_comp"><thead></thead><tbody></tbody></table></div>
      <div class="panel"><h3>RCs em aberto — acompanhamento do time</h3><div class="ph" id="sum_rcopen_all"></div>
-      <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · classificação vs. SLA Alvo (faixa fixa quando sem alvo) · Aging = dias desde a liberação · Saldo SLA = SLA Alvo − Aging (negativo = estourou o alvo) · RCs liberadas desde jan/2026, no recorte de Período/Tipo · ordenadas da mais antiga · clique numa linha para abrir o comprador</div>
+      <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · Aging = dias desde a liberação · Saldo SLA = SLA Alvo − Aging (negativo = estourou o alvo) · RCs liberadas desde jan/2026, no recorte de Período/Tipo · ordenadas da mais antiga · clique numa linha para abrir o comprador</div>
       <div class="tbl-scroll"><table id="t_rcopen_all"><thead><tr><th>Comprador</th><th>RC</th><th class="num">Itens</th><th>Tipo</th><th>Etapa atual</th><th class="num">Liberada</th><th class="num">SLA Alvo</th><th class="num">Aging (d)</th><th class="num">Saldo SLA</th><th>Semáforo</th></tr></thead><tbody></tbody></table></div></div>
      <div class="insight" id="ins-comp"></div>
     </div>
@@ -108,7 +108,7 @@
       <div class="panel" style="margin-bottom:0"><h3>Material × Serviço</h3><div class="ph">Composição da produção concluída no recorte</div><div class="cv" style="height:190px"><canvas id="c_ind_mix"></canvas></div></div>
      </div>
      <div class="panel" style="margin-top:18px"><h3>RCs em aberto — acompanhamento individual</h3><div class="ph" id="sum_rcopen_ind"></div>
-      <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · classificação vs. SLA Alvo (faixa fixa quando sem alvo) · Aging = dias desde a liberação · Saldo SLA = SLA Alvo − Aging (negativo = estourou o alvo) · RCs liberadas desde jan/2026, no recorte de Período/Tipo · ordenadas da mais antiga</div>
+      <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · Aging = dias desde a liberação · Saldo SLA = SLA Alvo − Aging (negativo = estourou o alvo) · RCs liberadas desde jan/2026, no recorte de Período/Tipo · ordenadas da mais antiga</div>
       <div class="tbl-scroll"><table id="t_rcopen_ind"><thead><tr><th>RC</th><th class="num">Itens</th><th>Tipo</th><th>Etapa atual</th><th class="num">Liberada</th><th class="num">SLA Alvo</th><th class="num">Aging (d)</th><th class="num">Saldo SLA</th><th>Semáforo</th></tr></thead><tbody></tbody></table></div></div>
      <div class="insight" id="ins-individual"></div>
     </div>
@@ -151,7 +151,7 @@
   <div class="grid g2"><div class="panel" style="margin-bottom:0"><h3>Evolução do tempo de ciclo</h3><div class="ph">Dias entre liberação e conclusão · média por semana das concluídas (proxy de aging no tempo)</div><div class="cv"><canvas id="c_agevol"></canvas></div></div>
    <div class="panel" style="margin-bottom:0"><h3>Evolução dos itens críticos</h3><div class="ph">RCs concluídas por semana com ciclo &gt; 30 dias</div><div class="cv"><canvas id="c_agcrit"></canvas></div></div></div>
   <div class="panel"><h3>Funil — aging por etapa do processo</h3><div class="ph">Onde as RCs abertas estão paradas no fluxo</div><div id="funnel_aging"></div></div>
-  <div class="panel"><h3>Base detalhada — semáforo de aging por RC</h3><div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · classificação vs. SLA Alvo (faixa fixa quando sem alvo) · inclui RCs em aberto e concluídas</div><table id="t_aging"><thead><tr><th>RC</th><th>Item</th><th>Comprador</th><th>Status</th><th>Etapa</th><th class="num">SLA Alvo</th><th class="num">Dias</th><th>Semáforo</th></tr></thead><tbody></tbody></table></div>
+  <div class="panel"><h3>Base detalhada — semáforo de aging por RC</h3><div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · inclui RCs em aberto e concluídas</div><table id="t_aging"><thead><tr><th>RC</th><th>Item</th><th>Comprador</th><th>Status</th><th>Etapa</th><th class="num">SLA Alvo</th><th class="num">Dias</th><th>Semáforo</th></tr></thead><tbody></tbody></table></div>
   <div class="insight" id="ins-aging"></div></section>
 
  <section class="tab" id="sla">
@@ -191,7 +191,6 @@
   <div class="insight" id="ins-contr"></div></section>
 
  <div class="note-box"><b>Notas de qualidade dos dados</b> 384 RCs concluídas têm "SLA Real" negativo (datas inconsistentes) — excluídas de todos os cálculos do painel de SLA (%SLA, atraso, gravidade, heatmap, comprador) · as colunas de dias por etapa têm ~30% de valores corrompidos; o Pareto de causas usa apenas valores sãos (≤400 dias) e é indicativo · "Saving/penalty" e "Cost Avoidance" próprias estão vazias, por isso o saving usa 1ª proposta vs. negociado · "Carteira/Categoria" vazia em ~64%.</div>
- <footer>Painel Suprimentos 2026 · base inicial: Base_de_Dados.xlsx · atualizável via Google Sheets</footer>
  </div>
 </div>
 </div>
