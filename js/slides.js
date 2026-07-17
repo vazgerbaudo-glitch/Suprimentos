@@ -6,288 +6,141 @@ function periodoLabel(){
 }
 function tipoLabel(){return STATE.tp==='GERAL'?'Geral (todos os tipos)':STATE.tp==='CS'?'Contrato e Spot':STATE.tp;}
 function leitura(id){const el=document.getElementById(id);return el?el.textContent.replace(/^Leitura:\s*/,'').trim():'';}
-function buildSlidesData(){
+function buildSlidesPrompt(){
  const P=SUM.prod,A=SUM.aging,S=SUM.sla,V=SUM.saving,K=SUM.contr;
  if(!P||!A||!S||!V||!K)return null;
- const pt1=n=>(+n).toFixed(1).replace('.',',');
+ const baseInfo=(document.getElementById('srcdot').title||'Base não identificada');
+ const faixas=A.faixaLabels.map((l,i)=>A.faixaLabels[i]+' dias: '+A.faixaCounts[i]+' RCs (cor '+A.faixaColors[i]+')').join(' · ');
+ const topCart=(K.top||[]).slice(0,6).map(x=>x.c+': '+x.tot+' RCs').join(' · ')||'—';
+ const serie=(ws,vs,fmt)=>ws&&ws.length?ws.map((w,i)=>w+': '+(fmt?fmt(vs[i]):vs[i])).join(' · '):'sem série no recorte';
  // Comparativo por comprador — semana anterior → semana atual (equipe toda, independe do filtro de comprador)
  const wCur=isoWeek(HOJE),wPrev=isoWeek(new Date(HOJE.getTime()-7*86400000));
  const bwC={};ALL.forEach(r=>{if(r.st!=='C'||!r.dc||r.dc<DATA_INI||!tpHit(r))return;const w=isoWeek(r.dc);if(w!==wCur&&w!==wPrev)return;const o=bwC[r.cp]=bwC[r.cp]||{p:0,c:0};if(w===wPrev)o.p++;else o.c++;});
- const wkRows=Object.entries(bwC).map(([cp,o])=>({cp,p:o.p,c:o.c})).sort((a,b)=>(b.p+b.c)-(a.p+a.c)).slice(0,14).reverse();
+ const wkRows=Object.entries(bwC).map(([cp,o])=>({cp,p:o.p,c:o.c})).sort((a,b)=>(b.p+b.c)-(a.p+a.c));
+ const wkTable=wkRows.length?wkRows.map(r=>r.cp+': '+r.p+' → '+r.c).join(' · '):'sem conclusões nas duas semanas';
+ // Concluídos por comprador no recorte (top 10)
+ const pcb=ALL.filter(r=>r.st==='C'&&r.dc&&r.dc>=DATA_INI&&periodHit(r.dc)&&tpHit(r));
+ const pc={};pcb.forEach(r=>{pc[r.cp]=(pc[r.cp]||0)+1;});
+ const topComp=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,10).map(x=>x[0]+': '+x[1]+' itens').join(' · ')||'—';
  // Material × Serviço concluídos no recorte
- const msB=ALL.filter(r=>r.st==='C'&&r.dc&&r.dc>=DATA_INI&&periodHit(r.dc)&&tpHit(r)&&compHit(r));
+ const msB=pcb.filter(r=>compHit(r));
  const nMat=msB.filter(r=>r.cl==='Material').length,nServ=msB.filter(r=>r.cl==='Serviço').length,totMS=nMat+nServ;
  const pMat=totMS?Math.round(nMat/totMS*100):0,pServ=totMS?100-pMat:0;
- // Faróis
- const fProd=P.ating>=100?'verde':P.ating>=80?'amarelo':'vermelho';
- const fAgG=A.gpct<=0?'verde':'vermelho',fAgC=A.con.pct<=0?'verde':'vermelho',fAgS=A.spo.pct<=0?'verde':'vermelho';
- const fSla=S.pct>=90?'verde':S.pct>=80?'amarelo':'vermelho';
- // Pontos críticos + recomendações (determinístico: só o que está fora/perto do limite)
- const pontos=[],recs=[];
- if(P.ating<100){pontos.push(['Produtividade em '+P.ating.toFixed(0)+'% da meta ponderada (mínimo aceitável 80%)',P.ating>=80?'amarelo':'vermelho']);recs.push('Priorizar a fila de conclusão para recuperar o atingimento da meta ponderada.');}
- if(A.gpct>0){pontos.push(['Aging geral em '+A.avg+'d — acima da meta de '+A.meta+'d em '+A.gpct.toFixed(0)+'%','vermelho']);recs.push('Mutirão de limpeza das RCs mais antigas da carteira (backlog de meses anteriores).');}
- if(A.con.pct>0)pontos.push(['Aging Contrato em '+A.con.avg+'d vs meta ≤ '+A.con.meta+'d','vermelho']);
- if(A.spo.pct>0)pontos.push(['Aging Spot em '+A.spo.avg+'d vs meta ≤ '+A.spo.meta+'d','vermelho']);
- if(A.crit>0){pontos.push([A.crit+' RCs críticas com ciclo aberto acima de 30 dias','vermelho']);recs.push('Tratar individualmente as RCs críticas (>30d) com plano de destravamento por comprador.');}
- if(S.pct<90){pontos.push(['SLA em '+pt1(S.pct)+'% — abaixo da meta de 90% ('+S.fora+' RCs fora do prazo)',S.pct>=80?'amarelo':'vermelho']);recs.push('Atacar a principal causa de atraso apontada no Pareto da aba SLA do painel.');}
- if(V.total<0){pontos.push(['Saving negativo no recorte: '+Kf(V.total),'vermelho']);recs.push('Rever as negociações com resultado abaixo da 1ª proposta.');}
- if(!recs.length)recs.push('Manter o ritmo atual e monitorar os faróis semanalmente.');
- const cart=(K.top||[]).slice(0,6).reverse();
- return {
-  gerado:new Date().toLocaleString('pt-BR'),
-  base:(document.getElementById('srcdot').title||'Base não identificada'),
-  periodo:periodoLabel(),tipo:tipoLabel(),
-  comprador:STATE.comp==='GERAL'?'Geral (todos os compradores)':STATE.comp,
-  cards:[
-   ['ATINGIMENTO DA META',P.ating.toFixed(0)+'%','meta 100% · mínimo 80%',fProd],
-   ['AGING MÉDIO GERAL',A.avg+'d','meta ≤ '+A.meta+'d',A.avg<=A.meta?'verde':A.avg<=A.meta*1.3?'amarelo':'vermelho'],
-   ['% DENTRO DO SLA',pt1(S.pct)+'%','meta ≥ 90%',fSla],
-   ['SAVING TOTAL',Kf(V.total),pt1(V.taxa)+'% de taxa de economia',V.total>=0?'verde':'vermelho'],
-   ['RCS CRÍTICAS DE AGING',String(A.crit),'ciclo aberto > 30 dias',A.crit>0?'amarelo':'verde'],
-   ['MIX CONTRATO × SPOT',K.pctCon.toFixed(0)+'% × '+K.pctSpo.toFixed(0)+'%',K.total+' RCs liberadas no recorte',null]
-  ],
-  prod:{ating:+P.ating.toFixed(0),farol:fProd,ritmo:P.val.toFixed(2).replace('.',','),ritmoUn:P.ger?'itens/dia/comprador':'itens/dia',concl:P.concluidos,weeks:P.weeks,weekly:P.weekly},
-  comp:{prevLabel:wkLabelFull(wPrev),curLabel:wkLabelFull(wCur),nomes:wkRows.map(r=>r.cp),prev:wkRows.map(r=>r.p),cur:wkRows.map(r=>r.c)},
-  ms:{mat:nMat,serv:nServ,pMat,pServ,metaMat:STATE.metaMat,metaServ:STATE.metaServ},
-  aging:{blocks:[['Geral',A.open,A.avg,A.meta,fAgG],['Contrato',A.con.open,A.con.avg,A.con.meta,fAgC],['Spot',A.spo.open,A.spo.avg,A.spo.meta,fAgS]],crit:A.crit,faixaLabels:A.faixaLabels,faixaCounts:A.faixaCounts,faixaColors:A.faixaColors},
-  sla:{weeks:S.weeks,weekly:S.weekly,pctTxt:pt1(S.pct)+'%',farol:fSla,baseTxt:S.tot+' RCs avaliadas · '+S.fora+' fora do SLA · atraso médio '+S.atrMed+'d quando fura'},
-  sav:{totalTxt:Kf(V.total),taxaTxt:pt1(V.taxa)+'%',itens:V.itens,pos:V.total>=0,weeks:V.weeks,weekly:V.weekly.map(v=>Math.round(v))},
-  contr:{nCon:K.nCon,nSpo:K.nSpo,nOut:K.nOut,total:K.total,cartNomes:cart.map(x=>x.c),cartVals:cart.map(x=>x.tot)},
-  pontos,recs:recs.slice(0,5),
-  leituras:{overview:leitura('ins-overview'),prod:leitura('ins-prod'),aging:leitura('ins-aging'),sla:leitura('ins-sla'),saving:leitura('ins-saving'),contr:leitura('ins-contr')}
- };
-}
-function buildSlidesPrompt(){
- const DATA=buildSlidesData();
- if(!DATA)return null;
- return `INSTRUÇÕES PARA A IA (Copilot): você NÃO vai desenhar slides — vai apenas EXECUTAR o código abaixo.
-1. Execute o código Python abaixo EXATAMENTE como está, sem alterar nenhuma linha, usando a biblioteca python-pptx (se necessário: pip install python-pptx).
-2. Todos os números, textos, cores e a estrutura dos 10 slides já estão embutidos no código — não recalcule, não reformate, não "melhore" nada.
-3. Ao final, entregue o arquivo gerado "Gestao_a_Vista_Compras_Ageis.pptx" para download.
-4. Se você não conseguir executar Python ou instalar python-pptx neste ambiente, responda apenas "Não consigo executar código neste ambiente" — NÃO tente montar a apresentação manualmente.
+ return `Você é um designer de apresentações executivas especialista em visualização de dados corporativos. Crie uma apresentação de EXATAMENTE 10 slides do painel "Gestão à Vista — Compras Ágeis (Suprimentos)" da Rumo Logística.
 
-\`\`\`python
-# -*- coding: utf-8 -*-
-# Gestão à Vista — Compras Ágeis (Rumo) · script gerado automaticamente pelo painel
-# Requisito: pip install python-pptx
-import json
-from pptx import Presentation
-from pptx.util import Inches, Pt
-from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
-from pptx.enum.shapes import MSO_SHAPE
-from pptx.chart.data import CategoryChartData
-from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
+REGRAS INEGOCIÁVEIS (leia antes de tudo):
+1. Use SOMENTE os números da seção DADOS. Não invente, não recalcule, não extrapole, não crie dados de exemplo.
+2. Cada slide é VISUAL: o gráfico ou o número grande ocupa no mínimo 60% da área. Texto corrido é proibido — apenas título, rótulos e 1 linha de leitura por slide.
+3. Siga a ESTRUTURA DOS 10 SLIDES exatamente como especificada, inclusive o tipo de gráfico de cada slide. Não substitua tipos de gráfico.
+4. Siga a IDENTIDADE VISUAL RUMO à risca e rode o checklist final antes de entregar.
 
-D = json.loads(r'''${JSON.stringify(DATA)}''')
+# CONTEXTO DO RECORTE
+- Gerado em: ${new Date().toLocaleString('pt-BR')}
+- Base de dados: ${baseInfo}
+- Período: ${periodoLabel()}
+- Tipo de compra: ${tipoLabel()}
+- Comprador: ${STATE.comp==='GERAL'?'Geral (todos os compradores)':STATE.comp}
 
-def C(h):
-    h = h.lstrip('#')
-    return RGBColor(int(h[0:2],16), int(h[2:4],16), int(h[4:6],16))
+# DADOS (fonte única da verdade)
 
-AZUL='#003865'; AZUL2='#0E538C'; STEEL='#5A8CAE'; VERDE='#1E9F7F'
-AMARELO='#FBD300'; VERM='#D2373C'; FUNDO='#F2F5F6'; TXTC='#13303F'
-MUT='#46606F'; CZB='#CAD6DD'; BRANCO='#FFFFFF'
-FAROL={'verde':VERDE,'amarelo':AMARELO,'vermelho':VERM}
-FAROL_TXT={'verde':VERDE,'amarelo':'#C79100','vermelho':VERM}
+## Produtividade & Velocidade
+- Atingimento da meta ponderada: ${P.ating.toFixed(0)}% — meta 100%, mínimo aceitável 80%. Status: ${P.ating>=100?'NA META (verde)':P.ating>=80?'ATENÇÃO (amarelo)':'CRÍTICO (vermelho)'}
+- Ritmo médio: ${P.val.toFixed(2)} ${P.ger?'itens/dia/comprador':'itens/dia'}
+- Itens concluídos no recorte: ${P.concluidos}
+- Série semanal de itens concluídos (equipe): ${serie(P.weeks,P.weekly)}
+- Concluídos por comprador no recorte (top 10): ${topComp}
+- Comparativo individual — semana anterior (início ${wkLabelFull(wPrev)}) → semana atual (início ${wkLabelFull(wCur)}, parcial): ${wkTable}
 
-prs = Presentation()
-prs.slide_width = Inches(13.333)
-prs.slide_height = Inches(7.5)
-BLANK = prs.slide_layouts[6]
+## Material × Serviço (classes com METAS DIFERENTES — nunca compare contra uma meta única)
+- Material: ${nMat} itens concluídos (${pMat}%) — meta ${STATE.metaMat} itens/dia/comprador
+- Serviço: ${nServ} itens concluídos (${pServ}%) — meta ${STATE.metaServ} itens/dia/comprador
+- Serviço é naturalmente mais lento e complexo que Material; o atingimento ponderado acima já considera o mix real.
 
-def novo_slide():
-    s = prs.slides.add_slide(BLANK)
-    bg = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-    bg.fill.solid(); bg.fill.fore_color.rgb = C(FUNDO); bg.line.fill.background(); bg.shadow.inherit = False
-    return s
+## Aging — RCs em aberto (METAS DIFERENTES por tipo — cada tipo tem a própria régua)
+- Geral: ${A.open} RCs em aberto · aging médio ${A.avg}d · meta ≤ ${A.meta}d · ${A.gpct<=0?'DENTRO da meta (verde)':'ACIMA da meta em '+A.gpct.toFixed(0)+'% (vermelho)'}
+- Contrato: ${A.con.open} RCs em aberto · aging médio ${A.con.avg}d · meta ≤ ${A.con.meta}d (ciclo de contrato é naturalmente mais longo) · ${A.con.pct<=0?'DENTRO da meta (verde)':'ACIMA da meta em '+A.con.pct.toFixed(0)+'% (vermelho)'}
+- Spot: ${A.spo.open} RCs em aberto · aging médio ${A.spo.avg}d · meta ≤ ${A.spo.meta}d · ${A.spo.pct<=0?'DENTRO da meta (verde)':'ACIMA da meta em '+A.spo.pct.toFixed(0)+'% (vermelho)'}
+- RCs críticas (>30 dias em aberto): ${A.crit}
+- Distribuição por faixa (use EXATAMENTE estas cores nas barras): ${faixas}
+- REGRA: jamais avalie Contrato pela meta de Spot ou vice-versa — são processos com prazos-alvo distintos.
 
-def txt(s,x,y,w,h,t,size=14,color=TXTC,bold=False,align='l'):
-    tb = s.shapes.add_textbox(Inches(x),Inches(y),Inches(w),Inches(h))
-    tf = tb.text_frame; tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.alignment = {'l':PP_ALIGN.LEFT,'c':PP_ALIGN.CENTER,'r':PP_ALIGN.RIGHT}[align]
-    r = p.add_run(); r.text = str(t)
-    f = r.font; f.size = Pt(size); f.bold = bold; f.name = 'Verdana'; f.color.rgb = C(color)
-    return tb
+## SLA — aderência ao prazo (indicador ÚNICO: Contrato + Spot avaliados em conjunto)
+- % dentro do SLA: ${S.pct.toFixed(1)}% — meta ≥ 90%. Status: ${S.pct>=90?'NA META (verde)':S.pct>=80?'ATENÇÃO (amarelo)':'CRÍTICO (vermelho)'}
+- Base avaliada: ${S.tot} RCs · fora do SLA: ${S.fora} · atraso médio quando fura: ${S.atrMed} dias
+- Série semanal do % dentro do SLA: ${serie(S.weeks,S.weekly,v=>v+'%')}
+- REGRA: diferente do Aging, o SLA NÃO abre por tipo — é um único número contra a meta de 90%.
 
-def card(s,x,y,w,h,fill=BRANCO):
-    sh = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x),Inches(y),Inches(w),Inches(h))
-    sh.adjustments[0] = 0.10
-    sh.fill.solid(); sh.fill.fore_color.rgb = C(fill); sh.line.fill.background(); sh.shadow.inherit = False
-    return sh
+## Saving
+- Saving total capturado: ${BRL(V.total)} · taxa de economia: ${V.taxa.toFixed(1)}% sobre a 1ª proposta
+- Itens com saving apurado: ${V.itens}
+- Série semanal de saving (R$): ${serie(V.weeks,V.weekly,v=>BRL(v))}
 
-def dot(s,x,y,cor,dm=0.2):
-    sh = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(x),Inches(y),Inches(dm),Inches(dm))
-    sh.fill.solid(); sh.fill.fore_color.rgb = C(cor); sh.line.fill.background(); sh.shadow.inherit = False
-    return sh
+## Contratualização (mix de ENTRADA de RCs — Contrato × Spot)
+- Contrato: ${K.nCon} RCs (${K.pctCon.toFixed(0)}%) · Spot: ${K.nSpo} RCs (${K.pctSpo.toFixed(0)}%) · Outros tipos: ${K.nOut} · total: ${K.total}
+- Top carteiras por volume: ${topCart}
 
-def titulo(s,t,sub=''):
-    txt(s,0.55,0.32,12.2,0.7,t,26,AZUL,True)
-    if sub: txt(s,0.55,0.95,12.2,0.4,sub,11,MUT)
+## Leituras do painel (use como notas do apresentador, NÃO como texto no slide)
+- Visão geral: ${leitura('ins-overview')}
+- Produtividade: ${leitura('ins-prod')}
+- Aging: ${leitura('ins-aging')}
+- SLA: ${leitura('ins-sla')}
+- Saving: ${leitura('ins-saving')}
+- Contratualização: ${leitura('ins-contr')}
 
-def grafico(s,tipo,x,y,w,h,cats,series,serie_cores=None,ponto_cores=None,rotulos=True,fmt='0'):
-    cd = CategoryChartData(); cd.categories = cats
-    for nome, vals in series: cd.add_series(nome, vals)
-    gf = s.shapes.add_chart(tipo, Inches(x),Inches(y),Inches(w),Inches(h), cd)
-    ch = gf.chart
-    ch.has_legend = len(series) > 1
-    if ch.has_legend:
-        ch.legend.position = XL_LEGEND_POSITION.TOP
-        ch.legend.include_in_layout = False
-    try:
-        ch.font.size = Pt(9); ch.font.name = 'Verdana'; ch.font.color.rgb = C(MUT)
-    except Exception: pass
-    for i, ser in enumerate(ch.series):
-        if tipo == XL_CHART_TYPE.LINE:
-            if serie_cores: ser.format.line.color.rgb = C(serie_cores[i])
-            try: ser.smooth = True
-            except Exception: pass
-        elif serie_cores:
-            ser.format.fill.solid(); ser.format.fill.fore_color.rgb = C(serie_cores[i])
-        if ponto_cores and i == 0:
-            for j, p in enumerate(ser.points):
-                p.format.fill.solid(); p.format.fill.fore_color.rgb = C(ponto_cores[j])
-    if rotulos and tipo != XL_CHART_TYPE.LINE:
-        try:
-            pl = ch.plots[0]; pl.has_data_labels = True
-            dl = pl.data_labels; dl.font.size = Pt(8); dl.font.name = 'Verdana'
-            dl.number_format = fmt; dl.number_format_is_linked = False
-        except Exception: pass
-    return ch
+# ESTRUTURA DOS 10 SLIDES (1 conceito por slide; tipo de gráfico é obrigatório)
+1. CAPA — título "Gestão à Vista — Compras Ágeis", subtítulo com período e data. Fundo branco ou #F2F5F6, faixa/chanfro azul #003865. Sem dados.
+2. SCORECARD EXECUTIVO — grade de 6 cards de KPI: Atingimento da meta, Aging médio geral, % SLA, Saving total, RCs críticas, Mix Contrato/Spot. Cada card: rótulo pequeno, valor GRANDE (mín. 60pt), meta ao lado e farol de status (verde/amarelo/vermelho conforme os status informados em DADOS). Sem gráfico, sem bullets.
+3. PRODUTIVIDADE DA EQUIPE — meio-círculo (gauge) ou número gigante com o atingimento de ${P.ating.toFixed(0)}% vs meta 100% + gráfico de BARRAS VERTICAIS da série semanal de itens concluídos, com o valor rotulado sobre cada barra e a semana no eixo.
+4. PRODUTIVIDADE POR COMPRADOR — gráfico de BARRAS HORIZONTAIS AGRUPADAS (2 barras por pessoa): semana anterior × semana atual, usando o comparativo individual dos DADOS, ordenado do maior para o menor, valor rotulado na ponta de cada barra. Semana anterior em cinza #CAD6DD, semana atual em azul #003865. Deixe claro no subtítulo que a semana atual é parcial.
+5. MATERIAL × SERVIÇO — ROSCA (donut) com o mix ${pMat}% Material / ${pServ}% Serviço (Material #5A8CAE, Serviço #0E538C) + dois cards lado a lado deixando as metas distintas explícitas: "Material: meta ${STATE.metaMat} itens/dia" e "Serviço: meta ${STATE.metaServ} itens/dia". Uma linha explicando que são réguas diferentes.
+6. AGING — 3 blocos horizontais (Geral / Contrato / Spot), cada um com o aging médio GRANDE, a SUA meta ao lado (≤${A.meta}d / ≤${A.con.meta}d / ≤${A.spo.meta}d) e farol individual + gráfico de BARRAS VERTICAIS da distribuição por faixa com as cores exatas informadas. Subtítulo obrigatório: "Metas distintas por tipo — Contrato e Spot têm prazos-alvo próprios".
+7. SLA — gráfico de LINHA da série semanal do % dentro do SLA com linha tracejada horizontal na meta de 90%, + o número atual GRANDE (${S.pct.toFixed(1)}%) com farol. Pontos abaixo de 90% podem ser marcados em vermelho; acima, em verde. Subtítulo obrigatório: "Indicador único — Contrato e Spot avaliados em conjunto".
+8. SAVING — número gigante ${BRL(V.total)} (${V.taxa.toFixed(1)}% de economia) em verde #1E9F7F + gráfico de BARRAS VERTICAIS do saving semanal em R$ com valores rotulados abreviados (ex.: 1,2M, 350k).
+9. CONTRATUALIZAÇÃO — ROSCA do mix Contrato (#003865) × Spot (#5A8CAE) × Outros (#CAD6DD) com % rotulados + BARRAS HORIZONTAIS das top carteiras por volume, valor na ponta.
+10. PONTOS CRÍTICOS & RECOMENDAÇÕES — liste APENAS o que está com status vermelho/amarelo nos DADOS, cada item com o número que comprova; vermelho somente nos itens realmente críticos. Feche com 3 a 5 recomendações práticas de 1 linha, ligadas a esses pontos.
 
-def notas(s,t):
-    if t: s.notes_slide.notes_text_frame.text = t
+# IDENTIDADE VISUAL RUMO — INEGOCIÁVEL
+Paleta (use SOMENTE estes hex):
+| Uso | Cor |
+|---|---|
+| Azul institucional — títulos, estrutura, barras principais | #003865 |
+| Azul de dados secundário | #0E538C |
+| Azul acinzentado de apoio (séries secundárias) | #5A8CAE |
+| Verde — positivo / dentro da meta | #1E9F7F (apoio claro #7FE06C) |
+| Amarelo — atenção PONTUAL | #FBD300 (tom escuro p/ texto: #C79100) |
+| Vermelho — SOMENTE criticidade real | #D2373C |
+| Cinzas de fundo/divisórias | #F2F5F6, #E5EBEE, #D7E0E5, #CAD6DD |
+| Texto principal | #13303F ou #003865 |
 
-# ---------- Slide 1 — Capa ----------
-s = novo_slide()
-faixa = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(6.7), prs.slide_width, Inches(0.8))
-faixa.fill.solid(); faixa.fill.fore_color.rgb = C(AZUL); faixa.line.fill.background(); faixa.shadow.inherit = False
-txt(s,0.9,2.3,11.5,1.1,'Gestão à Vista — Compras Ágeis',40,AZUL,True)
-txt(s,0.9,3.4,11.5,0.5,'Suprimentos · Rumo Logística',18,AZUL2)
-txt(s,0.9,4.5,11.5,0.4,D['periodo']+' · '+D['tipo']+' · Comprador: '+D['comprador'],13,MUT)
-txt(s,0.9,4.95,11.5,0.4,'Gerado em '+D['gerado']+' · '+D['base'],10,MUT)
+Regras:
+- Fonte: Verdana (font-family: Verdana, sans-serif) em tudo — pesos 400 e 700 apenas.
+- Fundo dos slides sempre claro (branco ou #F2F5F6). Nunca fundo escuro, nunca gradiente.
+- PROIBIDO laranja e roxo em qualquer elemento (laranja se confunde com o vermelho de criticidade; roxo é associado à concorrente Raízen).
+- Vermelho #D2373C EXCLUSIVAMENTE para indicador estourado / RC crítica / fora do SLA. Nunca como decoração, destaque neutro ou cor de série comum.
+- Amarelo #FBD300 no máximo ~10% da área do slide: um selo, um número, um farol. Nunca fundo, faixa larga ou série inteira de gráfico.
+- Chanfro Rumo (corte de 45° num canto): apenas na capa e no slide 10. Nunca em todos os elementos.
+- Números em formato pt-BR (1.234,5 · R$ 1,2M) com dígitos tabulares; KPIs sempre maiores que o texto ao redor.
 
-# ---------- Slide 2 — Scorecard executivo ----------
-s = novo_slide(); titulo(s,'Scorecard executivo', D['periodo']+' · '+D['tipo'])
-cw, chh, x0, y0 = 4.0, 2.5, 0.55, 1.55
-for i, item in enumerate(D['cards']):
-    rot, val, meta, farol = item
-    cx = x0 + (i % 3) * (cw + 0.22); cy = y0 + (i // 3) * (chh + 0.25)
-    card(s,cx,cy,cw,chh)
-    txt(s,cx+0.25,cy+0.22,cw-0.5,0.35,rot,11,MUT,True)
-    txt(s,cx+0.25,cy+0.62,cw-0.5,1.25,val,42,AZUL,True)
-    txt(s,cx+0.25,cy+1.95,cw-0.9,0.45,meta,10,MUT)
-    if farol: dot(s,cx+cw-0.45,cy+2.1,FAROL[farol])
-notas(s,D['leituras'].get('overview',''))
+# REGRAS DE DATAVIZ
+- Todo gráfico com valores rotulados diretamente nas barras/pontos; sem gridlines pesadas, sem 3D, sem sombra, sem legenda redundante quando o rótulo já identifica a série.
+- Barras com cantos levemente arredondados; máx. 3 cores de dados por gráfico (+ farol quando aplicável).
+- Eixos com o mínimo de tinta: sem bordas de caixa, ticks discretos, fonte pequena #46606F.
+- Todo KPI acompanhado da meta e do farol — nunca um número solto sem referência.
 
-# ---------- Slide 3 — Produtividade da equipe ----------
-s = novo_slide(); titulo(s,'Produtividade da equipe','Atingimento da meta ponderada — Material e Serviço têm metas próprias')
-card(s,0.55,1.6,3.6,5.2)
-txt(s,0.8,1.95,3.1,0.35,'ATINGIMENTO',11,MUT,True)
-txt(s,0.8,2.35,3.1,1.3,str(D['prod']['ating'])+'%',58,FAROL_TXT[D['prod']['farol']],True)
-txt(s,0.8,3.75,3.1,0.4,'meta 100% · mínimo 80%',11,MUT)
-txt(s,0.8,4.45,3.1,0.7,'Ritmo: '+D['prod']['ritmo']+' '+D['prod']['ritmoUn'],12)
-txt(s,0.8,5.35,3.1,0.7,str(D['prod']['concl'])+' itens concluídos no recorte',12)
-dot(s,3.6,1.9,FAROL[D['prod']['farol']])
-grafico(s,XL_CHART_TYPE.COLUMN_CLUSTERED,4.5,1.6,8.3,5.2,D['prod']['weeks'],[('Itens concluídos',D['prod']['weekly'])],serie_cores=[VERDE])
-notas(s,D['leituras'].get('prod',''))
+# CHECKLIST FINAL (verifique slide a slide antes de entregar; corrija o que falhar)
+[ ] São exatamente 10 slides na ordem definida, com os tipos de gráfico especificados?
+[ ] Nenhum laranja, nenhum roxo, nenhum fundo escuro em nenhum slide?
+[ ] Vermelho aparece apenas nos itens marcados como críticos nos DADOS?
+[ ] Amarelo ocupa menos de 10% de cada slide?
+[ ] Aging mostra as 3 metas distintas (Geral ≤${A.meta}d, Contrato ≤${A.con.meta}d, Spot ≤${A.spo.meta}d) e o SLA aparece como indicador único com meta 90%?
+[ ] Material e Serviço aparecem com metas separadas (${STATE.metaMat} vs ${STATE.metaServ} itens/dia)?
+[ ] Todos os números batem com a seção DADOS e estão em formato pt-BR?
+[ ] Cada slide tem no máximo 1 linha de leitura além de título e rótulos?
 
-# ---------- Slide 4 — Produtividade por comprador ----------
-s = novo_slide(); titulo(s,'Produtividade por comprador','Semana anterior (início '+D['comp']['prevLabel']+') × semana atual (início '+D['comp']['curLabel']+' — parcial)')
-if D['comp']['nomes']:
-    grafico(s,XL_CHART_TYPE.BAR_CLUSTERED,0.55,1.45,12.2,5.7,D['comp']['nomes'],[('Semana anterior',D['comp']['prev']),('Semana atual (parcial)',D['comp']['cur'])],serie_cores=[CZB,AZUL])
-else:
-    txt(s,0.55,3.2,12.2,0.6,'Sem conclusões nas duas semanas comparadas.',14,MUT,False,'c')
-
-# ---------- Slide 5 — Material × Serviço ----------
-s = novo_slide(); titulo(s,'Material × Serviço','Réguas diferentes — o atingimento ponderado já considera o mix real')
-ch = grafico(s,XL_CHART_TYPE.DOUGHNUT,0.55,1.6,5.8,5.2,['Material','Serviço'],[('Itens',[D['ms']['mat'],D['ms']['serv']])],ponto_cores=[STEEL,AZUL2])
-ch.has_legend = True; ch.legend.position = XL_LEGEND_POSITION.BOTTOM; ch.legend.include_in_layout = False
-card(s,6.9,1.9,5.9,1.6)
-txt(s,7.15,2.1,5.4,0.35,'MATERIAL',11,MUT,True)
-txt(s,7.15,2.45,5.4,0.7,str(D['ms']['mat'])+' itens ('+str(D['ms']['pMat'])+'%)',22,STEEL,True)
-txt(s,7.15,3.1,5.4,0.35,'meta '+str(D['ms']['metaMat'])+' itens/dia/comprador',10,MUT)
-card(s,6.9,3.7,5.9,1.6)
-txt(s,7.15,3.9,5.4,0.35,'SERVIÇO',11,MUT,True)
-txt(s,7.15,4.25,5.4,0.7,str(D['ms']['serv'])+' itens ('+str(D['ms']['pServ'])+'%)',22,AZUL2,True)
-txt(s,7.15,4.9,5.4,0.35,'meta '+str(D['ms']['metaServ'])+' itens/dia/comprador',10,MUT)
-txt(s,6.9,5.55,5.9,0.9,'Serviço é naturalmente mais lento e complexo que Material — nunca compare as classes contra uma meta única.',10,MUT)
-
-# ---------- Slide 6 — Aging ----------
-s = novo_slide(); titulo(s,'Aging — RCs em aberto','Metas distintas por tipo — Contrato e Spot têm prazos-alvo próprios')
-bx = 0.55
-for item in D['aging']['blocks']:
-    nome, openN, avg, meta, farol = item
-    card(s,bx,1.5,3.95,1.85)
-    txt(s,bx+0.25,1.65,3.4,0.35,nome.upper(),11,MUT,True)
-    txt(s,bx+0.25,2.0,3.4,0.85,str(avg)+'d',32,FAROL_TXT[farol],True)
-    txt(s,bx+0.25,2.85,3.4,0.4,'meta ≤ '+str(meta)+'d · '+str(openN)+' RCs em aberto',10,MUT)
-    dot(s,bx+3.5,1.7,FAROL[farol])
-    bx += 4.15
-grafico(s,XL_CHART_TYPE.COLUMN_CLUSTERED,0.55,3.6,8.3,3.5,D['aging']['faixaLabels'],[('RCs em aberto',D['aging']['faixaCounts'])],ponto_cores=D['aging']['faixaColors'])
-card(s,9.1,3.9,3.65,2.7)
-txt(s,9.35,4.15,3.1,0.35,'RCS CRÍTICAS',11,MUT,True)
-txt(s,9.35,4.55,3.1,1.05,str(D['aging']['crit']),46,VERM if D['aging']['crit']>0 else VERDE,True)
-txt(s,9.35,5.7,3.1,0.5,'ciclo aberto > 30 dias',11,MUT)
-notas(s,D['leituras'].get('aging',''))
-
-# ---------- Slide 7 — SLA ----------
-s = novo_slide(); titulo(s,'SLA — aderência ao prazo','Indicador único — Contrato e Spot avaliados em conjunto · meta ≥ 90%')
-grafico(s,XL_CHART_TYPE.LINE,0.55,1.6,8.6,5.3,D['sla']['weeks'],[('% dentro do SLA',D['sla']['weekly']),('Meta 90%',[90]*len(D['sla']['weeks']))],serie_cores=[AZUL2,VERDE],rotulos=False)
-card(s,9.4,2.3,3.35,2.6)
-txt(s,9.65,2.55,2.85,0.35,'% DENTRO DO SLA',11,MUT,True)
-txt(s,9.65,2.95,2.85,1.1,D['sla']['pctTxt'],42,FAROL_TXT[D['sla']['farol']],True)
-txt(s,9.65,4.1,2.85,0.7,D['sla']['baseTxt'],9,MUT)
-dot(s,12.35,2.5,FAROL[D['sla']['farol']])
-notas(s,D['leituras'].get('sla',''))
-
-# ---------- Slide 8 — Saving ----------
-s = novo_slide(); titulo(s,'Saving','Economia capturada sobre a 1ª proposta')
-card(s,0.55,1.7,4.1,3.1)
-txt(s,0.8,2.0,3.6,0.35,'SAVING TOTAL',11,MUT,True)
-txt(s,0.8,2.4,3.6,1.15,D['sav']['totalTxt'],44,VERDE if D['sav']['pos'] else VERM,True)
-txt(s,0.8,3.6,3.6,0.9,D['sav']['taxaTxt']+' de economia · '+str(D['sav']['itens'])+' itens com saving apurado',11,MUT)
-grafico(s,XL_CHART_TYPE.COLUMN_CLUSTERED,5.0,1.6,7.8,5.3,D['sav']['weeks'],[('Saving (R$)',D['sav']['weekly'])],serie_cores=[VERDE],fmt='#,##0')
-notas(s,D['leituras'].get('saving',''))
-
-# ---------- Slide 9 — Contratualização ----------
-s = novo_slide(); titulo(s,'Contratualização','Mix de entrada de RCs — Contrato × Spot · '+str(D['contr']['total'])+' RCs no recorte')
-ch = grafico(s,XL_CHART_TYPE.DOUGHNUT,0.55,1.6,5.6,5.2,['Contrato','Spot','Outros'],[('RCs',[D['contr']['nCon'],D['contr']['nSpo'],D['contr']['nOut']])],ponto_cores=[AZUL,STEEL,CZB])
-ch.has_legend = True; ch.legend.position = XL_LEGEND_POSITION.BOTTOM; ch.legend.include_in_layout = False
-if D['contr']['cartNomes']:
-    grafico(s,XL_CHART_TYPE.BAR_CLUSTERED,6.5,1.6,6.3,5.2,D['contr']['cartNomes'],[('RCs',D['contr']['cartVals'])],serie_cores=[STEEL])
-notas(s,D['leituras'].get('contr',''))
-
-# ---------- Slide 10 — Pontos críticos & recomendações ----------
-s = novo_slide(); titulo(s,'Pontos críticos & recomendações','Apenas indicadores fora do limite ou em atenção no recorte')
-card(s,0.55,1.5,6.05,5.5)
-txt(s,0.8,1.7,5.5,0.35,'PONTOS DE ATENÇÃO',11,MUT,True)
-tb = s.shapes.add_textbox(Inches(0.8),Inches(2.15),Inches(5.55),Inches(4.6))
-tf = tb.text_frame; tf.word_wrap = True
-if D['pontos']:
-    for i, item in enumerate(D['pontos']):
-        texto, farol = item
-        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        r = p.add_run(); r.text = '● '; r.font.size = Pt(12); r.font.name = 'Verdana'; r.font.bold = True; r.font.color.rgb = C(FAROL[farol])
-        r2 = p.add_run(); r2.text = texto; r2.font.size = Pt(12); r2.font.name = 'Verdana'; r2.font.color.rgb = C(TXTC)
-        p.space_after = Pt(9)
-else:
-    p = tf.paragraphs[0]; r = p.add_run(); r.text = 'Todos os indicadores dentro da meta no recorte.'
-    r.font.size = Pt(12); r.font.name = 'Verdana'; r.font.color.rgb = C(VERDE)
-card(s,6.75,1.5,6.05,5.5)
-txt(s,7.0,1.7,5.5,0.35,'RECOMENDAÇÕES',11,MUT,True)
-tb = s.shapes.add_textbox(Inches(7.0),Inches(2.15),Inches(5.55),Inches(4.6))
-tf = tb.text_frame; tf.word_wrap = True
-for i, rec in enumerate(D['recs']):
-    p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-    r = p.add_run(); r.text = '→ '; r.font.size = Pt(12); r.font.name = 'Verdana'; r.font.bold = True; r.font.color.rgb = C(AZUL)
-    r2 = p.add_run(); r2.text = rec; r2.font.size = Pt(12); r2.font.name = 'Verdana'; r2.font.color.rgb = C(TXTC)
-    p.space_after = Pt(9)
-
-prs.save('Gestao_a_Vista_Compras_Ageis.pptx')
-print('OK — Gestao_a_Vista_Compras_Ageis.pptx gerado com 10 slides.')
-\`\`\``;
+# FORMATO DE SAÍDA
+- Se a entrega for PowerPoint: gere .pptx via python-pptx (nunca converta de HTML), 16:9 (13,33 × 7,5 pol).
+- Se a entrega for HTML: um único arquivo autocontido (CSS inline, sem CDN), 1 seção por slide em 16:9.
+- Se a ferramenta gerar slides nativamente (Gamma, Canva, Copilot), aplique as mesmas regras acima.`;
 }
 function copySlidesPrompt(){
  const ta=document.getElementById('slides-ta');ta.select();
@@ -304,8 +157,8 @@ function openSlidesModal(){
 (function(){
  const ov=document.createElement('div');ov.className='modal-ov';ov.id='slides-ov';
  ov.innerHTML=`<div class="modal">
-  <h3>📋 Apresentação — código pronto para o Copilot</h3>
-  <div class="ph">📋 Código Python com todos os números do recorte atual já embutidos. Cole no Copilot (ou outra IA que execute código) e peça para rodar — o .pptx sai idêntico, sem a IA inventar nada.</div>
+  <h3>🎞 Prompt para criação de slides</h3>
+  <div class="ph">Resumo do recorte atual (filtros, KPIs e leituras de todas as abas). Copie e cole em uma IA para gerar a apresentação.</div>
   <textarea id="slides-ta" spellcheck="false"></textarea>
   <div class="modal-actions"><button class="btn" id="slides-copy">📋 Copiar prompt</button><button class="btn ghost" id="slides-close">Fechar</button></div>
  </div>`;
