@@ -516,7 +516,7 @@ function renderOverview(){
  const sCor=S.pct>=90?'good':S.pct>=80?'warn':'bad';
  const vCor=V.total>=0?'good':'bad';
  kpi('kpi-overview',[
-  {l:'Itens concluídos',v:P.concluidos.toLocaleString('pt-BR'),c:pCor,n:'atingimento '+P.ating.toFixed(0)+'%'},
+  {l:'Itens concluídos',v:P.concluidos.toLocaleString('pt-BR'),c:pCor,n:'atingimento '+P.ating.toFixed(0)+'% da meta Veloc.'},
   {l:'RCs em aberto (aging)',v:A.open.toLocaleString('pt-BR'),c:aCor,n:'idade média '+A.avg+'d (meta ≤'+A.meta+'d)'},
   {l:'% dentro do SLA',v:S.pct.toFixed(1)+'%',c:sCor,n:S.tot?S.fora+' de '+S.tot+' fora do prazo':'sem base avaliada'},
   {l:'Saving capturado',v:Kf(V.total),c:vCor,n:BRL(V.total)+' · '+V.taxa.toFixed(1)+'% de taxa'},
