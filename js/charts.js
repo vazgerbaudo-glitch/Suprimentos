@@ -201,6 +201,34 @@ const refLines = vals => ({
     }
 });
 
+// ---- rótulo % centralizado dentro de cada segmento de coluna empilhada ----
+const stackPctLabels = {
+    id: 'stackPctLabels',
+    afterDatasetsDraw(chart) {
+        if (chart.options.indexAxis === 'y') return;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.font = "700 11px Verdana,sans-serif";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#FFFFFF';
+        const metas = chart.data.datasets.map((_, di) => chart.getDatasetMeta(di));
+        chart.data.labels.forEach((_, i) => {
+            chart.data.datasets.forEach((ds, di) => {
+                const meta = metas[di];
+                if (meta.hidden) return;
+                const v = ds.data[i];
+                if (typeof v !== 'number' || v < 8) return;
+                const el = meta.data[i];
+                if (!el) return;
+                const cy = (el.y + el.base) / 2;
+                ctx.fillText(Math.round(v) + '%', el.x, cy);
+            });
+        });
+        ctx.restore();
+    }
+};
+
 function kill(id) {
     if (CH[id]) { CH[id].destroy(); delete CH[id]; }
 }

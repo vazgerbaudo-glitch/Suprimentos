@@ -141,6 +141,29 @@ function readFile(file) {
 
 f_file.onchange = e => readFile(e.target.files[0]);
 
+function loadCarteirasFile(file) {
+    if (!file) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+        const st = document.getElementById('cart_status');
+        try {
+            const map = fromCarteirasCSV(rd.result);
+            const n = Object.keys(map).length;
+            if (!n) throw new Error('nenhuma linha reconhecida (confira as colunas RC/Item/Car)');
+            CARTEIRAS = map;
+            st.textContent = n.toLocaleString('pt-BR') + ' RC/Item carregados de ' + file.name;
+            st.style.color = '';
+            render();
+        } catch (err) {
+            st.textContent = 'Falha ao ler o CSV (' + err.message + ').';
+            st.style.color = '#C0272D';
+        }
+    };
+    rd.onerror = () => { document.getElementById('cart_status').textContent = 'Erro ao abrir o arquivo.'; };
+    rd.readAsText(file, 'UTF-8');
+}
+f_cart.onchange = e => loadCarteirasFile(e.target.files[0]);
+
 const drop = document.getElementById('drop');
 ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.opacity = .6; }));
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.opacity = 1; }));

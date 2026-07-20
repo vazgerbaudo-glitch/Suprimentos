@@ -459,11 +459,25 @@
 
         <section class="tab" id="contr">
             <div class="sec-head"><h2>Contratualização — Carteira × Tipo</h2></div>
+            <div class="panel" style="margin-bottom:14px">
+                <h3>Base de Carteiras (RC × Item → G/S/R)</h3>
+                <div class="ph">CSV auxiliar</div>
+                <div class="metabar" style="margin-top:0">
+                    <label for="f_cart" class="btn ghost" style="cursor:pointer">📁 Carregar base de carteiras</label>
+                    <input id="f_cart" type="file" accept=".csv,text/csv" style="display:none"/>
+                    <span class="ph" id="cart_status" style="margin:0"></span>
+                </div>
+            </div>
             <div class="kpis k3" id="kpi-contr"></div>
             <div class="panel">
                 <h3>RCs por Código de Carteira</h3>
-                <div class="ph">Quantidade de RCs por código-mãe da Carteira/Categoria (G / S / R e demais) — total do recorte</div>
+                <div class="ph">Quantidade de RCs por raiz de carteira (G / S / R) e demais — total do recorte</div>
                 <div class="cv"><canvas id="c_ccd"></canvas></div>
+            </div>
+            <div class="panel">
+                <h3>% Contrato × Spot por carteira G</h3>
+                <div class="ph">Uma coluna por carteira G específica (todas) — % Contrato × % Spot, para comparar quem depende mais de Spot</div>
+                <div class="cv"><canvas id="c_ccd_tipo"></canvas></div>
             </div>
             <div class="grid g12">
                 <div class="panel">

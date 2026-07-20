@@ -470,16 +470,96 @@ function renderContr() {
     // RCs liberadas no recorte (mesmo padrão de "entrada" usado no resto do painel) — desde jan/2026
     const base = ALLRC.filter(r => r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r));
     const CCON = '#003865';
-    const typeOf = r => (r.td || '').trim() || 'N/D';
+
+    // Base de Carteiras (opcional) — indexa itens da base principal por RC para cruzar com CARTEIRAS (chave RC+Item)
+    const cartLoaded = Object.keys(CARTEIRAS).length > 0;
+    const itemsByRC = {};
+    if (cartLoaded) ALL.forEach(r => { (itemsByRC[r.rc] = itemsByRC[r.rc] || []).push(r); });
+    const enrichCache = {};
+    const enrichForRC = rc => {
+        if (enrichCache[rc]) return enrichCache[rc];
+        const res = { car: null, nome: null, td: null, matN: 0, servN: 0 };
+        (itemsByRC[rc] || []).forEach(it => {
+            const e = CARTEIRAS[joinKey(it.rc, it.it)];
+            if (!e) return;
+            if (e.car) { res.carCount = res.carCount || {}; res.carCount[e.car] = (res.carCount[e.car] || 0) + 1; if (!res.nome && e.nome) res.nome = e.nome; }
+            if (e.td) { res.tdCount = res.tdCount || {}; res.tdCount[e.td] = (res.tdCount[e.td] || 0) + 1; }
+            if (e.ms === 'Material') res.matN++;
+            else if (e.ms === 'Serviço') res.servN++;
+        });
+        if (res.carCount) { let best = -1; Object.entries(res.carCount).forEach(([c, n]) => { if (n > best) { best = n; res.car = c; } }); }
+        if (res.tdCount) { let best = -1; Object.entries(res.tdCount).forEach(([t, n]) => { if (n > best) { best = n; res.td = t; } }); }
+        enrichCache[rc] = res;
+        return res;
+    };
+
+    // typeOf: Contrato × Spot — prioriza a coluna "ContratoXspot" da base de carteiras (2º arquivo);
+    // se a RC não tiver esse dado na base auxiliar, cai para o "Tipo" da base principal (1º arquivo)
+    const typeOf = r => {
+        const e = enrichForRC(r.rc);
+        return e.td || (r.td || '').trim() || 'N/D';
+    };
     const typeCounts = {};
     base.forEach(r => { const t = typeOf(r); typeCounts[t] = (typeCounts[t] || 0) + 1; });
     const nCon = typeCounts['Contrato'] || 0, nSpo = typeCounts['Spot'] || 0, nOut = base.length - nCon - nSpo;
     const pctCon = base.length ? nCon / base.length * 100 : 0, pctSpo = base.length ? nSpo / base.length * 100 : 0;
-    kpi('kpi-contr', [
+    const kpiContr = [
         { l: 'RCs Contrato', v: nCon.toLocaleString('pt-BR'), n: pctCon.toFixed(0) + '% do recorte' },
         { l: 'RCs Spot', v: nSpo.toLocaleString('pt-BR'), n: pctSpo.toFixed(0) + '% do recorte' },
         { l: 'Outros tipos', v: nOut.toLocaleString('pt-BR'), n: base.length ? (nOut / base.length * 100).toFixed(0) + '% do recorte' : '—' }
-    ]);
+    ];
+
+    // Inferência por grupo comprador (A): se a RC não tem match direto, usa a carteira predominante
+    // de OUTRAS RCs do mesmo grupo comprador que já foram identificadas na base de carteiras
+    const inferByGrupo = {};
+    if (cartLoaded) {
+        const grupoCarCount = {};
+        ALL.forEach(it => {
+            const e = CARTEIRAS[joinKey(it.rc, it.it)];
+            if (!e || !e.car) return;
+            const grupo = (it.ccd || '').trim();
+            if (!grupo) return;
+            const gc = grupoCarCount[grupo] = grupoCarCount[grupo] || {};
+            gc[e.car] = (gc[e.car] || 0) + 1;
+        });
+        Object.keys(grupoCarCount).forEach(g => {
+            let best = null, bc = -1;
+            Object.entries(grupoCarCount[g]).forEach(([c, n]) => { if (n > bc) { bc = n; best = c; } });
+            inferByGrupo[g] = best;
+        });
+    }
+    // carOf: código completo da carteira (ex.: "G35") — ordem de prioridade: match direto na base de carteiras,
+    // depois o próprio código já vem correto na base principal (confere na lista de carteiras válidas), por fim inferido pelo grupo comprador
+    const carOf = r => {
+        const e = enrichForRC(r.rc);
+        if (e.car) return e.car;
+        const own = (r.ccd || '').trim().toUpperCase();
+        if (own && VALID_CARTEIRAS.has(own)) return own;
+        return (own && inferByGrupo[own]) || '';
+    };
+
+    // Diagnóstico do cruzamento: quantas RCs seguem sem carteira mesmo após base auxiliar + lista de válidas + inferência por grupo
+    const cartRCSet = cartLoaded ? new Set(Object.keys(CARTEIRAS).map(k => k.split('|')[0])) : null;
+    let cartMatN = 0, cartServN = 0, cartMatched = 0, cartInferred = 0, cartOwnValid = 0, cartRcNoItem = 0, cartRcAusente = 0;
+    if (cartLoaded) base.forEach(r => {
+        const e = enrichForRC(r.rc);
+        if (e.matN + e.servN > 0) cartMatched++;
+        cartMatN += e.matN; cartServN += e.servN;
+        if (!e.car) {
+            const own = (r.ccd || '').trim().toUpperCase();
+            if (own && VALID_CARTEIRAS.has(own)) cartOwnValid++;
+            else if (own && inferByGrupo[own]) cartInferred++;
+            else if (cartRCSet.has(normNum(r.rc))) cartRcNoItem++;
+            else cartRcAusente++;
+        }
+    });
+    if (cartLoaded) {
+        const totMS = cartMatN + cartServN;
+        kpiContr.push({ l: 'Identificado (Material/Serviço)', v: cartMatched.toLocaleString('pt-BR') + ' RCs', n: totMS ? Math.round(cartMatN / totMS * 100) + '% Material · ' + Math.round(cartServN / totMS * 100) + '% Serviço' : 'via base de carteiras' });
+        kpiContr.push({ l: 'Diagnóstico do cruzamento', v: cartRcNoItem + cartRcAusente, c: (cartRcNoItem + cartRcAusente) > 0 ? 'warn' : 'good', n: cartRcNoItem + ' RC na base mas Item não bateu · ' + cartRcAusente + ' RC ausente (' + cartOwnValid + ' recuperadas pela lista de carteiras válidas)' });
+    }
+    document.getElementById('kpi-contr').classList.toggle('k3', !cartLoaded);
+    kpi('kpi-contr', kpiContr);
 
     // Contrato e Spot como tipos principais + demais tipos individualmente (não agrupados em "Outros")
     const typesOther = Object.keys(typeCounts).filter(t => t !== 'Contrato' && t !== 'Spot').sort((a, b) => a === 'N/D' ? 1 : b === 'N/D' ? -1 : typeCounts[b] - typeCounts[a]);
@@ -488,17 +568,32 @@ function renderContr() {
     const colorMap = {};
     typeList.forEach((t, i) => { colorMap[t] = t === 'Contrato' ? CCON : t === 'Spot' ? C.steel : t === 'N/D' ? '#CAD6DD' : OTH_PAL[(i - 2) % OTH_PAL.length]; });
 
-    // RCs por Código de Carteira — G/S/R e demais (c_ccd)
-    const cdOf = r => r.ccd || 'N/D';
+    // RCs por Código de Carteira — G/S/R e demais (c_ccd) — raiz da carteira; usa a Base de Carteiras (direta ou inferida) quando carregada
+    const rootLetter = code => { const m = /^[A-Za-z]/.exec((code || '').trim()); return m ? m[0].toUpperCase() : ''; };
+    const cdOrder = ['G', 'S', 'R', 'A'];
+    const ALLOWED_CD = ['G', 'S', 'R', 'A', 'N/D'];
+    const cdOf = r => { const c = rootLetter(carOf(r)) || r.ccd || 'N/D'; return ALLOWED_CD.includes(c) ? c : 'A'; };
     const byCd = {};
     base.forEach(r => { const c = cdOf(r); byCd[c] = (byCd[c] || 0) + 1; });
-    const cdOrder = ['G', 'S', 'R'];
     const cdKeys = Object.keys(byCd).sort((a, b) => { const ia = cdOrder.indexOf(a), ib = cdOrder.indexOf(b); if (ia > -1 && ib > -1) return ia - ib; if (ia > -1) return -1; if (ib > -1) return 1; if (a === 'N/D') return 1; if (b === 'N/D') return -1; return a.localeCompare(b); });
-    const cdCOL = k => k === 'G' ? '#1E9F7F' : k === 'S' ? '#0E538C' : k === 'R' ? '#D9A400' : k === 'N/D' ? '#9AACB5' : '#5A8CAE';
+    const cdCOL = k => k === 'G' ? '#1E9F7F' : k === 'S' ? '#0E538C' : k === 'R' ? '#D9A400' : k === 'N/D' ? '#9AACB5' : C.red;
     mkChart('c_ccd', { type: 'bar', data: { labels: cdKeys, datasets: [{ data: cdKeys.map(k => byCd[k]), backgroundColor: cdKeys.map(cdCOL), borderRadius: 18 }] }, options: { maintainAspectRatio: false, layout: { padding: { top: 16 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
-    // RCs por Carteira/Categoria — empilhado por Tipo (c_contrcat)
-    const catOf = r => { const d = (r.cat || '').trim() || 'N/D'; return r.ccd ? r.ccd + ' - ' + d : d; };
+    // % Contrato × Spot por carteira G — 100% empilhado, uma coluna por carteira G específica (c_ccd_tipo)
+    const byGCar = {};
+    base.forEach(r => {
+        const code = carOf(r);
+        if (rootLetter(code) !== 'G') return;
+        const t = typeOf(r);
+        const o = byGCar[code] = byGCar[code] || {};
+        o[t] = (o[t] || 0) + 1;
+    });
+    const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
+    const gCarKeys = gCarArr.map(x => x.c);
+    mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeList.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMap[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+
+    // RCs por Carteira/Categoria — empilhado por Tipo (c_contrcat) — só o código (G35, S12...); sem match, mostra o código A original (evidencia quem não preencheu)
+    const catOf = r => carOf(r) || r.ccd || 'N/D';
     const byCat = {};
     base.forEach(r => { const c = catOf(r); const t = typeOf(r); const o = byCat[c] = byCat[c] || {}; o[t] = (o[t] || 0) + 1; });
     const cats = Object.entries(byCat).map(([c, o]) => ({ c, o, tot: typeList.reduce((a, t) => a + (o[t] || 0), 0) })).sort((a, b) => b.tot - a.tot).slice(0, 15);
@@ -531,7 +626,7 @@ function renderContr() {
     // Leitura (texto de insight)
     const topCat = cats[0], nd = byCat['N/D'], ndTot = nd ? Object.values(nd).reduce((a, v) => a + v, 0) : 0;
     const topOther = typesOther.find(t => t !== 'N/D');
-    document.getElementById('ins-contr').innerHTML = base.length ? `<b>Leitura:</b> no recorte entraram <b>${nCon} RCs de Contrato</b> e <b>${nSpo} RCs de Spot</b> (${pctCon.toFixed(0)}% / ${pctSpo.toFixed(0)}% do mix)${topOther ? `, além de <b>${nOut} RCs em outros tipos</b> — o mais comum é <b>${topOther}</b> (${typeCounts[topOther]}). ` : '. '}${topCat ? `Carteira com maior volume: <b>${topCat.c}</b> (${topCat.tot} RCs). ` : ''}${ndTot ? `<b style="color:#8A6D00">⚠ ${ndTot} RCs (${Math.round(ndTot / base.length * 100)}%) estão sem Carteira/Categoria preenchida</b> — priorize o preenchimento para uma leitura confiável por carteira.` : ''}` : '<b>Sem RCs liberadas no recorte.</b>';
+    document.getElementById('ins-contr').innerHTML = base.length ? `<b>Leitura:</b> no recorte entraram <b>${nCon} RCs de Contrato</b> e <b>${nSpo} RCs de Spot</b> (${pctCon.toFixed(0)}% / ${pctSpo.toFixed(0)}% do mix)${topOther ? `, além de <b>${nOut} RCs em outros tipos</b> — o mais comum é <b>${topOther}</b> (${typeCounts[topOther]}). ` : '. '}${topCat ? `Carteira com maior volume: <b>${topCat.c}</b> (${topCat.tot} RCs). ` : ''}${ndTot ? `<b style="color:#8A6D00">⚠ ${ndTot} RCs (${Math.round(ndTot / base.length * 100)}%) estão sem Carteira/Categoria preenchida</b> — priorize o preenchimento para uma leitura confiável por carteira.` : ''}${cartLoaded ? ` <b>${cartMatched} RC(s)</b> tiveram a carteira confirmada/corrigida pela base auxiliar${cartInferred || cartOwnValid ? ` (+${cartOwnValid} pela lista de carteiras válidas, +${cartInferred} por inferência do grupo comprador)` : ''}.` : ''}` : '<b>Sem RCs liberadas no recorte.</b>';
     SUM.contr = { nCon, nSpo, nOut, pctCon, pctSpo, total: base.length, top: top8.map(x => ({ c: x.c, tot: x.tot })) };
 }
 function renderCompradores() {
