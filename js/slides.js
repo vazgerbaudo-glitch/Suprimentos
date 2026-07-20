@@ -1,32 +1,49 @@
-function periodoLabel(){
- if(STATE.modo==='mes')return 'Mês de '+mLabel(STATE.mes);
- if(STATE.modo==='atual')return 'Semana atual (início '+wkLabelFull(isoWeek(HOJE))+')';
- if(STATE.modo==='semana')return 'Semana de '+wkLabelFull(STATE.sem);
- return 'Geral (2026)';
+function periodoLabel() {
+    if (STATE.modo === 'mes') return 'Mês de ' + mLabel(STATE.mes);
+    if (STATE.modo === 'atual') return 'Semana atual (início ' + wkLabelFull(isoWeek(HOJE)) + ')';
+    if (STATE.modo === 'semana') return 'Semana de ' + wkLabelFull(STATE.sem);
+    return 'Geral (2026)';
 }
-function tipoLabel(){return STATE.tp==='GERAL'?'Geral (todos os tipos)':STATE.tp==='CS'?'Contrato e Spot':STATE.tp;}
-function leitura(id){const el=document.getElementById(id);return el?el.textContent.replace(/^Leitura:\s*/,'').trim():'';}
-function buildSlidesPrompt(){
- const P=SUM.prod,A=SUM.aging,S=SUM.sla,V=SUM.saving,K=SUM.contr;
- if(!P||!A||!S||!V||!K)return null;
- const baseInfo=(document.getElementById('srcdot').title||'Base não identificada');
- const faixas=A.faixaLabels.map((l,i)=>A.faixaLabels[i]+' dias: '+A.faixaCounts[i]+' RCs (cor '+A.faixaColors[i]+')').join(' · ');
- const topCart=(K.top||[]).slice(0,6).map(x=>x.c+': '+x.tot+' RCs').join(' · ')||'—';
- const serie=(ws,vs,fmt)=>ws&&ws.length?ws.map((w,i)=>w+': '+(fmt?fmt(vs[i]):vs[i])).join(' · '):'sem série no recorte';
- // Comparativo por comprador — semana anterior → semana atual (equipe toda, independe do filtro de comprador)
- const wCur=isoWeek(HOJE),wPrev=isoWeek(new Date(HOJE.getTime()-7*86400000));
- const bwC={};ALL.forEach(r=>{if(r.st!=='C'||!r.dc||r.dc<DATA_INI||!tpHit(r))return;const w=isoWeek(r.dc);if(w!==wCur&&w!==wPrev)return;const o=bwC[r.cp]=bwC[r.cp]||{p:0,c:0};if(w===wPrev)o.p++;else o.c++;});
- const wkRows=Object.entries(bwC).map(([cp,o])=>({cp,p:o.p,c:o.c})).sort((a,b)=>(b.p+b.c)-(a.p+a.c));
- const wkTable=wkRows.length?wkRows.map(r=>r.cp+': '+r.p+' → '+r.c).join(' · '):'sem conclusões nas duas semanas';
- // Concluídos por comprador no recorte (top 10)
- const pcb=ALL.filter(r=>r.st==='C'&&r.dc&&r.dc>=DATA_INI&&periodHit(r.dc)&&tpHit(r));
- const pc={};pcb.forEach(r=>{pc[r.cp]=(pc[r.cp]||0)+1;});
- const topComp=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,10).map(x=>x[0]+': '+x[1]+' itens').join(' · ')||'—';
- // Material × Serviço concluídos no recorte
- const msB=pcb.filter(r=>compHit(r));
- const nMat=msB.filter(r=>r.cl==='Material').length,nServ=msB.filter(r=>r.cl==='Serviço').length,totMS=nMat+nServ;
- const pMat=totMS?Math.round(nMat/totMS*100):0,pServ=totMS?100-pMat:0;
- return `Você é um designer de apresentações executivas especialista em visualização de dados corporativos. Crie uma apresentação de EXATAMENTE 10 slides do painel "Gestão à Vista — Compras Ágeis (Suprimentos)" da Rumo Logística.
+
+function tipoLabel() {
+    return STATE.tp === 'GERAL' ? 'Geral (todos os tipos)' : STATE.tp === 'CS' ? 'Contrato e Spot' : STATE.tp;
+}
+
+function leitura(id) {
+    const el = document.getElementById(id);
+    return el ? el.textContent.replace(/^Leitura:\s*/, '').trim() : '';
+}
+
+function buildSlidesPrompt() {
+    const P = SUM.prod, A = SUM.aging, S = SUM.sla, V = SUM.saving, K = SUM.contr;
+    if (!P || !A || !S || !V || !K) return null;
+    const baseInfo = (document.getElementById('srcdot').title || 'Base não identificada');
+    const faixas = A.faixaLabels.map((l, i) => A.faixaLabels[i] + ' dias: ' + A.faixaCounts[i] + ' RCs (cor ' + A.faixaColors[i] + ')').join(' · ');
+    const topCart = (K.top || []).slice(0, 6).map(x => x.c + ': ' + x.tot + ' RCs').join(' · ') || '—';
+    const serie = (ws, vs, fmt) => ws && ws.length ? ws.map((w, i) => w + ': ' + (fmt ? fmt(vs[i]) : vs[i])).join(' · ') : 'sem série no recorte';
+    // Comparativo por comprador — semana anterior → semana atual (equipe toda, independe do filtro de comprador)
+    const wCur = isoWeek(HOJE), wPrev = isoWeek(new Date(HOJE.getTime() - 7 * 86400000));
+    const bwC = {};
+    ALL.forEach(r => {
+        if (r.st !== 'C' || !r.dc || r.dc < DATA_INI || !tpHit(r)) return;
+        const w = isoWeek(r.dc);
+        if (w !== wCur && w !== wPrev) return;
+        const o = bwC[r.cp] = bwC[r.cp] || { p: 0, c: 0 };
+        if (w === wPrev) o.p++;
+        else o.c++;
+    });
+    const wkRows = Object.entries(bwC).map(([cp, o]) => ({ cp, p: o.p, c: o.c })).sort((a, b) => (b.p + b.c) - (a.p + a.c));
+    const wkTable = wkRows.length ? wkRows.map(r => r.cp + ': ' + r.p + ' → ' + r.c).join(' · ') : 'sem conclusões nas duas semanas';
+    // Concluídos por comprador no recorte (top 10)
+    const pcb = ALL.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r));
+    const pc = {};
+    pcb.forEach(r => { pc[r.cp] = (pc[r.cp] || 0) + 1; });
+    const topComp = Object.entries(pc).sort((a, b) => b[1] - a[1]).slice(0, 10).map(x => x[0] + ': ' + x[1] + ' itens').join(' · ') || '—';
+    // Material × Serviço concluídos no recorte
+    const msB = pcb.filter(r => compHit(r));
+    const nMat = msB.filter(r => r.cl === 'Material').length, nServ = msB.filter(r => r.cl === 'Serviço').length, totMS = nMat + nServ;
+    const pMat = totMS ? Math.round(nMat / totMS * 100) : 0, pServ = totMS ? 100 - pMat : 0;
+    return `Você é um designer de apresentações executivas especialista em visualização de dados corporativos. Crie uma apresentação de EXATAMENTE 10 slides do painel "Gestão à Vista — Compras Ágeis (Suprimentos)" da Rumo Logística.
 
 REGRAS INEGOCIÁVEIS (leia antes de tudo):
 1. Use SOMENTE os números da seção DADOS. Não invente, não recalcule, não extrapole, não crie dados de exemplo.
@@ -142,30 +159,40 @@ Regras:
 - Se a entrega for HTML: um único arquivo autocontido (CSS inline, sem CDN), 1 seção por slide em 16:9.
 - Se a ferramenta gerar slides nativamente (Gamma, Canva, Copilot), aplique as mesmas regras acima.`;
 }
-function copySlidesPrompt(){
- const ta=document.getElementById('slides-ta');ta.select();
- const done=()=>{const b=document.getElementById('slides-copy');b.textContent='✅ Copiado!';setTimeout(()=>{b.textContent='📋 Copiar prompt';},1800);};
- if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(ta.value).then(done,()=>{document.execCommand('copy');done();});
- else{document.execCommand('copy');done();}
+
+function copySlidesPrompt() {
+    const ta = document.getElementById('slides-ta');
+    ta.select();
+    const done = () => {
+        const b = document.getElementById('slides-copy');
+        b.textContent = '✅ Copiado!';
+        setTimeout(() => { b.textContent = '📋 Copiar prompt'; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, () => { document.execCommand('copy'); done(); });
+    else { document.execCommand('copy'); done(); }
 }
-function openSlidesModal(){
- const p=buildSlidesPrompt();
- if(!p){alert('Os dados ainda estão carregando — tente novamente em instantes.');return;}
- document.getElementById('slides-ta').value=p;
- document.getElementById('slides-ov').classList.add('open');
+
+function openSlidesModal() {
+    const p = buildSlidesPrompt();
+    if (!p) { alert('Os dados ainda estão carregando — tente novamente em instantes.'); return; }
+    document.getElementById('slides-ta').value = p;
+    document.getElementById('slides-ov').classList.add('open');
 }
-(function(){
- const ov=document.createElement('div');ov.className='modal-ov';ov.id='slides-ov';
- ov.innerHTML=`<div class="modal">
-  <h3>🎞 Prompt para criação de slides</h3>
-  <div class="ph">Resumo do recorte atual (filtros, KPIs e leituras de todas as abas). Copie e cole em uma IA para gerar a apresentação.</div>
-  <textarea id="slides-ta" spellcheck="false"></textarea>
-  <div class="modal-actions"><button class="btn" id="slides-copy">📋 Copiar prompt</button><button class="btn ghost" id="slides-close">Fechar</button></div>
+
+(function () {
+    const ov = document.createElement('div');
+    ov.className = 'modal-ov';
+    ov.id = 'slides-ov';
+    ov.innerHTML = `<div class="modal">
+    <h3>🎞 Prompt para criação de slides</h3>
+    <div class="ph">Resumo do recorte atual (filtros, KPIs e leituras de todas as abas). Copie e cole em uma IA para gerar a apresentação.</div>
+    <textarea id="slides-ta" spellcheck="false"></textarea>
+    <div class="modal-actions"><button class="btn" id="slides-copy">📋 Copiar prompt</button><button class="btn ghost" id="slides-close">Fechar</button></div>
  </div>`;
- document.body.appendChild(ov);
- document.getElementById('slides-copy').onclick=copySlidesPrompt;
- document.getElementById('slides-close').onclick=()=>ov.classList.remove('open');
- ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});
- document.addEventListener('keydown',e=>{if(e.key==='Escape')ov.classList.remove('open');});
- document.getElementById('btn_slides').onclick=openSlidesModal;
+    document.body.appendChild(ov);
+    document.getElementById('slides-copy').onclick = copySlidesPrompt;
+    document.getElementById('slides-close').onclick = () => ov.classList.remove('open');
+    ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') ov.classList.remove('open'); });
+    document.getElementById('btn_slides').onclick = openSlidesModal;
 })();
