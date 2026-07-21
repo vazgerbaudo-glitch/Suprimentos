@@ -159,10 +159,8 @@ function fromCSV(txt) {
     });
 }
 
-// ===== Base de Carteiras (CSV auxiliar) — corrige o código G/S/R e identifica Material×Serviço por RC+Item, só na aba Contratualização =====
-const normNum = s => { s = ('' + (s || '')).trim(); return /^\d+$/.test(s) ? String(parseInt(s, 10)) : s; };
-const joinKey = (rc, it) => normNum(rc) + '|' + normNum(it);
-
+// ===== Base de Carteiras (CSV auxiliar, "segundaBase") — única fonte da aba Contratualização =====
+// RC+Item, código G/S/R, Material×Serviço e Contrato×Spot, tudo por linha do próprio arquivo
 const MAP_CART = {
     'requisicaodecompra': 'rc', 'requisicaodecomprax': 'rc', 'rc': 'rc',
     'item': 'it', 'itemrc': 'it',
@@ -170,46 +168,18 @@ const MAP_CART = {
     'carteiranome': 'nome', 'carteiranomex': 'nome',
     'materialxservico': 'ms', 'materialservico': 'ms',
     'contratoxspot': 'td', 'contratoxspotx': 'td',
+    'dtpedido': 'dt', 'statusdeliberacao': 'status',
     'gerenciafinal': 'gerFinal', 'gerenciafinalx': 'gerFinal'
 };
 const GERENCIA_ALVO = 'comprasageis';
 
-// Lista de códigos de carteira válidos (fornecida manualmente) — usada como referência quando a RC não está
-// na base auxiliar (Spend): se o código que já vem na base principal for um destes, confia nele direto.
-const VALID_CARTEIRAS = new Set([
-    'G08', 'G11', 'G12', 'G29', 'G32', 'G33', 'G35', 'G41', 'G85', 'G66', 'G19', 'G09', 'G10', 'G37',
-    'R08', 'S70', 'S19',
-    'G04', 'G07', 'G01', 'G02', 'G03', 'G05', 'G06', 'G30',
-    'R01',
-    'G16', 'G36', 'G17', 'G18', 'G57',
-    'S41',
-    'G13', 'G24', 'G94',
-    'S48', 'S49', 'S57', 'S64',
-    'G15', 'G20', 'G21', 'G22', 'G23', 'G25', 'G28',
-    'S16', 'S17',
-    'G89', 'G27',
-    'S40', 'S74', 'S92',
-    'G34',
-    'A64',
-    'G26', 'G40', 'G91',
-    'A14', 'A15', 'A16', 'A18', 'A19', 'A21', 'A23', 'A33', 'A42', 'A46', 'A53', 'A62', 'A20',
-    'S65',
-    'A69',
-    'S43', 'S54', 'S56', 'S13', 'S18', 'S67', 'S66',
-    'G86',
-    'S22',
-    'G92',
-    'G88',
-    'S82',
-    'G31'
-]);
-
+// Retorna a lista de linhas (uma por RC+Item) da segundaBase, só as de Gerência Final = "Compras Ágeis"
 function fromCarteirasCSV(txt) {
     const g = parseCSV(txt).filter(r => r.length > 1);
-    if (!g.length) return {};
+    if (!g.length) return [];
     const head = g[0].map(h => MAP_CART[nrm(h)] || null);
     const hasGerCol = head.indexOf('gerFinal') > -1;
-    const map = {};
+    const rows = [];
     g.slice(1).forEach(r => {
         const o = {};
         head.forEach((f, k) => { if (f) o[f] = r[k]; });
@@ -221,10 +191,10 @@ function fromCarteirasCSV(txt) {
         const msRaw = ('' + (o.ms || '')).trim().toLowerCase();
         const ms = msRaw.indexOf('mat') > -1 ? 'Material' : msRaw.indexOf('serv') > -1 ? 'Serviço' : '';
         const tdRaw = ('' + (o.td || '')).trim(), tdLow = tdRaw.toLowerCase();
-        const td = tdLow === 'contrato' ? 'Contrato' : tdLow === 'spot' ? 'Spot' : tdRaw;
-        map[joinKey(rc, it)] = { car, nome, ms, td };
+        const td = tdLow === 'contrato' ? 'Contrato' : tdLow === 'spot' ? 'Spot' : (tdRaw || 'N/D');
+        rows.push({ rc, it, car, nome, ms, td, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim() });
     });
-    return map;
+    return rows;
 }
 
 function isoWeek(d) {

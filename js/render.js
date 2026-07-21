@@ -467,99 +467,78 @@ function renderSaving() {
     SUM.saving = { total: tot, taxa, itens: base.length, weeks: wk.map(wkLabel), weekly: wk.map(w => bw[w] || 0) };
 }
 function renderContr() {
-    // RCs liberadas no recorte (mesmo padrão de "entrada" usado no resto do painel) — desde jan/2026
-    const base = ALLRC.filter(r => r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r));
     const CCON = '#003865';
+    const cartLoaded = CARTEIRAS.length > 0;
 
-    // Base de Carteiras (opcional) — indexa itens da base principal por RC para cruzar com CARTEIRAS (chave RC+Item)
-    const cartLoaded = Object.keys(CARTEIRAS).length > 0;
-    const itemsByRC = {};
-    if (cartLoaded) ALL.forEach(r => { (itemsByRC[r.rc] = itemsByRC[r.rc] || []).push(r); });
-    const enrichCache = {};
-    const enrichForRC = rc => {
-        if (enrichCache[rc]) return enrichCache[rc];
-        const res = { car: null, nome: null, td: null, matN: 0, servN: 0 };
-        (itemsByRC[rc] || []).forEach(it => {
-            const e = CARTEIRAS[joinKey(it.rc, it.it)];
-            if (!e) return;
-            if (e.car) { res.carCount = res.carCount || {}; res.carCount[e.car] = (res.carCount[e.car] || 0) + 1; if (!res.nome && e.nome) res.nome = e.nome; }
-            if (e.td) { res.tdCount = res.tdCount || {}; res.tdCount[e.td] = (res.tdCount[e.td] || 0) + 1; }
-            if (e.ms === 'Material') res.matN++;
-            else if (e.ms === 'Serviço') res.servN++;
+    // Rollup por RC direto da segundaBase (única fonte desta aba) — carteira e tipo predominantes
+    // entre os itens da RC; data = menor DT Pedido entre os itens
+    const byRC = {};
+    CARTEIRAS.forEach(r => { (byRC[r.rc] = byRC[r.rc] || []).push(r); });
+    const rcRows = Object.keys(byRC).map(rc => {
+        const items = byRC[rc];
+        const carCount = {}, tdCount = {};
+        let dt = null, matN = 0, servN = 0;
+        items.forEach(it => {
+            if (it.car) carCount[it.car] = (carCount[it.car] || 0) + 1;
+            tdCount[it.td] = (tdCount[it.td] || 0) + 1;
+            if (it.ms === 'Material') matN++;
+            else if (it.ms === 'Serviço') servN++;
+            if (it.dt && (!dt || it.dt < dt)) dt = it.dt;
         });
-        if (res.carCount) { let best = -1; Object.entries(res.carCount).forEach(([c, n]) => { if (n > best) { best = n; res.car = c; } }); }
-        if (res.tdCount) { let best = -1; Object.entries(res.tdCount).forEach(([t, n]) => { if (n > best) { best = n; res.td = t; } }); }
-        enrichCache[rc] = res;
-        return res;
-    };
+        let car = '', bcCar = -1;
+        Object.entries(carCount).forEach(([c, n]) => { if (n > bcCar) { bcCar = n; car = c; } });
+        let td = 'N/D', bcTd = -1;
+        Object.entries(tdCount).forEach(([t, n]) => { if (n > bcTd) { bcTd = n; td = t; } });
+        return { rc, it: items.length, car, td, dt, matN, servN };
+    });
 
-    // typeOf: Contrato × Spot — prioriza a coluna "ContratoXspot" da base de carteiras (2º arquivo);
-    // se a RC não tiver esse dado na base auxiliar, cai para o "Tipo" da base principal (1º arquivo)
-    const typeOf = r => {
-        const e = enrichForRC(r.rc);
-        return e.td || (r.td || '').trim() || 'N/D';
-    };
+    // Recorte: respeita Período e Tipo de compra do painel lateral; a segundaBase não tem
+    // Comprador Responsável nem Status RC, então o filtro de comprador não se aplica aqui
+    const base = rcRows.filter(r => r.dt && r.dt >= DATA_INI_AGING && periodHit(r.dt) && tpHit(r));
+    const carOf = r => r.car || '';
+    const typeOf = r => r.td || 'N/D';
+
     const typeCounts = {};
     base.forEach(r => { const t = typeOf(r); typeCounts[t] = (typeCounts[t] || 0) + 1; });
     const nCon = typeCounts['Contrato'] || 0, nSpo = typeCounts['Spot'] || 0, nOut = base.length - nCon - nSpo;
     const pctCon = base.length ? nCon / base.length * 100 : 0, pctSpo = base.length ? nSpo / base.length * 100 : 0;
     const kpiContr = [
         { l: 'RCs Contrato', v: nCon.toLocaleString('pt-BR'), n: pctCon.toFixed(0) + '% do recorte' },
-        { l: 'RCs Spot', v: nSpo.toLocaleString('pt-BR'), n: pctSpo.toFixed(0) + '% do recorte' },
-        { l: 'Outros tipos', v: nOut.toLocaleString('pt-BR'), n: base.length ? (nOut / base.length * 100).toFixed(0) + '% do recorte' : '—' }
+        { l: 'RCs Spot', v: nSpo.toLocaleString('pt-BR'), n: pctSpo.toFixed(0) + '% do recorte' }
     ];
 
-    // Inferência por grupo comprador (A): se a RC não tem match direto, usa a carteira predominante
-    // de OUTRAS RCs do mesmo grupo comprador que já foram identificadas na base de carteiras
-    const inferByGrupo = {};
+    // Qualidade do dado: quantas RCs do recorte têm Material/Serviço e Carteira preenchidos na própria segundaBase
     if (cartLoaded) {
-        const grupoCarCount = {};
-        ALL.forEach(it => {
-            const e = CARTEIRAS[joinKey(it.rc, it.it)];
-            if (!e || !e.car) return;
-            const grupo = (it.ccd || '').trim();
-            if (!grupo) return;
-            const gc = grupoCarCount[grupo] = grupoCarCount[grupo] || {};
-            gc[e.car] = (gc[e.car] || 0) + 1;
-        });
-        Object.keys(grupoCarCount).forEach(g => {
-            let best = null, bc = -1;
-            Object.entries(grupoCarCount[g]).forEach(([c, n]) => { if (n > bc) { bc = n; best = c; } });
-            inferByGrupo[g] = best;
-        });
-    }
-    // carOf: código completo da carteira (ex.: "G35") — ordem de prioridade: match direto na base de carteiras,
-    // depois o próprio código já vem correto na base principal (confere na lista de carteiras válidas), por fim inferido pelo grupo comprador
-    const carOf = r => {
-        const e = enrichForRC(r.rc);
-        if (e.car) return e.car;
-        const own = (r.ccd || '').trim().toUpperCase();
-        if (own && VALID_CARTEIRAS.has(own)) return own;
-        return (own && inferByGrupo[own]) || '';
-    };
-
-    // Diagnóstico do cruzamento: quantas RCs seguem sem carteira mesmo após base auxiliar + lista de válidas + inferência por grupo
-    const cartRCSet = cartLoaded ? new Set(Object.keys(CARTEIRAS).map(k => k.split('|')[0])) : null;
-    let cartMatN = 0, cartServN = 0, cartMatched = 0, cartInferred = 0, cartOwnValid = 0, cartRcNoItem = 0, cartRcAusente = 0;
-    if (cartLoaded) base.forEach(r => {
-        const e = enrichForRC(r.rc);
-        if (e.matN + e.servN > 0) cartMatched++;
-        cartMatN += e.matN; cartServN += e.servN;
-        if (!e.car) {
-            const own = (r.ccd || '').trim().toUpperCase();
-            if (own && VALID_CARTEIRAS.has(own)) cartOwnValid++;
-            else if (own && inferByGrupo[own]) cartInferred++;
-            else if (cartRCSet.has(normNum(r.rc))) cartRcNoItem++;
-            else cartRcAusente++;
-        }
-    });
-    if (cartLoaded) {
-        const totMS = cartMatN + cartServN;
-        kpiContr.push({ l: 'Identificado (Material/Serviço)', v: cartMatched.toLocaleString('pt-BR') + ' RCs', n: totMS ? Math.round(cartMatN / totMS * 100) + '% Material · ' + Math.round(cartServN / totMS * 100) + '% Serviço' : 'via base de carteiras' });
-        kpiContr.push({ l: 'Diagnóstico do cruzamento', v: cartRcNoItem + cartRcAusente, c: (cartRcNoItem + cartRcAusente) > 0 ? 'warn' : 'good', n: cartRcNoItem + ' RC na base mas Item não bateu · ' + cartRcAusente + ' RC ausente (' + cartOwnValid + ' recuperadas pela lista de carteiras válidas)' });
+        const matSum = base.reduce((a, r) => a + r.matN, 0), servSum = base.reduce((a, r) => a + r.servN, 0);
+        const totMS = matSum + servSum;
+        const identificadas = base.filter(r => r.matN + r.servN > 0).length;
+        const semCar = base.filter(r => !r.car).length;
+        kpiContr.push({ l: 'Identificado (Material/Serviço)', v: identificadas.toLocaleString('pt-BR') + ' RCs', n: totMS ? Math.round(matSum / totMS * 100) + '% Material · ' + Math.round(servSum / totMS * 100) + '% Serviço' : '—' });
+        kpiContr.push({ l: 'Sem Carteira preenchida', v: semCar.toLocaleString('pt-BR') + ' RCs', c: semCar > 0 ? 'warn' : 'good', n: base.length ? Math.round(semCar / base.length * 100) + '% do recorte' : '—' });
     }
     document.getElementById('kpi-contr').classList.toggle('k3', !cartLoaded);
     kpi('kpi-contr', kpiContr);
+
+    // Contrato × Spot — Geral: soma de todas as carteiras, uma coluna 100% empilhada (c_contrmix)
+    const conSpoTot = nCon + nSpo;
+    const mixConPct = conSpoTot ? Math.round(nCon / conSpoTot * 100) : 0;
+    const mixSpoPct = conSpoTot ? 100 - mixConPct : 0;
+    mkChart('c_contrmix', { type: 'bar', plugins: [stackPctLabels], data: { labels: ['Geral'], datasets: [{ label: 'Contrato', data: [mixConPct], backgroundColor: CCON, stack: 's' }, { label: 'Spot', data: [mixSpoPct], backgroundColor: C.steel, stack: 's' }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+
+    // Contrato × Spot — Material e Serviço: mesma coluna 100% empilhada, cada uma só com os itens da classe (c_contrmix_mat/serv)
+    const baseRCSet = new Set(base.map(r => r.rc));
+    const msMix = { Material: { Contrato: 0, Spot: 0 }, Serviço: { Contrato: 0, Spot: 0 } };
+    CARTEIRAS.forEach(it => {
+        if (!baseRCSet.has(it.rc) || (it.ms !== 'Material' && it.ms !== 'Serviço')) return;
+        if (it.td === 'Contrato') msMix[it.ms].Contrato++;
+        else if (it.td === 'Spot') msMix[it.ms].Spot++;
+    });
+    const mkMixChart = (id, counts, tot) => {
+        const conPct = tot ? Math.round(counts.Contrato / tot * 100) : 0, spoPct = tot ? 100 - conPct : 0;
+        mkChart(id, { type: 'bar', plugins: [stackPctLabels], data: { labels: ['Geral'], datasets: [{ label: 'Contrato', data: [conPct], backgroundColor: CCON, stack: 's' }, { label: 'Spot', data: [spoPct], backgroundColor: C.steel, stack: 's' }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    };
+    mkMixChart('c_contrmix_mat', msMix.Material, msMix.Material.Contrato + msMix.Material.Spot);
+    mkMixChart('c_contrmix_serv', msMix.Serviço, msMix.Serviço.Contrato + msMix.Serviço.Spot);
 
     // Contrato e Spot como tipos principais + demais tipos individualmente (não agrupados em "Outros")
     const typesOther = Object.keys(typeCounts).filter(t => t !== 'Contrato' && t !== 'Spot').sort((a, b) => a === 'N/D' ? 1 : b === 'N/D' ? -1 : typeCounts[b] - typeCounts[a]);
@@ -568,11 +547,11 @@ function renderContr() {
     const colorMap = {};
     typeList.forEach((t, i) => { colorMap[t] = t === 'Contrato' ? CCON : t === 'Spot' ? C.steel : t === 'N/D' ? '#CAD6DD' : OTH_PAL[(i - 2) % OTH_PAL.length]; });
 
-    // RCs por Código de Carteira — G/S/R e demais (c_ccd) — raiz da carteira; usa a Base de Carteiras (direta ou inferida) quando carregada
+    // RCs por Código de Carteira — G/S/R e demais (c_ccd) — raiz da carteira, direto da segundaBase
     const rootLetter = code => { const m = /^[A-Za-z]/.exec((code || '').trim()); return m ? m[0].toUpperCase() : ''; };
     const cdOrder = ['G', 'S', 'R', 'A'];
     const ALLOWED_CD = ['G', 'S', 'R', 'A', 'N/D'];
-    const cdOf = r => { const c = rootLetter(carOf(r)) || r.ccd || 'N/D'; return ALLOWED_CD.includes(c) ? c : 'A'; };
+    const cdOf = r => { const c = rootLetter(carOf(r)) || 'N/D'; return ALLOWED_CD.includes(c) ? c : 'A'; };
     const byCd = {};
     base.forEach(r => { const c = cdOf(r); byCd[c] = (byCd[c] || 0) + 1; });
     const cdKeys = Object.keys(byCd).sort((a, b) => { const ia = cdOrder.indexOf(a), ib = cdOrder.indexOf(b); if (ia > -1 && ib > -1) return ia - ib; if (ia > -1) return -1; if (ib > -1) return 1; if (a === 'N/D') return 1; if (b === 'N/D') return -1; return a.localeCompare(b); });
@@ -592,41 +571,38 @@ function renderContr() {
     const gCarKeys = gCarArr.map(x => x.c);
     mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeList.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMap[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
-    // RCs por Carteira/Categoria — empilhado por Tipo (c_contrcat) — só o código (G35, S12...); sem match, mostra o código A original (evidencia quem não preencheu)
-    const catOf = r => carOf(r) || r.ccd || 'N/D';
+    // Carteira/Categoria por RC — só o código (G35, S12...); sem carteira preenchida na segundaBase, cai em N/D
+    // (mantido só para a tabela detalhada e o resumo usado na apresentação — os gráficos foram removidos)
+    const catOf = r => carOf(r) || 'N/D';
     const byCat = {};
     base.forEach(r => { const c = catOf(r); const t = typeOf(r); const o = byCat[c] = byCat[c] || {}; o[t] = (o[t] || 0) + 1; });
     const cats = Object.entries(byCat).map(([c, o]) => ({ c, o, tot: typeList.reduce((a, t) => a + (o[t] || 0), 0) })).sort((a, b) => b.tot - a.tot).slice(0, 15);
-    mkChart('c_contrcat', { type: 'bar', data: { labels: cats.map(x => x.c), datasets: typeList.map(t => ({ label: t, data: cats.map(x => x.o[t] || 0), backgroundColor: colorMap[t], stack: 's' })) }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } } }, scales: { x: { stacked: true, ...soG, beginAtZero: true }, y: { stacked: true, ...noG, ticks: { font: { size: 9.5 } } } } } });
-
-    // Participação das top carteiras (c_contrpct)
-    const PAL = [CCON, C.teal, C.amber, C.steel, '#7FE06C', '#0E538C', '#7A8C97', '#CAD6DD'];
     const top8 = cats.slice(0, 8);
-    mkChart('c_contrpct', { type: 'doughnut', data: { labels: top8.map(x => x.c), datasets: [{ data: top8.map(x => x.tot), backgroundColor: PAL, borderWidth: 2, borderColor: '#FFFFFF' }] }, options: { maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 11, usePointStyle: true, font: { size: 9.5 } } }, tooltip: { callbacks: { label: c => c.label + ': ' + c.parsed.toLocaleString('pt-BR') + ' RCs (' + (base.length ? Math.round(c.parsed / base.length * 100) : 0) + '%)' } } } } });
 
-    // Evolução semanal — Contrato x Spot, demais tipos agregados (c_contrevol)
+    // Evolução semanal — Contrato x Spot, demais tipos agregados (c_contrevol) — por semana da Data do Pedido
     const bw = {};
-    base.forEach(r => { const w = isoWeek(r.dl); const o = bw[w] = bw[w] || { Contrato: 0, Spot: 0, Outros: 0 }; const t = typeOf(r); if (t === 'Contrato') o.Contrato++; else if (t === 'Spot') o.Spot++; else o.Outros++; });
+    base.forEach(r => { const w = isoWeek(r.dt); const o = bw[w] = bw[w] || { Contrato: 0, Spot: 0, Outros: 0 }; const t = typeOf(r); if (t === 'Contrato') o.Contrato++; else if (t === 'Spot') o.Spot++; else o.Outros++; });
     const wks = Object.keys(bw).sort();
     mkChart('c_contrevol', {
-        type: 'line', data: {
+        type: 'line', plugins: [crosshair], data: {
             labels: wks.map(wkLabel), datasets:
                 [
-                    { label: 'Contrato', data: wks.map(w => bw[w].Contrato), borderColor: CCON, backgroundColor: 'rgba(0,56,101,.10)', fill: true, tension: .3, borderWidth: 2, pointRadius: 2 },
-                    { label: 'Spot', data: wks.map(w => bw[w].Spot), borderColor: C.steel, backgroundColor: 'rgba(90,140,174,.14)', fill: true, tension: .3, borderWidth: 2, pointRadius: 2 },
-                    { label: 'Outros tipos', data: wks.map(w => bw[w].Outros), borderColor: '#7A8C97', backgroundColor: 'rgba(122,140,151,.10)', fill: true, tension: .3, borderWidth: 2, pointRadius: 2, borderDash: [4, 3] }
+                    { label: 'Contrato', data: wks.map(w => bw[w].Contrato), borderColor: CCON, backgroundColor: 'rgba(0,56,101,.10)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: CCON },
+                    { label: 'Spot', data: wks.map(w => bw[w].Spot), borderColor: C.steel, backgroundColor: 'rgba(90,140,174,.14)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.steel },
+                    { label: 'Outros tipos', data: wks.map(w => bw[w].Outros), borderColor: '#7A8C97', backgroundColor: 'rgba(122,140,151,.10)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#7A8C97', borderDash: [4, 3] }
                 ]
-        }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 13, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } }
+        }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: c => 'Semana de ' + c[0].label, label: c => c.dataset.label + ': ' + c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 13, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } }
     });
 
-    // Tabela detalhada — Carteira x Tipo, uma coluna por tipo (t_contr)
+    // Tabela detalhada — Carteira x Tipo, uma coluna por tipo (t_contr) — ordenada por quantidade de Spot, maior para menor
+    const catsBySpot = [...cats].sort((a, b) => (b.o['Spot'] || 0) - (a.o['Spot'] || 0));
     document.querySelector('#t_contr thead').innerHTML = `<tr><th>Carteira/Categoria</th>${typeList.map(t => `<th class="num">${t}</th>`).join('')}<th class="num">Total</th><th class="num">% Contrato</th></tr>`;
-    document.querySelector('#t_contr tbody').innerHTML = cats.map(x => `<tr><td>${x.c}</td>${typeList.map(t => `<td class="num">${x.o[t] || 0}</td>`).join('')}<td class="num">${x.tot}</td><td class="num">${x.tot ? Math.round((x.o['Contrato'] || 0) / x.tot * 100) : 0}%</td></tr>`).join('') || `<tr><td colspan="${typeList.length + 3}" style="color:#46606F">Nenhuma RC liberada no recorte.</td></tr>`;
+    document.querySelector('#t_contr tbody').innerHTML = catsBySpot.map(x => `<tr><td>${x.c}</td>${typeList.map(t => `<td class="num">${x.o[t] || 0}</td>`).join('')}<td class="num">${x.tot}</td><td class="num">${x.tot ? Math.round((x.o['Contrato'] || 0) / x.tot * 100) : 0}%</td></tr>`).join('') || `<tr><td colspan="${typeList.length + 3}" style="color:#46606F">Nenhuma RC no recorte.</td></tr>`;
 
     // Leitura (texto de insight)
     const topCat = cats[0], nd = byCat['N/D'], ndTot = nd ? Object.values(nd).reduce((a, v) => a + v, 0) : 0;
     const topOther = typesOther.find(t => t !== 'N/D');
-    document.getElementById('ins-contr').innerHTML = base.length ? `<b>Leitura:</b> no recorte entraram <b>${nCon} RCs de Contrato</b> e <b>${nSpo} RCs de Spot</b> (${pctCon.toFixed(0)}% / ${pctSpo.toFixed(0)}% do mix)${topOther ? `, além de <b>${nOut} RCs em outros tipos</b> — o mais comum é <b>${topOther}</b> (${typeCounts[topOther]}). ` : '. '}${topCat ? `Carteira com maior volume: <b>${topCat.c}</b> (${topCat.tot} RCs). ` : ''}${ndTot ? `<b style="color:#8A6D00">⚠ ${ndTot} RCs (${Math.round(ndTot / base.length * 100)}%) estão sem Carteira/Categoria preenchida</b> — priorize o preenchimento para uma leitura confiável por carteira.` : ''}${cartLoaded ? ` <b>${cartMatched} RC(s)</b> tiveram a carteira confirmada/corrigida pela base auxiliar${cartInferred || cartOwnValid ? ` (+${cartOwnValid} pela lista de carteiras válidas, +${cartInferred} por inferência do grupo comprador)` : ''}.` : ''}` : '<b>Sem RCs liberadas no recorte.</b>';
+    document.getElementById('ins-contr').innerHTML = base.length ? `<b>Leitura:</b> no recorte (segundaBase) entraram <b>${nCon} RCs de Contrato</b> e <b>${nSpo} RCs de Spot</b> (${pctCon.toFixed(0)}% / ${pctSpo.toFixed(0)}% do mix)${topOther ? `, além de <b>${nOut} RCs em outros tipos</b> — o mais comum é <b>${topOther}</b> (${typeCounts[topOther]}). ` : '. '}${topCat ? `Carteira com maior volume: <b>${topCat.c}</b> (${topCat.tot} RCs). ` : ''}${ndTot ? `<b style="color:#8A6D00">⚠ ${ndTot} RCs (${Math.round(ndTot / base.length * 100)}%) estão sem Carteira/Categoria preenchida</b> — priorize o preenchimento para uma leitura confiável por carteira.` : ''}` : (cartLoaded ? '<b>Sem RCs no recorte.</b>' : '<b>Carregue a base de carteiras (2º arquivo) para ver esta aba.</b>');
     SUM.contr = { nCon, nSpo, nOut, pctCon, pctSpo, total: base.length, top: top8.map(x => ({ c: x.c, tot: x.tot })) };
 }
 function renderCompradores() {
@@ -797,8 +773,19 @@ function scoreRow(t, mod, ind, val, ref, status, label) {
 }
 
 function renderOverview() {
-    const P = SUM.prod, A = SUM.aging, S = SUM.sla, V = SUM.saving, K = SUM.contr;
-    if (!P || !A || !S || !V || !K) return;
+    const P = SUM.prod, A = SUM.aging, S = SUM.sla, V = SUM.saving;
+    if (!P || !A || !S || !V) return;
+
+    // Mix Contrato × Spot — direto da base principal (classificação própria "tp"), sem depender da segundaBase (exclusiva da aba Contratualização)
+    const mixBase = ALLRC.filter(r => r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r));
+    const mixCounts = {};
+    mixBase.forEach(r => { mixCounts[r.tp] = (mixCounts[r.tp] || 0) + 1; });
+    const mCon = mixCounts['Contrato'] || 0, mSpo = mixCounts['Spot'] || 0, mOut = mixBase.length - mCon - mSpo;
+    const K = {
+        nCon: mCon, nSpo: mSpo, nOut: mOut, total: mixBase.length,
+        pctCon: mixBase.length ? mCon / mixBase.length * 100 : 0,
+        pctSpo: mixBase.length ? mSpo / mixBase.length * 100 : 0
+    };
 
     // KPIs consolidados
     const pCor = P.ating >= 100 ? 'good' : P.ating >= 80 ? 'warn' : 'bad';

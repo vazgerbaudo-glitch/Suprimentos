@@ -9,4 +9,4 @@ let ALL = [], ALLRC = [], STATE = {
     metaAgG: 60,
     metaAgC: 101,
     metaAgS: 33
-}, CH = {}, SUM = {}, compSort = { key: 'concl', dir: -1 }, CARTEIRAS = {};
+}, CH = {}, SUM = {}, compSort = { key: 'concl', dir: -1 }, CARTEIRAS = [];

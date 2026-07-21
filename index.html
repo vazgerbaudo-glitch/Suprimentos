@@ -461,7 +461,7 @@
             <div class="sec-head"><h2>Contratualização — Carteira × Tipo</h2></div>
             <div class="panel" style="margin-bottom:14px">
                 <h3>Base de Carteiras (RC × Item → G/S/R)</h3>
-                <div class="ph">CSV auxiliar</div>
+                <div class="ph">Fonte única desta aba — só linhas com Gerência Final = Compras Ágeis; período usa a Data do Pedido; sem filtro de Comprador (a segundaBase não tem esse campo)</div>
                 <div class="metabar" style="margin-top:0">
                     <label for="f_cart" class="btn ghost" style="cursor:pointer">📁 Carregar base de carteiras</label>
                     <input id="f_cart" type="file" accept=".csv,text/csv" style="display:none"/>
@@ -469,6 +469,23 @@
                 </div>
             </div>
             <div class="kpis k3" id="kpi-contr"></div>
+            <div class="grid g3">
+                <div class="panel">
+                    <h3>Contrato × Spot — Geral</h3>
+                    <div class="ph">Soma de todas as carteiras — % Contrato × % Spot no recorte</div>
+                    <div class="cv"><canvas id="c_contrmix"></canvas></div>
+                </div>
+                <div class="panel">
+                    <h3>Contrato × Spot — Material</h3>
+                    <div class="ph">Só itens Material — % Contrato × % Spot no recorte</div>
+                    <div class="cv"><canvas id="c_contrmix_mat"></canvas></div>
+                </div>
+                <div class="panel">
+                    <h3>Contrato × Spot — Serviço</h3>
+                    <div class="ph">Só itens Serviço — % Contrato × % Spot no recorte</div>
+                    <div class="cv"><canvas id="c_contrmix_serv"></canvas></div>
+                </div>
+            </div>
             <div class="panel">
                 <h3>RCs por Código de Carteira</h3>
                 <div class="ph">Quantidade de RCs por raiz de carteira (G / S / R) e demais — total do recorte</div>
@@ -478,18 +495,6 @@
                 <h3>% Contrato × Spot por carteira G</h3>
                 <div class="ph">Uma coluna por carteira G específica (todas) — % Contrato × % Spot, para comparar quem depende mais de Spot</div>
                 <div class="cv"><canvas id="c_ccd_tipo"></canvas></div>
-            </div>
-            <div class="grid g12">
-                <div class="panel">
-                    <h3>RCs por Carteira/Categoria</h3>
-                    <div class="ph">Empilhado por Tipo — Top 15 carteiras por volume no recorte</div>
-                    <div class="cv tall"><canvas id="c_contrcat"></canvas></div>
-                </div>
-                <div class="panel">
-                    <h3>Participação — Top 8 carteiras</h3>
-                    <div class="ph">Fatia de cada carteira no total de RCs liberadas no recorte</div>
-                    <div class="cv tall"><canvas id="c_contrpct"></canvas></div>
-                </div>
             </div>
             <div class="panel">
                 <h3>Evolução semanal — Contrato × Spot</h3>

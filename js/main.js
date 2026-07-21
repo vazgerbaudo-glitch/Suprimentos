@@ -147,10 +147,10 @@ function loadCarteirasFile(file) {
     rd.onload = () => {
         const st = document.getElementById('cart_status');
         try {
-            const map = fromCarteirasCSV(rd.result);
-            const n = Object.keys(map).length;
+            const rows = fromCarteirasCSV(rd.result);
+            const n = rows.length;
             if (!n) throw new Error('nenhuma linha reconhecida (confira as colunas RC/Item/Car)');
-            CARTEIRAS = map;
+            CARTEIRAS = rows;
             st.textContent = n.toLocaleString('pt-BR') + ' RC/Item carregados de ' + file.name;
             st.style.color = '';
             render();
