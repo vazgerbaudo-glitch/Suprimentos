@@ -45,14 +45,14 @@ function sevOpen(r) {
     if (lim - r.age <= 2) return ['s-or', 'Atenção', 'f-or'];
     return ['s-am', 'Dentro do prazo', 'f-am'];
 }
-// RCs abertas para acompanhamento (aba Compradores) — desde jan/2026, mesma base da aba Aging; cp=null traz todo o time
+// RCs abertas para acompanhamento (aba Compradores) — mesma base da aba Aging (2025+2026, sem corte de data); cp=null traz todo o time
 function openRCsFor(cp) {
-    return ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && tpHit(r) && (!cp || r.cp === cp))
+    return ALLRC.filter(r => r.st === 'A' && r.dl && periodHitAging(r.dl) && tpHit(r) && (!cp || r.cp === cp))
         .map(r => ({ ...r, age: Math.round((HOJE - r.dl) / 86400000) }))
         .filter(r => r.age >= 0)
         .sort((a, b) => b.age - a.age);
 }
-function renderOpenRCPanel(tblId, sumId, rcs, showComp) {
+function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true) {
     const cnt = { 'Dentro do prazo': 0, 'Atenção': 0, 'Crítico': 0 };
     rcs.forEach(r => cnt[sevOpen(r)[1]]++);
     const avg = rcs.length ? Math.round(rcs.reduce((a, r) => a + r.age, 0) / rcs.length) : 0;
@@ -62,8 +62,8 @@ function renderOpenRCPanel(tblId, sumId, rcs, showComp) {
         const saldo = r.sa > 0 ? r.sa - r.age : null;
         const saldoTxt = saldo == null ? '—' : (saldo >= 0 ? '+' : '') + saldo + 'd';
         const saldoCol = saldo == null ? 'color:var(--muted)' : saldo >= 0 ? 'color:#14705A' : 'color:#C0272D';
-        return `<tr${showComp ? ` class="jump" data-cp="${r.cp}" style="cursor:pointer"` : ''}>${showComp ? `<td>${r.cp}</td>` : ''}<td>${r.rc || '-'}</td><td class="num">${r.it}</td><td>${(r.td || '').trim() || '-'}</td><td>${(r.et || '').replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${fmtDia(r.dl)}</td><td class="num">${r.sa || '—'}</td><td class="num">${r.age}</td><td class="num" style="${saldoCol}">${saldoTxt}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`;
-    }).join('') || `<tr><td colspan="${showComp ? 10 : 9}" style="color:#46606F">Nenhuma RC em aberto no recorte.</td></tr>`;
+        return `<tr${showComp ? ` class="jump" data-cp="${r.cp}" style="cursor:pointer"` : ''}>${showComp ? `<td>${r.cp}</td>` : ''}<td>${r.rc || '-'}</td><td class="num">${r.it}</td>${showExtra ? `<td>${(r.td || '').trim() || '-'}</td><td>${(r.et || '').replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${fmtDia(r.dl)}</td>` : ''}<td class="num">${r.sa || '—'}</td><td class="num">${r.age}</td><td class="num" style="${saldoCol}">${saldoTxt}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`;
+    }).join('') || `<tr><td colspan="${(showComp ? 1 : 0) + (showExtra ? 3 : 0) + 6}" style="color:#46606F">Nenhuma RC em aberto no recorte.</td></tr>`;
     if (showComp) document.querySelectorAll('#' + tblId + ' tbody tr.jump').forEach(tr => tr.onclick = () => { STATE.comp = tr.dataset.cp; render(); });
 }
 function render() {
@@ -216,7 +216,7 @@ function renderProd() {
 }
 function renderAging() {
     // Aging das RCs em aberto — distribuição e KPIs base
-    const base = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r));
+    const base = ALLRC.filter(r => r.st === 'A' && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r));
     const ag = base.map(r => ({ ...r, age: Math.round((HOJE - r.dl) / 86400000) })).filter(r => r.age >= 0);
     const FA = [['0-3', 0, 3], ['4-7', 4, 7], ['8-15', 8, 15], ['16-30', 16, 30], ['>30', 31, 1e9]];
     const FCOL = ['#1E9F7F', '#7FE06C', '#FBD300', '#C79100', '#D2373C'];
@@ -234,26 +234,50 @@ function renderAging() {
     const msAgAvg = MSag.map(c => { const b = ag.filter(r => r.cl === c); return b.length ? Math.round(b.reduce((a, r) => a + r.age, 0) / b.length) : 0; });
 
     // Meta de Aging por tipo — Geral x Contrato x Spot (kpi-aging)
-    const lifeBase = ALLRC.filter(r => compHit(r) && tpHit(r) && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && (r.td === 'Contrato' || r.td === 'Spot'));
-    const lifeAll = ALLRC.filter(r => compHit(r) && tpHit(r) && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl));
-    const statsOf = rows => {
-        const openN = rows.filter(r => r.st === 'A').length;
-        const lives = rows.map(r => {
-            if (r.st === 'A') return Math.round((HOJE - r.dl) / 86400000);
-            if (r.st === 'C' && r.dc) return Math.round((r.dc - r.dl) / 86400000);
-            return null;
-        }).filter(a => a != null && a >= 0);
-        const avgL = lives.length ? Math.round(lives.reduce((a, b) => a + b, 0) / lives.length) : 0;
-        return { open: openN, avg: avgL };
+    // Regra: exclui RC Cancelada/vazia e itens "Remover de Compras Ágeis" = Sim; aging só com
+    // datas válidas e não negativo (zero é válido); consolida por RC (Geral) e por RC+Tipo
+    // (Contrato/Spot) usando o MAIOR aging quando os itens da mesma RC divergem — assim uma RC
+    // com vários itens não pesa mais que uma com um item só. Filtros de Comprador/Período/Tipo
+    // entram só depois de consolidar, sobre os atributos já consolidados da RC.
+    const consolidateAging = splitByTipo => {
+        const groups = {};
+        ALL.forEach(it => {
+            const rc = ('' + (it.rc || '')).trim();
+            if (!rc || it.st === 'X' || it.rm) return;
+            if (splitByTipo && it.td !== 'Contrato' && it.td !== 'Spot') return;
+            let age;
+            if (it.st === 'A') age = Math.round((HOJE - it.dl) / 86400000);
+            else if (it.st === 'C' && it.dl && it.dc) age = Math.round((it.dc - it.dl) / 86400000);
+            else return;
+            if (!Number.isFinite(age) || age < 0) return;
+            const key = splitByTipo ? rc + '|' + it.td : rc;
+            const o = groups[key] = groups[key] || { td: it.td, ages: [], cps: [], dl: null, open: false };
+            o.ages.push(age); o.cps.push(it.cp);
+            if (!o.dl || it.dl < o.dl) o.dl = it.dl;
+            if (it.st === 'A') o.open = true;
+        });
+        let divergent = 0;
+        const rows = Object.values(groups).map(o => {
+            if (new Set(o.ages).size > 1) divergent++;
+            return { td: o.td, cp: mode(o.cps) || 'N/D', dl: o.dl, st: o.open ? 'A' : 'C', age: Math.max(...o.ages) };
+        });
+        return { rows, divergent };
     };
-    const typeStats = tipo => statsOf(lifeBase.filter(r => r.td === tipo));
-    const gSt = statsOf(lifeAll), cSt = typeStats('Contrato'), sSt = typeStats('Spot');
+    const filtRow = r => r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r);
+    const geralAg = consolidateAging(false), tipoAg = consolidateAging(true);
+    const gRows = geralAg.rows.filter(filtRow);
+    const cRows = tipoAg.rows.filter(r => r.td === 'Contrato').filter(filtRow);
+    const sRows = tipoAg.rows.filter(r => r.td === 'Spot').filter(filtRow);
+    const statsOf = rows => ({ open: rows.filter(r => r.st === 'A').length, avg: rows.length ? Math.round(rows.reduce((a, r) => a + r.age, 0) / rows.length) : 0 });
+    const gSt = statsOf(gRows), cSt = statsOf(cRows), sSt = statsOf(sRows);
+    const openItemsTotal = ALL.filter(r => r.st === 'A').length;
+    const agDivergentes = geralAg.divergent + tipoAg.divergent;
     const gPct = STATE.metaAgG > 0 ? (gSt.avg - STATE.metaAgG) / STATE.metaAgG * 100 : 0;
     const cPct = STATE.metaAgC > 0 ? (cSt.avg - STATE.metaAgC) / STATE.metaAgC * 100 : 0;
     const sPct = STATE.metaAgS > 0 ? (sSt.avg - STATE.metaAgS) / STATE.metaAgS * 100 : 0;
     const pf = p => (p > 0 ? '+' : '') + p.toFixed(1) + '%';
     kpi('kpi-aging', [
-        { l: 'RC em aberto — Geral', v: gSt.open, n: STATE.comp === 'GERAL' ? 'todos compradores' : STATE.comp },
+        { l: 'Itens em aberto — Geral', v: openItemsTotal, n: 'total bruto · Status RC = Em Aberto, sem filtro' },
         { l: 'Aging médio — Geral', v: gSt.avg + 'd', c: gPct <= 0 ? 'good' : 'bad', n: 'meta ≤ ' + STATE.metaAgG + 'd' },
         { l: '% vs meta — Geral', v: pf(gPct), c: gPct <= 0 ? 'good' : 'bad', n: gPct <= 0 ? 'dentro da meta' : 'acima da meta' },
         { l: 'RC em aberto — Contrato', v: cSt.open, n: STATE.comp === 'GERAL' ? 'todos compradores' : STATE.comp },
@@ -313,7 +337,7 @@ function renderAging() {
     document.getElementById('box_aging').innerHTML = boxComps.length ? svg : '<div style="color:#46606F;font-size:12px">Dados insuficientes para boxplot no recorte.</div>';
 
     // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo
-    const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && r.dc >= DATA_INI_AGING && inY(r.dc) && compHit(r) && tpHit(r)).map(r => ({ w: isoWeek(r.dc), cyc: Math.round((r.dc - r.dl) / 86400000) })).filter(r => r.cyc >= 0);
+    const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r)).map(r => ({ w: isoWeek(r.dc), cyc: Math.round((r.dc - r.dl) / 86400000) })).filter(r => r.cyc >= 0);
     const byW = {};
     concl.forEach(r => { (byW[r.w] = byW[r.w] || []).push(r.cyc); });
     const wk = Object.keys(byW).sort();
@@ -333,14 +357,14 @@ function renderAging() {
 
     // Tabela detalhada — semáforo de aging (t_aging)
     const sevAg = r => sevOpen(r);
-    const tabAll = ALLRC.filter(r => (r.st === 'A' || r.st === 'C') && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r)).map(r => { const isOpen = r.st === 'A'; const age = isOpen ? Math.round((HOJE - r.dl) / 86400000) : (r.dc ? Math.round((r.dc - r.dl) / 86400000) : null); return { ...r, age, isOpen }; }).filter(r => r.age != null && r.age >= 0);
+    const tabAll = ALLRC.filter(r => (r.st === 'A' || r.st === 'C') && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r)).map(r => { const isOpen = r.st === 'A'; const age = isOpen ? Math.round((HOJE - r.dl) / 86400000) : (r.dc ? Math.round((r.dc - r.dl) / 86400000) : null); return { ...r, age, isOpen }; }).filter(r => r.age != null && r.age >= 0);
     const tab = tabAll.slice().sort((a, b) => b.age - a.age).slice(0, 40);
     document.querySelector('#t_aging tbody').innerHTML = tab.map(r => { const s = sevAg(r); const stBadge = `<span class="tag-sev" style="background:${r.isOpen ? '#E1EDF5' : '#DFF2EA'};color:${r.isOpen ? '#0E538C' : '#14705A'}">${r.isOpen ? 'Em Aberto' : 'Concluída'}</span>`; return `<tr><td>${r.rc || '-'}</td><td>${r.it || '-'}</td><td>${r.cp}</td><td>${stBadge}</td><td>${r.et.replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${r.sa || '-'}</td><td class="num">${r.age}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`; }).join('') || '<tr><td colspan=8 style="color:#46606F">Nenhuma RC no recorte.</td></tr>';
 
     // Leitura (texto de insight)
     const critSem = ag.filter(r => sevAg(r)[1] === 'Crítico').length;
-    document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> mediana <b>${med}d</b> vs média <b>${avg}d</b> — a maioria flui, mas <b>${crit} RCs passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Use o funil e o backlog por mês para priorizar a limpeza da carteira.`;
-    SUM.aging = { open: gSt.open, avg: gSt.avg, meta: STATE.metaAgG, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, con: { open: cSt.open, avg: cSt.avg, meta: STATE.metaAgC, pct: cPct }, spo: { open: sSt.open, avg: sSt.avg, meta: STATE.metaAgS, pct: sPct }, gpct: gPct, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
+    document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> mediana <b>${med}d</b> vs média <b>${avg}d</b> — a maioria flui, mas <b>${crit} RCs passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Use o funil e o backlog por mês para priorizar a limpeza da carteira.${agDivergentes ? ` <b style="color:#8A6D00">⚠ ${agDivergentes} RC(s) com aging divergente entre itens</b> no cálculo de meta Geral/Contrato/Spot — usado o maior aging de cada uma, para controle de qualidade.` : ''}`;
+    SUM.aging = { open: gSt.open, openTotal: openItemsTotal, avg: gSt.avg, meta: STATE.metaAgG, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, con: { open: cSt.open, avg: cSt.avg, meta: STATE.metaAgC, pct: cPct }, spo: { open: sSt.open, avg: sSt.avg, meta: STATE.metaAgS, pct: sPct }, gpct: gPct, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
 }
 function renderSLA() {
     // KPIs — aderência ao SLA (kpi-sla)
@@ -388,6 +412,29 @@ function renderSLA() {
     const msP = MS.map(c => { const b = base.filter(r => r.cl === c); const t = b.length, i = b.filter(r => r.ss === 'I').length; return t ? Math.round(i / t * 100) : 0; });
     mkChart('c_mssla', { type: 'bar', data: { labels: MS, datasets: [{ data: msP, backgroundColor: msP.map(p => p >= 90 ? C.teal : p >= 80 ? '#FBD300' : p >= 75 ? '#C79100' : C.red), borderRadius: 18 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x + '%' } } }, scales: { x: { ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } }, y: noG } } });
 
+    // % Dentro e TMA por Cenário — Contrato × Spot, separado por Material/Serviço (t_tma_mat, t_tma_serv)
+    const tmaRows = tipoRows => {
+        const g = { Contrato: {}, Spot: {} };
+        tipoRows.forEach(r => {
+            if (r.tp !== 'Contrato' && r.tp !== 'Spot') return;
+            const k = r.cen || 'N/D';
+            const o = (g[r.tp][k] = g[r.tp][k] || { n: 0, i: 0, sr: 0 });
+            o.n++; if (r.ss === 'I') o.i++; o.sr += r.sr || 0;
+        });
+        let rowsHTML = '';
+        ['Contrato', 'Spot'].forEach(tipo => {
+            const cens = Object.keys(g[tipo]).sort((a, b) => g[tipo][b].n - g[tipo][a].n);
+            cens.forEach((cen, ci) => {
+                const o = g[tipo][cen], pct = o.n ? o.i / o.n * 100 : 0, tma = o.n ? Math.round(o.sr / o.n) : 0;
+                const col = pct >= 90 ? 'var(--good)' : pct >= 80 ? '#FBD300' : pct >= 75 ? '#C79100' : 'var(--bad)';
+                rowsHTML += `<tr>${ci === 0 ? `<td rowspan="${cens.length}"><b>${tipo}</b></td>` : ''}<td>${cen}</td><td class="num" style="color:${col};font-weight:700">${pct.toFixed(1)}%</td><td class="num">${tma}d</td></tr>`;
+            });
+        });
+        return rowsHTML || '<tr><td colspan="4" style="color:var(--muted)">Sem dados no recorte.</td></tr>';
+    };
+    document.querySelector('#t_tma_mat tbody').innerHTML = tmaRows(base.filter(r => r.cl === 'Material'));
+    document.querySelector('#t_tma_serv tbody').innerHTML = tmaRows(base.filter(r => r.cl === 'Serviço'));
+
     // % dentro do SLA por comprador (c_slacomp)
     const bc = {};
     base.forEach(r => { (bc[r.cp] = bc[r.cp] || { i: 0, t: 0 }); bc[r.cp].t++; if (r.ss === 'I') bc[r.cp].i++; });
@@ -397,7 +444,7 @@ function renderSLA() {
     // Tabela detalhada — RCs críticas por farol (t_crit)
     const sev = d => d > 15 ? ['f-rd', 's-rd', 'Crítico'] : d > 7 ? ['f-or', 's-or', 'Além do normal'] : ['f-am', 's-am', 'Fora do prazo'];
     const crit = foraR.map(r => ({ ...r, atr: r.sr - r.sa })).filter(r => r.atr > 0).sort((a, b) => b.atr - a.atr).slice(0, 40);
-    document.querySelector('#t_crit tbody').innerHTML = crit.map(r => { const s = sev(r.atr); return `<tr><td>${r.rc || '-'}</td><td>${r.it || '-'}</td><td>${r.cp}</td><td>${r.pf || '-'}</td><td>Concluída</td><td class="num">${r.atr}</td><td><span class="farol ${s[0]}"></span><span class="tag-sev ${s[1]}">${s[2]}</span></td></tr>`; }).join('') || '<tr><td colspan=7 style="color:#46606F">Sem RCs fora do SLA no recorte.</td></tr>';
+    document.querySelector('#t_crit tbody').innerHTML = crit.map(r => { const s = sev(r.atr); return `<tr><td>${r.rc || '-'}</td><td>${r.cp}</td><td>Concluída</td><td class="num">${r.atr}</td><td><span class="farol ${s[0]}"></span><span class="tag-sev ${s[1]}">${s[2]}</span></td></tr>`; }).join('') || '<tr><td colspan=5 style="color:#46606F">Sem RCs fora do SLA no recorte.</td></tr>';
 
     // Leitura (texto de insight)
     const pior = ca[0], melhor = ca[ca.length - 1], topcause = par[0];
@@ -673,7 +720,7 @@ function renderCompradores() {
     document.querySelectorAll('#t_comp tbody tr.jump').forEach(tr => tr.onclick = () => { const cp = tr.dataset.cp; STATE.comp = STATE.comp === cp ? 'GERAL' : cp; render(); });
 
     // RCs em aberto — acompanhamento do time (t_rcopen_all)
-    renderOpenRCPanel('t_rcopen_all', 'sum_rcopen_all', openRCsFor(null), true);
+    renderOpenRCPanel('t_rcopen_all', 'sum_rcopen_all', openRCsFor(null), true, false);
 
     // Leitura
     document.getElementById('ins-comp').innerHTML = comps.length ? `<b>Leitura:</b> <b>${comps.length} compradores</b> ativos no recorte, produtividade média de <b>${avgIpd.toFixed(2)} itens/dia</b> e SLA médio de <b>${avgSla.toFixed(1)}%</b>. ${topIpd ? `Maior produtividade: <b>${topIpd.cp}</b> (${topIpd.ipd.toFixed(2)} itens/dia). ` : ''}${topAge ? `Maior aging: <b>${topAge.cp}</b> (${topAge.agingAvg}d). ` : ''}Use a bolha Produtividade × SLA para achar quem produz bem <i>e</i> cumpre prazo (canto superior direito) — e clique numa linha da tabela ou numa bolha para abrir a visão individual.` : '<b>Sem compradores com dados no recorte.</b>';
@@ -794,7 +841,7 @@ function renderOverview() {
     const vCor = V.total >= 0 ? 'good' : 'bad';
     kpi('kpi-overview', [
         { l: 'Entrada de itens', v: P.entradas.toLocaleString('pt-BR'), n: 'itens liberados no recorte' },
-        { l: 'RCs em aberto (aging)', v: A.open.toLocaleString('pt-BR'), c: aCor, n: 'idade média ' + A.avg + 'd (meta ≤' + A.meta + 'd)' },
+        { l: 'Itens em aberto', v: A.openTotal.toLocaleString('pt-BR'), c: aCor, n: 'total bruto · aging médio ' + A.avg + 'd (meta ≤' + A.meta + 'd)' },
         { l: '% dentro do SLA', v: S.pct.toFixed(1) + '%', c: sCor, n: S.tot ? S.fora + ' de ' + S.tot + ' fora do prazo' : 'sem base avaliada' },
         { l: 'Saving capturado', v: Kf(V.total), c: vCor, n: BRL(V.total) + ' · ' + V.taxa.toFixed(1) + '% de taxa' },
         { l: 'Itens concluídos', v: P.concluidos.toLocaleString('pt-BR'), c: pCor, n: 'atingimento ' + P.ating.toFixed(0) + '% da meta Veloc.' },
@@ -826,5 +873,5 @@ function renderOverview() {
     ].join('');
 
     // Leitura consolidada
-    document.getElementById('ins-overview').innerHTML = `<b>Leitura:</b> produtividade em <b>${P.ating.toFixed(0)}%</b> da meta, aging médio de <b>${A.avg} dias</b> (${A.open} RCs em aberto, ${A.crit} críticas), SLA em <b>${S.pct.toFixed(1)}%</b> e saving de <b>${Kf(V.total)}</b> no recorte. Mix de entrada: <b>${K.pctCon.toFixed(0)}% Contrato</b> e <b>${K.pctSpo.toFixed(0)}% Spot</b>. ${[pCor, aCor, sCor].includes('bad') ? 'Há pelo menos um indicador abaixo da meta — abra a aba correspondente para detalhar.' : 'Indicadores-chave dentro ou próximos da meta no recorte atual.'}`;
+    document.getElementById('ins-overview').innerHTML = `<b>Leitura:</b> produtividade em <b>${P.ating.toFixed(0)}%</b> da meta, aging médio de <b>${A.avg} dias</b> (${A.openTotal} itens em aberto no total, ${A.crit} RCs críticas), SLA em <b>${S.pct.toFixed(1)}%</b> e saving de <b>${Kf(V.total)}</b> no recorte. Mix de entrada: <b>${K.pctCon.toFixed(0)}% Contrato</b> e <b>${K.pctSpo.toFixed(0)}% Spot</b>. ${[pCor, aCor, sCor].includes('bad') ? 'Há pelo menos um indicador abaixo da meta — abra a aba correspondente para detalhar.' : 'Indicadores-chave dentro ou próximos da meta no recorte atual.'}`;
 }

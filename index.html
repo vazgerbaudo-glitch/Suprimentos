@@ -153,8 +153,8 @@
                         <div class="panel">
                             <h3>RCs em aberto — acompanhamento do time</h3>
                             <div class="ph" id="sum_rcopen_all"></div>
-                            <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · Aging = dias desde a liberação · Saldo SLA = SLA Alvo − Aging (negativo = estourou o alvo) · RCs liberadas desde jan/2026, no recorte de Período/Tipo · ordenadas da mais antiga · clique numa linha para abrir o comprador</div>
-                            <div class="tbl-scroll"><table id="t_rcopen_all"><thead><tr><th>Comprador</th><th>RC</th><th class="num">Itens</th><th>Tipo</th><th>Etapa atual</th><th class="num">Liberada</th><th class="num">SLA Alvo</th><th class="num">Aging (d)</th><th class="num">Saldo SLA</th><th>Semáforo</th></tr></thead><tbody></tbody></table></div>
+                            <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · Aging = dias desde a liberação · Saldo SLA = SLA Alvo − Aging (negativo = estourou o alvo) · sem corte de data, no recorte de Período/Tipo · ordenadas da mais antiga · clique numa linha para abrir o comprador</div>
+                            <div class="tbl-scroll"><table id="t_rcopen_all"><thead><tr><th>Comprador</th><th>RC</th><th class="num">Itens</th><th class="num">SLA Alvo</th><th class="num">Aging (d)</th><th class="num">Saldo SLA</th><th>Semáforo</th></tr></thead><tbody></tbody></table></div>
                         </div>
                         <div class="insight" id="ins-comp"></div>
                     </div>
@@ -202,7 +202,7 @@
                         <div class="panel" style="margin-top:18px">
                             <h3>RCs em aberto — acompanhamento individual</h3>
                             <div class="ph" id="sum_rcopen_ind"></div>
-                            <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · Aging = dias desde a liberação · Saldo SLA = SLA Alvo − Aging (negativo = estourou o alvo) · RCs liberadas desde jan/2026, no recorte de Período/Tipo · ordenadas da mais antiga</div>
+                            <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · Aging = dias desde a liberação · Saldo SLA = SLA Alvo − Aging (negativo = estourou o alvo) · sem corte de data, no recorte de Período/Tipo · ordenadas da mais antiga</div>
                             <div class="tbl-scroll"><table id="t_rcopen_ind"><thead><tr><th>RC</th><th class="num">Itens</th><th>Tipo</th><th>Etapa atual</th><th class="num">Liberada</th><th class="num">SLA Alvo</th><th class="num">Aging (d)</th><th class="num">Saldo SLA</th><th>Semáforo</th></tr></thead><tbody></tbody></table></div>
                         </div>
                         <div class="insight" id="ins-individual"></div>
@@ -388,6 +388,18 @@
                     <div class="cv"><canvas id="c_mssla"></canvas></div>
                 </div>
             </div>
+            <div class="grid g2">
+                <div class="panel" style="margin-bottom:0">
+                    <h3>TMA e % Dentro do SLA — Material</h3>
+                    <div class="ph">Por Cenário SLA, dentro de Contrato/Spot · TMA = média do SLA Real (dias) · % Dentro: verde ≥90% (meta 150%) · amarelo 80–90% (meta 100%) · dourado 75–80% (meta 90%) · vermelho &lt;75%</div>
+                    <div class="tbl-scroll"><table id="t_tma_mat"><thead><tr><th>Tipo</th><th>Cenário</th><th class="num">% Dentro</th><th class="num">TMA</th></tr></thead><tbody></tbody></table></div>
+                </div>
+                <div class="panel" style="margin-bottom:0">
+                    <h3>TMA e % Dentro do SLA — Serviço</h3>
+                    <div class="ph">Por Cenário SLA, dentro de Contrato/Spot · TMA = média do SLA Real (dias) · % Dentro: verde ≥90% (meta 150%) · amarelo 80–90% (meta 100%) · dourado 75–80% (meta 90%) · vermelho &lt;75%</div>
+                    <div class="tbl-scroll"><table id="t_tma_serv"><thead><tr><th>Tipo</th><th>Cenário</th><th class="num">% Dentro</th><th class="num">TMA</th></tr></thead><tbody></tbody></table></div>
+                </div>
+            </div>
             <div class="panel">
                 <h3>Pareto — principais causas de atraso</h3>
                 <div class="ph">Etapa onde o item passou mais tempo (gargalo) · linha = % acumulado</div>
@@ -406,7 +418,7 @@
             <div class="panel">
                 <h3>Base detalhada — RCs críticas (farol)</h3>
                 <div class="ph"><span class="tag-sev s-am">Fora do prazo 1–7d</span> <span class="tag-sev s-or">Além do normal 8–15d</span> <span class="tag-sev s-rd">Crítico &gt;15d</span> · ordenado por dias em atraso</div>
-                <table id="t_crit"><thead><tr><th>RC</th><th>Item</th><th>Comprador</th><th>Responsável</th><th>Status</th><th class="num">Dias atraso</th><th>Severidade</th></tr></thead><tbody></tbody></table>
+                <table id="t_crit"><thead><tr><th>RC</th><th>Comprador</th><th>Status</th><th class="num">Dias atraso</th><th>Severidade</th></tr></thead><tbody></tbody></table>
             </div>
             <div class="insight" id="ins-sla"></div>
         </section>

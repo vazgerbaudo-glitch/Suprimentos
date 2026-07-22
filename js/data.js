@@ -124,7 +124,7 @@ function fromEmbedded() {
             rc: g('rc'), it: g('it'),
             vl: +g('vl') || 0, vp: +g('vp') || 0, vn: +g('vn') || 0,
             ipd: +g('ipd') || 0, ipc: +g('ipc') || 0,
-            cat: g('cat') || '', ccd: g('ccd') || '', tp: g('tp') || 'Outros',
+            cat: g('cat') || '', ccd: g('ccd') || '', tp: g('tp') || 'Outros', cen: g('cen') || '',
             gar: g('gar') || '', cl: g('cl') || '', td: g('td') || '',
             fa: +g('fa') || 0, du: +g('du') || 0
         };
@@ -152,7 +152,7 @@ function fromCSV(txt) {
             rc: o.rc, it: o.it,
             vl: parseNum(o.vl), vp: parseNum(o.vp), vn: parseNum(o.vn),
             ipd: parseNum(o.ipd), ipc: parseNum(o.ipc),
-            cat: catd, ccd: ccd, tp: classTipo(o.cen, o.tpc),
+            cat: catd, ccd: ccd, tp: classTipo(o.cen, o.tpc), cen: (o.cen || '').trim(),
             gar: computeGar(o), cl: (o.cl || '').trim(), td: (o.tpc || '').trim(),
             fa: parseNum(o.fa), du: parseNum(o.du), rm: rm
         };
@@ -270,6 +270,7 @@ function rollupRC(rows) {
             pf: mode(its.map(x => x.pf)) || '',
             et: ((openIt[0] || its[0]).et) || '',
             tp: mode(its.map(x => x.tp)) || 'Outros',
+            cen: mode(its.map(x => x.cen)) || '',
             cl: mode(its.map(x => x.cl)) || '',
             td: mode(its.map(x => x.td)) || '',
             cat: mode(its.map(x => x.cat)) || '',
@@ -286,6 +287,18 @@ const inY = d => d && d.getFullYear() === 2026;
 
 function periodHit(d) {
     if (!d || !inY(d)) return false;
+    if (STATE.modo === 'geral') return true;
+    if (STATE.modo === 'mes') return ymKey(d) === STATE.mes;
+    if (STATE.modo === 'atual') return isoWeek(d) === isoWeek(HOJE);
+    if (STATE.modo === 'semana') return isoWeek(d) === STATE.sem;
+    return true;
+}
+
+// Só para a aba Aging (e o painel "RCs em aberto" da aba Compradores, que usa a mesma base):
+// inclui também 2025, além de 2026 — os demais módulos do painel seguem restritos a 2026 (inY/periodHit)
+const inYAging = d => d && (d.getFullYear() === 2026 || d.getFullYear() === 2025);
+function periodHitAging(d) {
+    if (!d || !inYAging(d)) return false;
     if (STATE.modo === 'geral') return true;
     if (STATE.modo === 'mes') return ymKey(d) === STATE.mes;
     if (STATE.modo === 'atual') return isoWeek(d) === isoWeek(HOJE);
