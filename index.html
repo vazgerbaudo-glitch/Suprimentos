@@ -133,13 +133,14 @@
                 <div class="comp-detail">
                     <div id="comp-geral">
                         <div class="kpis" id="kpi-comp"></div>
-                        <div class="grid g2">
-                            <div class="panel" style="margin-bottom:0">
-                                <h3>Produtividade × SLA por comprador</h3>
-                                <div class="ph">Bolha = volume concluído · cor = aging médio das RCs abertas (verde ≤15d, dourado ≤30d, vermelho &gt;30d, cinza sem RC aberta) · clique numa bolha para abrir a visão individual</div>
-                                <div class="cv tall"><canvas id="c_compscatter"></canvas></div>
-                            </div>
-                            <div class="panel" style="margin-bottom:0">
+                        <div class="panel">
+                            <h3>Produtividade × SLA por comprador</h3>
+                            <div class="ph">Bolha = volume concluído · cor = aging médio das RCs abertas (verde ≤15d, dourado ≤30d, vermelho &gt;30d, cinza sem RC aberta) · clique numa bolha para abrir a visão individual</div>
+                            <div class="cv tall"><canvas id="c_compscatter"></canvas></div>
+                        </div>
+                        <div class="subsec">
+                            <div class="subsec-title">Material × Serviço</div>
+                            <div class="panel">
                                 <h3>Material × Serviço por comprador</h3>
                                 <div class="ph">Composição da produção concluída · Top 12 por volume</div>
                                 <div class="cv tall"><canvas id="c_compmix"></canvas></div>
@@ -187,13 +188,14 @@
                                 <div class="cv" style="height:180px"><canvas id="c_ind_sla"></canvas></div>
                             </div>
                         </div>
-                        <div class="grid g2">
-                            <div class="panel" style="margin-bottom:0">
-                                <h3>Saving por semana (R$)</h3>
-                                <div class="ph">Economia capturada no recorte</div>
-                                <div class="cv" style="height:190px"><canvas id="c_ind_saving"></canvas></div>
-                            </div>
-                            <div class="panel" style="margin-bottom:0">
+                        <div class="panel">
+                            <h3>Saving por semana (R$)</h3>
+                            <div class="ph">Economia capturada no recorte</div>
+                            <div class="cv" style="height:190px"><canvas id="c_ind_saving"></canvas></div>
+                        </div>
+                        <div class="subsec">
+                            <div class="subsec-title">Material × Serviço</div>
+                            <div class="panel">
                                 <h3>Material × Serviço</h3>
                                 <div class="ph">Composição da produção concluída no recorte</div>
                                 <div class="cv" style="height:190px"><canvas id="c_ind_mix"></canvas></div>
@@ -242,22 +244,25 @@
                     <div class="cv" style="height:380px"><canvas id="c_ipdcomp"></canvas></div>
                 </div>
             </div>
-            <div class="grid g3">
-                <div class="panel" style="margin-bottom:0">
-                    <h3>Material × Serviço — quantidade</h3>
-                    <div class="ph">Itens concluídos por classe no recorte</div>
-                    <div class="cv" style="height:230px"><canvas id="c_mat_qtd"></canvas></div>
+            <div class="subsec">
+                <div class="subsec-title">Material × Serviço</div>
+                <div class="grid g2">
+                    <div class="panel" style="margin-bottom:0">
+                        <h3>Material × Serviço — quantidade</h3>
+                        <div class="ph">Itens concluídos por classe no recorte</div>
+                        <div class="cv" style="height:230px"><canvas id="c_mat_qtd"></canvas></div>
+                    </div>
+                    <div class="panel" style="margin-bottom:0">
+                        <h3>Material × Serviço — %</h3>
+                        <div class="ph">Participação de cada classe na produção</div>
+                        <div class="cv" style="height:230px"><canvas id="c_mat_pct"></canvas></div>
+                    </div>
                 </div>
-                <div class="panel" style="margin-bottom:0">
-                    <h3>Material × Serviço — %</h3>
-                    <div class="ph">Participação de cada classe na produção</div>
-                    <div class="cv" style="height:230px"><canvas id="c_mat_pct"></canvas></div>
-                </div>
-                <div class="panel" style="margin-bottom:0">
-                    <h3>Entrada × Saída — total no recorte</h3>
-                    <div class="ph">Demandas liberadas vs concluídas no período selecionado (muda com mês/semana)</div>
-                    <div class="cv" style="height:230px"><canvas id="c_esgeral"></canvas></div>
-                </div>
+            </div>
+            <div class="panel">
+                <h3>Entrada × Saída — total no recorte</h3>
+                <div class="ph">Demandas liberadas vs concluídas no período selecionado (muda com mês/semana)</div>
+                <div class="cv" style="height:230px"><canvas id="c_esgeral"></canvas></div>
             </div>
             <div class="panel">
                 <h3>Produtividade por tipo de demanda</h3>
@@ -376,28 +381,31 @@
                     <div class="cv tall"><canvas id="c_slafaixa"></canvas></div>
                 </div>
             </div>
-            <div class="grid g2">
-                <div class="panel" style="margin-bottom:0">
-                    <h3>Volume acumulado — Material × Serviço</h3>
-                    <div class="ph">Total de RCs avaliadas no SLA por classe</div>
-                    <div class="cv"><canvas id="c_msacum"></canvas></div>
+            <div class="subsec">
+                <div class="subsec-title">Material × Serviço</div>
+                <div class="grid g2">
+                    <div class="panel" style="margin-bottom:0">
+                        <h3>Volume acumulado — Material × Serviço</h3>
+                        <div class="ph">Total de RCs avaliadas no SLA por classe</div>
+                        <div class="cv"><canvas id="c_msacum"></canvas></div>
+                    </div>
+                    <div class="panel" style="margin-bottom:0">
+                        <h3>% dentro do SLA — Material × Serviço</h3>
+                        <div class="ph">Aderência por classe · referência 90%</div>
+                        <div class="cv"><canvas id="c_mssla"></canvas></div>
+                    </div>
                 </div>
-                <div class="panel" style="margin-bottom:0">
-                    <h3>% dentro do SLA — Material × Serviço</h3>
-                    <div class="ph">Aderência por classe · referência 90%</div>
-                    <div class="cv"><canvas id="c_mssla"></canvas></div>
-                </div>
-            </div>
-            <div class="grid g2">
-                <div class="panel" style="margin-bottom:0">
-                    <h3>TMA e % Dentro do SLA — Material</h3>
-                    <div class="ph">Por Cenário SLA, dentro de Contrato/Spot · TMA = média do SLA Real (dias) · % Dentro: verde ≥90% (meta 150%) · amarelo 80–90% (meta 100%) · dourado 75–80% (meta 90%) · vermelho &lt;75%</div>
-                    <div class="tbl-scroll"><table id="t_tma_mat"><thead><tr><th>Tipo</th><th>Cenário</th><th class="num">% Dentro</th><th class="num">TMA</th></tr></thead><tbody></tbody></table></div>
-                </div>
-                <div class="panel" style="margin-bottom:0">
-                    <h3>TMA e % Dentro do SLA — Serviço</h3>
-                    <div class="ph">Por Cenário SLA, dentro de Contrato/Spot · TMA = média do SLA Real (dias) · % Dentro: verde ≥90% (meta 150%) · amarelo 80–90% (meta 100%) · dourado 75–80% (meta 90%) · vermelho &lt;75%</div>
-                    <div class="tbl-scroll"><table id="t_tma_serv"><thead><tr><th>Tipo</th><th>Cenário</th><th class="num">% Dentro</th><th class="num">TMA</th></tr></thead><tbody></tbody></table></div>
+                <div class="grid g2">
+                    <div class="panel" style="margin-bottom:0">
+                        <h3>TMA e % Dentro do SLA — Material</h3>
+                        <div class="ph">Por Cenário SLA, dentro de Contrato/Spot · TMA = média do SLA Real (dias) · % Dentro: verde ≥90% (meta 150%) · amarelo 80–90% (meta 100%) · dourado 75–80% (meta 90%) · vermelho &lt;75%</div>
+                        <div class="tbl-scroll"><table id="t_tma_mat"><thead><tr><th>Tipo</th><th>Cenário</th><th class="num">% Dentro</th><th class="num">TMA</th></tr></thead><tbody></tbody></table></div>
+                    </div>
+                    <div class="panel" style="margin-bottom:0">
+                        <h3>TMA e % Dentro do SLA — Serviço</h3>
+                        <div class="ph">Por Cenário SLA, dentro de Contrato/Spot · TMA = média do SLA Real (dias) · % Dentro: verde ≥90% (meta 150%) · amarelo 80–90% (meta 100%) · dourado 75–80% (meta 90%) · vermelho &lt;75%</div>
+                        <div class="tbl-scroll"><table id="t_tma_serv"><thead><tr><th>Tipo</th><th>Cenário</th><th class="num">% Dentro</th><th class="num">TMA</th></tr></thead><tbody></tbody></table></div>
+                    </div>
                 </div>
             </div>
             <div class="panel">
