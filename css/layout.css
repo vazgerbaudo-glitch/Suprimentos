@@ -203,15 +203,19 @@ section.tab.active {
 .kpis {
     display: grid;
     grid-template-columns: repeat(4,1fr);
-    gap: 18px;
-    margin-bottom: 24px
+    gap: 20px;
+    margin-bottom: 20px
 }
 .kpis.k3 {
     grid-template-columns: repeat(3,1fr)
 }
 .grid {
     display: grid;
-    gap: 18px
+    gap: 20px;
+    margin-bottom: 20px
+}
+.grid > .panel {
+    margin-bottom: 0
 }
 .g2 {
     grid-template-columns: 1fr 1fr
@@ -226,8 +230,8 @@ section.tab.active {
     background: rgba(0,56,101,.035);
     border: 1px solid rgba(0,56,101,.09);
     border-radius: 16px;
-    padding: 16px 16px 0;
-    margin: 22px 0
+    padding: 20px 20px 0;
+    margin: 20px 0
 }
 .subsec-title {
     font-size: 11px;
@@ -235,10 +239,10 @@ section.tab.active {
     text-transform: uppercase;
     letter-spacing: .6px;
     color: var(--brand);
-    margin: 0 2px 14px
+    margin: 0 2px 16px
 }
 .subsec .grid {
-    margin-bottom: 16px
+    margin-bottom: 20px
 }
 @media (max-width:960px) {
     body {

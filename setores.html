@@ -24,8 +24,8 @@
                 <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/>
             </div>
             <hr class="fside-sep" style="margin-top:auto"/>
-            <a class="side-link" href="index.html">Painel Ágeis</a>
-            <a class="side-link" href="entrada.html">Entrada</a>
+            <a class="side-link" href="ageis.html">Painel Ágeis</a>
+            <a class="side-link" href="index.html">Entrada</a>
             <div class="fside-src"><span class="dot" id="srcdot" title="Carregando…"></span><span id="srctxt"></span>
             </div>
         </aside>
@@ -47,7 +47,7 @@
                 <div class="wrap">
         <section class="tab active" id="overview">
             <div class="sec-head"><h2>Visão Geral</h2></div>
-            <div class="insight" style="margin-bottom:18px"><b>Para customização do setor, dúvidas</b> — estagiário Eduardo G. Vaz.</div>
+            <div class="insight" style="margin-bottom:18px"><b>Para customização do setor, dúvidas</b> — contate o estagiário Eduardo G. Vaz.</div>
             <div class="kpis" id="kpi-overview"></div>
             <div class="grid g3">
                 <div class="panel jump" data-t="prod">
@@ -92,29 +92,29 @@
                         <div class="cv" style="height:190px"><canvas id="c_ov_mat_pct"></canvas></div>
                     </div>
                 </div>
-            </div>
-            <div class="grid g2">
-                <div class="panel jump" data-t="sla" style="margin-bottom:0">
-                    <h3>SLA — Material × Serviço (volume) <span class="link-tab" data-t="sla">SLA →</span></h3>
-                    <div class="ph">RCs avaliadas no SLA, por classe</div>
-                    <div class="cv" style="height:190px"><canvas id="c_ov_sla_mat_qtd"></canvas></div>
+                <div class="grid g2">
+                    <div class="panel jump" data-t="sla" style="margin-bottom:0">
+                        <h3>SLA — Material × Serviço (volume) <span class="link-tab" data-t="sla">SLA →</span></h3>
+                        <div class="ph">RCs avaliadas no SLA, por classe</div>
+                        <div class="cv" style="height:190px"><canvas id="c_ov_sla_mat_qtd"></canvas></div>
+                    </div>
+                    <div class="panel jump" data-t="sla" style="margin-bottom:0">
+                        <h3>SLA — Material × Serviço (%) <span class="link-tab" data-t="sla">SLA →</span></h3>
+                        <div class="ph">Aderência ao SLA por classe</div>
+                        <div class="cv" style="height:190px"><canvas id="c_ov_sla_mat_pct"></canvas></div>
+                    </div>
                 </div>
-                <div class="panel jump" data-t="sla" style="margin-bottom:0">
-                    <h3>SLA — Material × Serviço (%) <span class="link-tab" data-t="sla">SLA →</span></h3>
-                    <div class="ph">Aderência ao SLA por classe</div>
-                    <div class="cv" style="height:190px"><canvas id="c_ov_sla_mat_pct"></canvas></div>
-                </div>
-            </div>
-            <div class="grid g2">
-                <div class="panel jump" data-t="aging" style="margin-bottom:0">
-                    <h3>Aging — Material × Serviço (quantidade) <span class="link-tab" data-t="aging">Aging →</span></h3>
-                    <div class="ph">RCs em aberto no recorte, por classe</div>
-                    <div class="cv" style="height:190px"><canvas id="c_ov_aging_mat_qtd"></canvas></div>
-                </div>
-                <div class="panel jump" data-t="aging" style="margin-bottom:0">
-                    <h3>Aging — Material × Serviço (dias) <span class="link-tab" data-t="aging">Aging →</span></h3>
-                    <div class="ph">Aging médio por classe</div>
-                    <div class="cv" style="height:190px"><canvas id="c_ov_aging_mat_avg"></canvas></div>
+                <div class="grid g2">
+                    <div class="panel jump" data-t="aging" style="margin-bottom:0">
+                        <h3>Aging — Material × Serviço (quantidade) <span class="link-tab" data-t="aging">Aging →</span></h3>
+                        <div class="ph">RCs em aberto no recorte, por classe</div>
+                        <div class="cv" style="height:190px"><canvas id="c_ov_aging_mat_qtd"></canvas></div>
+                    </div>
+                    <div class="panel jump" data-t="aging" style="margin-bottom:0">
+                        <h3>Aging — Material × Serviço (dias) <span class="link-tab" data-t="aging">Aging →</span></h3>
+                        <div class="ph">Aging médio por classe</div>
+                        <div class="cv" style="height:190px"><canvas id="c_ov_aging_mat_avg"></canvas></div>
+                    </div>
                 </div>
             </div>
             <div class="panel">

@@ -128,7 +128,7 @@
     border: 1px solid #C9D6DD;
     border-radius: 16px;
     padding: 15px 17px;
-    box-shadow: 0 1px 3px rgba(0,42,76,.07),0 10px 26px rgba(0,42,76,.10);
+    box-shadow: 0 1px 3px rgba(0,42,76,.07),0 6px 14px rgba(0,42,76,.08);
     position: relative;
     overflow: hidden;
     transition: transform .2s ease,border-color .2s ease,box-shadow .2s ease
@@ -224,9 +224,9 @@
     border: 1px solid #C9D6DD;
     border-radius: 14px;
     padding: 16px 18px;
-    box-shadow: 0 1px 3px rgba(0,42,76,.07),0 10px 26px rgba(0,42,76,.10);
+    box-shadow: 0 1px 3px rgba(0,42,76,.07),0 6px 14px rgba(0,42,76,.08);
     min-width: 0;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
     transition: border-color .2s ease,box-shadow .2s ease,transform .2s ease
 }
 .panel:hover {
@@ -237,7 +237,7 @@
 }
 .panel.jump:hover {
     border-color: var(--blue);
-    box-shadow: 0 2px 4px rgba(0,42,76,.08),0 10px 26px rgba(0,42,76,.14);
+    box-shadow: 0 2px 4px rgba(0,42,76,.08),0 8px 18px rgba(0,42,76,.12);
     transform: translateY(-2px)
 }
 .panel h3 {
