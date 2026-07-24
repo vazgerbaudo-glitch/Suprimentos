@@ -49,7 +49,7 @@ function sevOpen(r) {
 function openRCsFor(cp) {
     return ALLRC.filter(r => r.st === 'A' && r.dl && periodHitAging(r.dl) && tpHit(r) && (!cp || r.cp === cp))
         .map(r => ({ ...r, age: Math.round((HOJE - r.dl) / 86400000) }))
-        .filter(r => r.age >= 0)
+        .filter(r => r.age > 0)
         .sort((a, b) => b.age - a.age);
 }
 function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true) {
@@ -217,7 +217,7 @@ function renderProd() {
 function renderAging() {
     // Aging das RCs em aberto — distribuição e KPIs base
     const base = ALLRC.filter(r => r.st === 'A' && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r));
-    const ag = base.map(r => ({ ...r, age: Math.round((HOJE - r.dl) / 86400000) })).filter(r => r.age >= 0);
+    const ag = base.map(r => ({ ...r, age: Math.round((HOJE - r.dl) / 86400000) })).filter(r => r.age > 0);
     const FA = [['0-3', 0, 3], ['4-7', 4, 7], ['8-15', 8, 15], ['16-30', 16, 30], ['>30', 31, 1e9]];
     const FCOL = ['#1E9F7F', '#7FE06C', '#FBD300', '#C79100', '#D2373C'];
     const faIdx = a => { for (let i = 0; i < FA.length; i++) if (a >= FA[i][1] && a <= FA[i][2]) return i; return FA.length - 1; };
@@ -235,7 +235,7 @@ function renderAging() {
 
     // Meta de Aging por tipo — Geral x Contrato x Spot (kpi-aging)
     // Regra: exclui RC Cancelada/vazia e itens "Remover de Compras Ágeis" = Sim; aging só com
-    // datas válidas e não negativo (zero é válido); consolida por RC (Geral) e por RC+Tipo
+    // datas válidas e maior que zero (aging = 0 é desconsiderado); consolida por RC (Geral) e por RC+Tipo
     // (Contrato/Spot) usando o MAIOR aging quando os itens da mesma RC divergem — assim uma RC
     // com vários itens não pesa mais que uma com um item só. Filtros de Comprador/Período/Tipo
     // entram só depois de consolidar, sobre os atributos já consolidados da RC.
@@ -249,7 +249,7 @@ function renderAging() {
             if (it.st === 'A') age = Math.round((HOJE - it.dl) / 86400000);
             else if (it.st === 'C' && it.dl && it.dc) age = Math.round((it.dc - it.dl) / 86400000);
             else return;
-            if (!Number.isFinite(age) || age < 0) return;
+            if (!Number.isFinite(age) || age <= 0) return;
             const key = splitByTipo ? rc + '|' + it.td : rc;
             const o = groups[key] = groups[key] || { td: it.td, ages: [], cps: [], dl: null, open: false };
             o.ages.push(age); o.cps.push(it.cp);
@@ -357,7 +357,7 @@ function renderAging() {
 
     // Tabela detalhada — semáforo de aging (t_aging)
     const sevAg = r => sevOpen(r);
-    const tabAll = ALLRC.filter(r => (r.st === 'A' || r.st === 'C') && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r)).map(r => { const isOpen = r.st === 'A'; const age = isOpen ? Math.round((HOJE - r.dl) / 86400000) : (r.dc ? Math.round((r.dc - r.dl) / 86400000) : null); return { ...r, age, isOpen }; }).filter(r => r.age != null && r.age >= 0);
+    const tabAll = ALLRC.filter(r => (r.st === 'A' || r.st === 'C') && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r)).map(r => { const isOpen = r.st === 'A'; const age = isOpen ? Math.round((HOJE - r.dl) / 86400000) : (r.dc ? Math.round((r.dc - r.dl) / 86400000) : null); return { ...r, age, isOpen }; }).filter(r => r.age != null && r.age > 0);
     const tab = tabAll.slice().sort((a, b) => b.age - a.age).slice(0, 40);
     document.querySelector('#t_aging tbody').innerHTML = tab.map(r => { const s = sevAg(r); const stBadge = `<span class="tag-sev" style="background:${r.isOpen ? '#E1EDF5' : '#DFF2EA'};color:${r.isOpen ? '#0E538C' : '#14705A'}">${r.isOpen ? 'Em Aberto' : 'Concluída'}</span>`; return `<tr><td>${r.rc || '-'}</td><td>${r.it || '-'}</td><td>${r.cp}</td><td>${stBadge}</td><td>${r.et.replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${r.sa || '-'}</td><td class="num">${r.age}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`; }).join('') || '<tr><td colspan=8 style="color:#46606F">Nenhuma RC no recorte.</td></tr>';
 
@@ -368,7 +368,7 @@ function renderAging() {
 }
 function renderSLA() {
     // KPIs — aderência ao SLA (kpi-sla)
-    const base = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && periodHit(r.dc) && compHit(r) && tpHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
+    const base = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && periodHit(r.dc) && compHit(r) && tpHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg && slaHit(r));
     const ins = base.filter(r => r.ss === 'I').length, foraR = base.filter(r => r.ss === 'F'), fora = foraR.length, tot = ins + fora, pct = tot ? ins / tot * 100 : 0;
     const cor = pct >= 90 ? 'good' : pct >= 80 ? 'warn' : 'bad';
     const atrasos = foraR.map(r => r.sr - r.sa).filter(d => d > 0);
@@ -376,7 +376,7 @@ function renderSLA() {
     kpi('kpi-sla', [{ l: '% dentro do SLA', v: pct.toFixed(1) + '%', c: cor, p: pct >= 90 ? 'meta 90%' : pct >= 80 ? '80%' : '<80%', pc: pct >= 90 ? 'p-good' : pct >= 80 ? 'p-warn' : 'p-bad' }, { l: 'Base avaliada', v: tot.toLocaleString('pt-BR'), n: 'desde abr/2026' }, { l: 'Fora do SLA', v: fora.toLocaleString('pt-BR'), c: 'bad', n: tot ? (100 - pct).toFixed(1) + '%' : '' }, { l: 'Atraso médio', v: atrMed + 'd', c: 'warn', n: 'além do alvo (Fora)' }]);
 
     // Evolução do % dentro do SLA (c_slatrend) — visão geral, não muda com Período
-    const baseTrend = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && compHit(r) && tpHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
+    const baseTrend = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && compHit(r) && tpHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg && slaHit(r));
     const bw = {};
     baseTrend.forEach(r => { const w = isoWeek(r.dc); (bw[w] = bw[w] || { i: 0, t: 0 }); bw[w].t++; if (r.ss === 'I') bw[w].i++; });
     const wk = Object.keys(bw).sort();
@@ -657,7 +657,7 @@ function renderCompradores() {
     // Base independente do filtro Comprador (compHit) — para permitir comparação entre todos
     const doneBase = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r));
     const openBase = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && tpHit(r));
-    const slaBase = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
+    const slaBase = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg && slaHit(r));
     const savBase = ALL.filter(r => r.vp > 0 && r.vn > 0 && r.st !== 'X' && r.st !== 'D' && periodHit(r.dc) && tpHit(r));
     const comps = [...new Set([...doneBase, ...openBase, ...slaBase, ...savBase].map(r => r.cp))].filter(c => c && c !== 'N/D').sort();
     const rows = comps.map(cp => {
@@ -667,7 +667,7 @@ function renderCompradores() {
         const wks = Object.keys(byW);
         const ipd = wks.length ? wks.reduce((a, w) => a + byW[w], 0) / wks.length : 0;
         const open = openBase.filter(r => r.cp === cp);
-        const ages = open.map(r => Math.round((HOJE - r.dl) / 86400000)).filter(a => a >= 0);
+        const ages = open.map(r => Math.round((HOJE - r.dl) / 86400000)).filter(a => a > 0);
         const agingAvg = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : null;
         const sla = slaBase.filter(r => r.cp === cp);
         const slaPct = sla.length ? sla.filter(r => r.ss === 'I').length / sla.length * 100 : null;
@@ -759,16 +759,16 @@ function renderCompIndividual(cp, team) {
 
     // Aging — RCs abertas no recorte
     const openP = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && tpHit(r) && r.cp === cp);
-    const agesP = openP.map(r => Math.round((HOJE - r.dl) / 86400000)).filter(a => a >= 0);
+    const agesP = openP.map(r => Math.round((HOJE - r.dl) / 86400000)).filter(a => a > 0);
     const agingAvg = agesP.length ? Math.round(agesP.reduce((a, b) => a + b, 0) / agesP.length) : null;
     const critN = agesP.filter(a => a > 30).length;
     const fCounts = FA.map(() => 0);
     agesP.forEach(a => fCounts[faIdx(a)]++);
 
     // SLA — recorte (KPI) e ano completo (tendência semanal)
-    const slaP = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && r.cp === cp && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
+    const slaP = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && r.cp === cp && (r.ss === 'I' || r.ss === 'F') && !r.srNeg && slaHit(r));
     const slaPct = slaP.length ? slaP.filter(r => r.ss === 'I').length / slaP.length * 100 : null;
-    const slaY = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && tpHit(r) && r.cp === cp && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
+    const slaY = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && tpHit(r) && r.cp === cp && (r.ss === 'I' || r.ss === 'F') && !r.srNeg && slaHit(r));
     const bwS = {};
     slaY.forEach(r => { const w = isoWeek(r.dc); (bwS[w] = bwS[w] || { i: 0, t: 0 }); bwS[w].t++; if (r.ss === 'I') bwS[w].i++; });
     const wkS = Object.keys(bwS).sort();

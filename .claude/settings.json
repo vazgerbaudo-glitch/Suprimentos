@@ -6,7 +6,16 @@
       "Bash(start \"\" \"c:\\\\Users\\\\cs454641\\\\OneDrive - Rumo\\\\Área de Trabalho\\\\Suprimentos\\\\entrada.html\")",
       "Bash(git mv *)",
       "Bash(start \"\" \"c:\\\\Users\\\\cs454641\\\\OneDrive - Rumo\\\\Área de Trabalho\\\\Suprimentos\\\\index.html\")",
-      "Bash(start \"\" \"c:\\\\Users\\\\cs454641\\\\OneDrive - Rumo\\\\Área de Trabalho\\\\Suprimentos\\\\ageis.html\")"
+      "Bash(start \"\" \"c:\\\\Users\\\\cs454641\\\\OneDrive - Rumo\\\\Área de Trabalho\\\\Suprimentos\\\\ageis.html\")",
+      "Bash(powershell -Command \"Get-Content -Path 'base.csv' -TotalCount 1\")",
+      "PowerShell($bytes = [System.IO.File]::ReadAllBytes\\(\"base.csv\"\\)[0..8]; \\($bytes | ForEach-Object { $_.ToString\\(\"X2\"\\) }\\) -join ' ')",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\cs454641\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos\\\\55e09f7c-353a-4e08-9900-323fa72e1c26\\\\scratchpad\\\\aging_check.ps1\")",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\cs454641\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos\\\\55e09f7c-353a-4e08-9900-323fa72e1c26\\\\scratchpad\\\\aging_full.ps1\")",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\cs454641\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos\\\\55e09f7c-353a-4e08-9900-323fa72e1c26\\\\scratchpad\\\\aging_debug.ps1\")",
+      "Bash(git -C \".\" diff --stat js/render.js)",
+      "Bash(git -C \".\" diff js/render.js)",
+      "Bash(node --check \"js/data.js\")",
+      "Bash(node --check \"js/render.js\")"
     ]
   }
 }
