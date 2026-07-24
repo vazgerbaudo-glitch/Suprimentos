@@ -1,13 +1,10 @@
-function setSrc(s, m) {
-    const d = document.getElementById('srcdot'), t = document.getElementById('srctxt');
-    d.className = 'dot ' + (s || '');
-    d.title = m || '';
-    t.textContent = m || '';
+function setDot(cls) {
+    document.getElementById('srcdot').className = 'dot' + (cls ? ' ' + cls : '');
 }
 
-function loadEmpty(msg) {
+function loadEmpty() {
     ALL = fromEmbedded();
-    setSrc(msg ? 'err' : '', msg || 'Carregue o CSV de Gestão à Vista do setor');
+    setDot('');
     buildFilters();
     render();
 }
@@ -17,11 +14,12 @@ function loadCSVText(txt, nome) {
         const recs = fromCSV(txt).filter(r => r.dc || r.dl || r.st === 'A');
         if (!recs.length) throw new Error('vazio ou cabeçalhos não reconhecidos');
         ALL = recs;
-        setSrc('live', 'Base carregada: ' + (nome || 'CSV') + ' · ' + ALL.length + ' registros · ' + new Date().toLocaleString('pt-BR'));
+        setDot('live');
         buildFilters();
         render();
     } catch (err) {
-        setSrc('err', 'Falha ao ler o CSV (' + err.message + '). Confira o cabeçalho das colunas.');
+        setDot('err');
+        alert('Falha ao ler o CSV (' + err.message + '). Confira o cabeçalho das colunas.');
     }
 }
 
@@ -29,7 +27,7 @@ function readFile(file) {
     if (!file) return;
     const rd = new FileReader();
     rd.onload = () => loadCSVText(rd.result, file.name);
-    rd.onerror = () => setSrc('err', 'Erro ao abrir o arquivo.');
+    rd.onerror = () => { setDot('err'); alert('Erro ao abrir o arquivo.'); };
     rd.readAsText(file, 'UTF-8');
 }
 
