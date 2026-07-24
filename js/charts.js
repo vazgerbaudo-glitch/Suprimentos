@@ -229,6 +229,87 @@ const stackPctLabels = {
     }
 };
 
+// ---- rosquinha: destaca a fatia ao passar o mouse (afasta do centro) + espaçamento entre fatias ----
+// offset moderado (10px) + padding extra no layout (ver mkChart) para o "pop" nunca ser cortado pela borda do canvas
+Chart.defaults.datasets.doughnut.hoverOffset = 10;
+Chart.defaults.datasets.doughnut.spacing = 3;
+Chart.defaults.datasets.doughnut.hoverBorderColor = '#FFFFFF';
+Chart.defaults.datasets.pie.hoverOffset = 10;
+Chart.defaults.datasets.pie.spacing = 3;
+
+function isDarkCol(col) {
+    const m = /^#([0-9a-f]{6})$/i.exec(col || '');
+    if (!m) return true;
+    const n = parseInt(m[1], 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 150;
+}
+
+// ---- rosquinha: % de cada fatia escrito sobre a própria fatia ----
+const doughnutPctLabels = {
+    id: 'doughnutPctLabels',
+    afterDatasetsDraw(chart) {
+        if (chart.config.type !== 'doughnut' && chart.config.type !== 'pie') return;
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data.length) return;
+        const ds = chart.data.datasets[0];
+        const total = ds.data.reduce((a, v, i) => a + (chart.getDataVisibility(i) ? (+v || 0) : 0), 0);
+        if (!total) return;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.font = "700 10.5px Verdana,sans-serif";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const { top, bottom, left, right } = chart.chartArea;
+        meta.data.forEach((arc, i) => {
+            if (!chart.getDataVisibility(i)) return;
+            const v = +ds.data[i] || 0;
+            const pct = v / total * 100;
+            // fatia fina demais não tem espaço p/ texto legível — melhor omitir do que cortar (legenda/tooltip cobrem)
+            if (!pct || pct < 6) return;
+            const txt = (pct >= 10 ? Math.round(pct) : pct.toFixed(1).replace('.', ',')) + '%';
+            const tw = ctx.measureText(txt).width;
+            const pos = arc.tooltipPosition(true);
+            // nunca deixa o rótulo (nem no "pop" do hover) escapar da área de desenho do canvas
+            const x = Math.min(Math.max(pos.x, left + tw / 2 + 2), right - tw / 2 - 2);
+            const y = Math.min(Math.max(pos.y, top + 8), bottom - 8);
+            const bg = Array.isArray(ds.backgroundColor) ? ds.backgroundColor[i] : ds.backgroundColor;
+            ctx.fillStyle = isDarkCol(bg) ? '#FFFFFF' : '#13303F';
+            ctx.fillText(txt, x, y);
+        });
+        ctx.restore();
+    }
+};
+Chart.register(doughnutPctLabels);
+
+// ---- rosquinha: valor total e rótulo no centro do anel (ex.: "128 · Total") ----
+const doughnutCenter = {
+    id: 'doughnutCenter',
+    afterDatasetsDraw(chart) {
+        const cfg = chart.options.plugins && chart.options.plugins.centerText;
+        if (!cfg || chart.config.type !== 'doughnut') return;
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data.length) return;
+        const { x, y } = meta.data[0];
+        const ds = chart.data.datasets[0];
+        const total = ds.data.reduce((a, v, i) => a + (chart.getDataVisibility(i) ? (+v || 0) : 0), 0);
+        const valTxt = cfg.value ? cfg.value(total, chart) : total.toLocaleString('pt-BR');
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#13303F';
+        ctx.font = "700 20px Verdana,sans-serif";
+        ctx.fillText(valTxt, x, y + (cfg.label ? -8 : 0));
+        if (cfg.label) {
+            ctx.font = "700 9.5px Verdana,sans-serif";
+            ctx.fillStyle = '#8096A2';
+            ctx.fillText(cfg.label.toUpperCase(), x, y + 12);
+        }
+        ctx.restore();
+    }
+};
+Chart.register(doughnutCenter);
+
 function kill(id) {
     if (CH[id]) { CH[id].destroy(); delete CH[id]; }
 }
@@ -239,6 +320,11 @@ function mkChart(id, cfg) {
     if (o.indexAxis === 'y') {
         o.plugins = o.plugins || {};
         o.plugins.tooltip = Object.assign({}, o.plugins.tooltip, { enabled: false, external: null });
+    }
+    // rosquinha/pizza: reserva espaço extra na borda do canvas p/ a fatia (e seu rótulo) nunca serem
+    // cortados quando "pop" para fora no hover
+    if (cfg.type === 'doughnut' || cfg.type === 'pie') {
+        o.layout = Object.assign({ padding: 16 }, o.layout);
     }
     CH[id] = new Chart(document.getElementById(id), cfg);
     renderLegend(CH[id]);
