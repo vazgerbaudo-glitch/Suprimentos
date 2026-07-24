@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(start \"\" \"c:\\\\Users\\\\cs454641\\\\OneDrive - Rumo\\\\Área de Trabalho\\\\Suprimentos\\\\setores.html\")",
+      "Bash(node -e ' *)",
+      "Bash(start \"\" \"c:\\\\Users\\\\cs454641\\\\OneDrive - Rumo\\\\Área de Trabalho\\\\Suprimentos\\\\entrada.html\")"
+    ]
+  }
+}

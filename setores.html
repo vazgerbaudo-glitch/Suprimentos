@@ -3,16 +3,16 @@
     <head>
         <meta charset="UTF-8"/>
         <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-        <title>Painel — Compras Ágeis</title>
+        <title>Painel — Setores</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-        <link rel="stylesheet" href="css/variables.css?v=20260717"/>
-        <link rel="stylesheet" href="css/base.css?v=20260717"/>
-        <link rel="stylesheet" href="css/layout.css?v=20260717"/>
-        <link rel="stylesheet" href="css/components.css?v=20260717"/>
+        <link rel="stylesheet" href="css/variables.css?v=20260724"/>
+        <link rel="stylesheet" href="css/base.css?v=20260724"/>
+        <link rel="stylesheet" href="css/layout.css?v=20260724"/>
+        <link rel="stylesheet" href="css/components.css?v=20260724"/>
     </head>
     <body>
         <aside class="filters-side">
-            <div class="fside-brand">Ágeis<span>2026</span></div>
+            <div class="fside-brand">Setores<span>2026</span></div>
             <hr class="fside-sep"/>
             <div class="fg"><label>Período</label><select id="f_modo"><option value="geral">Geral (2026)</option><option value="mes">Mês</option><option value="atual">Semana atual</option><option value="semana">Semana específica</option></select></div>
             <div class="fg" id="wrap_mes" style="display:none"><label>Mês</label><select id="f_mes"></select></div>
@@ -20,12 +20,11 @@
             <div class="fg"><label>Tipo de compra</label><select id="f_tipo"><option value="GERAL">Geral</option><option value="CS">Contrato e Spot</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option></select></div>
             <hr class="fside-sep"/>
             <div id="drop">
-                <label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">📁 Carregar CSV</label>
+                <label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">📁 Carregar Gestão à Vista (CSV)</label>
                 <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/>
             </div>
-            <button class="btn ghost" id="btn_slides">📋 Apresentação</button>
             <hr class="fside-sep" style="margin-top:auto"/>
-            <a class="side-link" href="setores.html">Painel Setores</a>
+            <a class="side-link" href="index.html">Painel Ágeis</a>
             <a class="side-link" href="entrada.html">Entrada</a>
             <div class="fside-src"><span class="dot" id="srcdot" title="Carregando…"></span><span id="srctxt"></span>
             </div>
@@ -37,11 +36,10 @@
                         <span class="pill-indicator" id="pillIndicator"></span>
                         <button data-t="overview" class="active">Visão Geral</button>
                         <button data-t="comp">Compradores</button>
-                        <button data-t="prod">Prod &amp; Velocidade</button>
                         <button data-t="aging">Aging</button>
                         <button data-t="sla">SLA</button>
                         <button data-t="saving">Saving</button>
-                        <button data-t="contr">Contratualização</button>
+                        <button data-t="prod">Produtividade</button>
                     </nav>
                 </div>
             </header>
@@ -49,11 +47,12 @@
                 <div class="wrap">
         <section class="tab active" id="overview">
             <div class="sec-head"><h2>Visão Geral</h2></div>
+            <div class="insight" style="margin-bottom:18px"><b>Para customização do setor, dúvidas</b> — estagiário Eduardo G. Vaz.</div>
             <div class="kpis" id="kpi-overview"></div>
             <div class="grid g3">
                 <div class="panel jump" data-t="prod">
                     <h3>Itens concluídos por semana <span class="link-tab" data-t="prod">Produtividade →</span></h3>
-                    <div class="ph">Volume finalizado em 2026</div>
+                    <div class="ph">Volume finalizado no recorte</div>
                     <div class="cv" style="height:180px"><canvas id="c_ov_prod"></canvas></div>
                 </div>
                 <div class="panel jump" data-t="aging">
@@ -73,9 +72,9 @@
                     <div class="ph">Economia capturada no recorte</div>
                     <div class="cv" style="height:190px"><canvas id="c_ov_saving"></canvas></div>
                 </div>
-                <div class="panel jump" data-t="contr">
-                    <h3>Mix Contrato × Spot <span class="link-tab" data-t="contr">Contratualização →</span></h3>
-                    <div class="ph">RCs liberadas no recorte, por tipo</div>
+                <div class="panel">
+                    <h3>Mix Contrato × Spot</h3>
+                    <div class="ph">RCs liberadas no recorte, por tipo (informativo)</div>
                     <div class="cv" style="height:190px"><canvas id="c_ov_contr"></canvas></div>
                 </div>
             </div>
@@ -102,7 +101,7 @@
                 </div>
                 <div class="panel jump" data-t="sla" style="margin-bottom:0">
                     <h3>SLA — Material × Serviço (%) <span class="link-tab" data-t="sla">SLA →</span></h3>
-                    <div class="ph">Aderência ao SLA por classe · referência 90%</div>
+                    <div class="ph">Aderência ao SLA por classe</div>
                     <div class="cv" style="height:190px"><canvas id="c_ov_sla_mat_pct"></canvas></div>
                 </div>
             </div>
@@ -114,14 +113,14 @@
                 </div>
                 <div class="panel jump" data-t="aging" style="margin-bottom:0">
                     <h3>Aging — Material × Serviço (dias) <span class="link-tab" data-t="aging">Aging →</span></h3>
-                    <div class="ph">Aging médio por classe · meta geral ≤ meta configurada</div>
+                    <div class="ph">Aging médio por classe</div>
                     <div class="cv" style="height:190px"><canvas id="c_ov_aging_mat_avg"></canvas></div>
                 </div>
             </div>
             <div class="panel">
                 <h3>Resumo por módulo</h3>
-                <div class="ph">Indicador principal de cada aba frente à meta/referência · clique numa linha para abrir a aba</div>
-                <table class="score" id="t_overview"><thead><tr><th>Módulo</th><th>Indicador principal</th><th class="num">Valor</th><th class="num">Meta/Referência</th><th>Status</th></tr></thead><tbody></tbody></table>
+                <div class="ph">Indicador principal de cada aba no recorte atual · clique numa linha para abrir a aba · sem metas pré-estabelecidas</div>
+                <table class="score" id="t_overview"><thead><tr><th>Módulo</th><th>Indicador principal</th><th class="num">Valor</th></tr></thead><tbody></tbody></table>
             </div>
             <div class="insight" id="ins-overview"></div>
         </section>
@@ -174,7 +173,7 @@
                         <div class="grid g3">
                             <div class="panel">
                                 <h3>Itens concluídos por semana <span style="font-weight:400;color:var(--muted);font-size:11px">vs. média do time</span></h3>
-                                <div class="ph">Volume finalizado em 2026</div>
+                                <div class="ph">Volume finalizado no recorte</div>
                                 <div class="cv" style="height:180px"><canvas id="c_ind_prod"></canvas></div>
                             </div>
                             <div class="panel">
@@ -213,92 +212,8 @@
             </div>
         </section>
 
-        <section class="tab" id="prod">
-            <div class="sec-head"><h2>Velocidade & Produtividade</h2></div>
-            <div class="kpis" id="kpi-prod"></div>
-            <div class="panel">
-                <h3>Atingimento da meta de produtividade</h3>
-                <div class="ph">% da meta ponderada (Material 11/dia · Serviço 3/dia) no recorte</div>
-                <div class="cv" style="height:150px"><canvas id="c_gauge"></canvas></div>
-                <div class="metabar">Meta Material (itens/dia): <input id="m_mat" type="number" step="0.5"/> · Meta Serviço (itens/dia): <input id="m_serv" type="number" step="0.5"/> <button class="btn ghost" id="m_apply">Aplicar metas</button></div>
-            </div>
-            <div class="panel">
-                <h3>Itens concluídos por semana</h3>
-                <div class="ph">Volume finalizado em 2026</div>
-                <div class="cv"><canvas id="c_psem"></canvas></div>
-            </div>
-            <div class="panel">
-                <h3>Itens/dia/comprador — evolução semanal</h3>
-                <div class="ph">Média de itens concluídos por dia por comprador ativo na semana · visão do ano · linha tracejada = média do período</div>
-                <div class="cv"><canvas id="c_ipdsem"></canvas></div>
-            </div>
-            <div class="grid g2">
-                <div class="panel" style="margin-bottom:0">
-                    <h3>Concluídos por comprador</h3>
-                    <div class="ph">Contribuição no recorte · cor = classe predominante do comprador (azul-claro = Material, azul-escuro = Serviço, amarelo = comprador selecionado)</div>
-                    <div class="cv" style="height:380px"><canvas id="c_pcomp"></canvas></div>
-                </div>
-                <div class="panel" style="margin-bottom:0">
-                    <h3>Itens/dia por comprador</h3>
-                    <div class="ph">Produtividade individual (Item/dia) — média das semanas no recorte · linhas tracejadas = meta Material e meta Serviço · cor da barra = classe predominante (azul-claro = Material, azul-escuro = Serviço)</div>
-                    <div class="cv" style="height:380px"><canvas id="c_ipdcomp"></canvas></div>
-                </div>
-            </div>
-            <div class="subsec">
-                <div class="subsec-title">Material × Serviço</div>
-                <div class="grid g2">
-                    <div class="panel" style="margin-bottom:0">
-                        <h3>Material × Serviço — quantidade</h3>
-                        <div class="ph">Itens concluídos por classe no recorte</div>
-                        <div class="cv" style="height:230px"><canvas id="c_mat_qtd"></canvas></div>
-                    </div>
-                    <div class="panel" style="margin-bottom:0">
-                        <h3>Material × Serviço — %</h3>
-                        <div class="ph">Participação de cada classe na produção</div>
-                        <div class="cv" style="height:230px"><canvas id="c_mat_pct"></canvas></div>
-                    </div>
-                </div>
-            </div>
-            <div class="panel">
-                <h3>Entrada × Saída — total no recorte</h3>
-                <div class="ph">Demandas liberadas vs concluídas no período selecionado (muda com mês/semana)</div>
-                <div class="cv" style="height:230px"><canvas id="c_esgeral"></canvas></div>
-            </div>
-            <div class="panel">
-                <h3>Produtividade por tipo de demanda</h3>
-                <div class="ph">Itens concluídos por semana, empilhados por tipo de RC</div>
-                <div class="cv tall"><canvas id="c_tipo"></canvas></div>
-            </div>
-            <div class="panel">
-                <h3>Entrada × saída por comprador</h3>
-                <div class="ph">Demandas recebidas (liberadas) vs concluídas por responsável no recorte</div>
-                <div class="cv tall"><canvas id="c_escomp"></canvas></div>
-            </div>
-            <div class="panel">
-                <h3>Entrada × saída vs meta de capacidade</h3>
-                <div class="ph">Linha de meta baseada em 7 itens/dia por comprador · passe o mouse em qualquer ponto da semana para ver Entrada, Saída e Meta juntas</div>
-                <div class="cv tall"><canvas id="c_esmeta"></canvas></div>
-            </div>
-            <div class="panel">
-                <h3>Itens por faixa de valor de entrada</h3>
-                <div class="ph">Quantidade de itens liberados no recorte, por faixa de valor (R$)</div>
-                <div class="cv"><canvas id="c_valfaixa"></canvas></div>
-            </div>
-            <div class="panel">
-                <h3>Mapa de calor — produtividade por comprador × dia da semana</h3>
-                <div class="ph">Nº de RCs concluídas no recorte selecionado (período, comprador e tipo) · revela dias de maior/menor produção</div>
-                <div class="hm" id="heat_prod"></div>
-            </div>
-            <div class="insight" id="ins-prod"></div>
-        </section>
-
         <section class="tab" id="aging">
             <div class="sec-head"><h2>Aging — RCs em aberto</h2></div>
-            <div class="panel" style="margin-bottom:14px">
-                <h3>Meta de Aging por tipo</h3>
-                <div class="ph">Teto de aging médio (dias) — referência do COE: Contrato 101d · Spot 33d. Aging médio considera RCs concluídas e em aberto (tempo de vida da RC)</div>
-                <div class="metabar" style="margin-top:0">Meta Geral (dias): <input id="m_agg" type="number" step="1"/> · Meta Contrato (dias): <input id="m_agc" type="number" step="1"/> · Meta Spot (dias): <input id="m_ags" type="number" step="1"/> <button class="btn ghost" id="m_ag_apply">Aplicar metas</button></div>
-            </div>
             <div class="kpis k3" id="kpi-aging"></div>
             <div class="grid g2">
                 <div class="panel" style="margin-bottom:0">
@@ -360,7 +275,7 @@
             </div>
             <div class="panel">
                 <h3>Base detalhada — semáforo de aging por RC</h3>
-                <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · inclui RCs em aberto e concluídas</div>
+                <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo da própria RC · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · inclui RCs em aberto e concluídas</div>
                 <table id="t_aging"><thead><tr><th>RC</th><th>Item</th><th>Comprador</th><th>Status</th><th>Etapa</th><th class="num">SLA Alvo</th><th class="num">Dias</th><th>Semáforo</th></tr></thead><tbody></tbody></table>
             </div>
             <div class="insight" id="ins-aging"></div>
@@ -372,7 +287,7 @@
             <div class="grid g12">
                 <div class="panel">
                     <h3>Evolução do % dentro do SLA</h3>
-                    <div class="ph">Por semana, desde abr/2026 — visão geral, não muda com o filtro de Período · metas pontilhadas: 90% (meta 150%), 80% (meta 100%), 75% (meta 90%)</div>
+                    <div class="ph">Por semana, desde abr/2026 — visão geral, não muda com o filtro de Período</div>
                     <div class="cv tall"><canvas id="c_slatrend"></canvas></div>
                 </div>
                 <div class="panel">
@@ -391,19 +306,19 @@
                     </div>
                     <div class="panel" style="margin-bottom:0">
                         <h3>% dentro do SLA — Material × Serviço</h3>
-                        <div class="ph">Aderência por classe · referência 90%</div>
+                        <div class="ph">Aderência por classe</div>
                         <div class="cv"><canvas id="c_mssla"></canvas></div>
                     </div>
                 </div>
                 <div class="grid g2">
                     <div class="panel" style="margin-bottom:0">
                         <h3>TMA e % Dentro do SLA — Material</h3>
-                        <div class="ph">Por Cenário SLA, dentro de Contrato/Spot · TMA = média do SLA Real (dias) · % Dentro: verde ≥90% (meta 150%) · amarelo 80–90% (meta 100%) · dourado 75–80% (meta 90%) · vermelho &lt;75%</div>
+                        <div class="ph">Por Cenário SLA, dentro de Contrato/Spot · TMA = média do SLA Real (dias) · % Dentro: verde ≥90% · amarelo 80–90% · dourado 75–80% · vermelho &lt;75%</div>
                         <div class="tbl-scroll"><table id="t_tma_mat"><thead><tr><th>Tipo</th><th>Cenário</th><th class="num">% Dentro</th><th class="num">TMA</th></tr></thead><tbody></tbody></table></div>
                     </div>
                     <div class="panel" style="margin-bottom:0">
                         <h3>TMA e % Dentro do SLA — Serviço</h3>
-                        <div class="ph">Por Cenário SLA, dentro de Contrato/Spot · TMA = média do SLA Real (dias) · % Dentro: verde ≥90% (meta 150%) · amarelo 80–90% (meta 100%) · dourado 75–80% (meta 90%) · vermelho &lt;75%</div>
+                        <div class="ph">Por Cenário SLA, dentro de Contrato/Spot · TMA = média do SLA Real (dias) · % Dentro: verde ≥90% · amarelo 80–90% · dourado 75–80% · vermelho &lt;75%</div>
                         <div class="tbl-scroll"><table id="t_tma_serv"><thead><tr><th>Tipo</th><th>Cenário</th><th class="num">% Dentro</th><th class="num">TMA</th></tr></thead><tbody></tbody></table></div>
                     </div>
                 </div>
@@ -437,7 +352,7 @@
             <div class="grid g12">
                 <div class="panel">
                     <h3>Saving por semana (R$)</h3>
-                    <div class="ph">Economia capturada em 2026</div>
+                    <div class="ph">Economia capturada no recorte</div>
                     <div class="cv tall"><canvas id="c_savsem"></canvas></div>
                 </div>
                 <div class="panel">
@@ -454,7 +369,7 @@
             <div class="grid g2">
                 <div class="panel" style="margin-bottom:0">
                     <h3>Pareto — categorias que geram 80% do saving</h3>
-                    <div class="ph">Concentração da economia · poucas categorias normalmente respondem pela maior parte · linha pontilhada = meta 80% acumulado</div>
+                    <div class="ph">Concentração da economia · poucas categorias normalmente respondem pela maior parte</div>
                     <div class="cv tall"><canvas id="c_savpareto"></canvas></div>
                 </div>
                 <div class="panel" style="margin-bottom:0">
@@ -465,81 +380,95 @@
             </div>
             <div class="panel">
                 <h3>Formação do saving</h3>
-                <div class="ph">1ª Proposta → Negociado → Saving final, somado no recorte · sem colunas de orçado/impostos/fretes na base atual</div>
+                <div class="ph">1ª Proposta → Negociado → Saving final, somado no recorte</div>
                 <div class="cv tall"><canvas id="c_savwaterfall"></canvas></div>
                 <div class="ph" id="wf-summary" style="margin-top:8px"></div>
             </div>
             <div class="panel">
                 <h3>Base detalhada — saving por RC</h3>
-                <div class="ph">1ª proposta, negociado e saving por item · ordenado por maior economia · Fornecedor e Pedido não constam na base atual</div>
+                <div class="ph">1ª proposta, negociado e saving por item · ordenado por maior economia</div>
                 <table id="t_saving"><thead><tr><th>RC</th><th>Item</th><th>Comprador</th><th>Carteira/Categoria</th><th class="num">1ª Proposta</th><th class="num">Negociado</th><th class="num">Saving</th><th class="num">% Saving</th></tr></thead><tbody></tbody></table>
             </div>
             <div class="insight" id="ins-saving"></div>
         </section>
 
-        <section class="tab" id="contr">
-            <div class="sec-head"><h2>Contratualização — Carteira × Tipo</h2></div>
-            <div class="panel" style="margin-bottom:14px">
-                <h3>Base de Carteiras (RC × Item → G/S/R)</h3>
-                <div class="ph">Fonte única desta aba — só linhas com Gerência Final = Compras Ágeis; período usa a Data do Pedido; sem filtro de Comprador (a segundaBase não tem esse campo)</div>
-                <div class="metabar" style="margin-top:0">
-                    <label for="f_cart" class="btn ghost" style="cursor:pointer">📁 Carregar base de carteiras</label>
-                    <input id="f_cart" type="file" accept=".csv,text/csv" style="display:none"/>
-                    <span class="ph" id="cart_status" style="margin:0"></span>
+        <section class="tab" id="prod">
+            <div class="sec-head"><h2>Velocidade & Produtividade</h2></div>
+            <div class="kpis k3" id="kpi-prod"></div>
+            <div class="panel">
+                <h3>Itens concluídos por semana</h3>
+                <div class="ph">Volume finalizado no recorte</div>
+                <div class="cv"><canvas id="c_psem"></canvas></div>
+            </div>
+            <div class="panel">
+                <h3>Itens/dia/comprador — evolução semanal</h3>
+                <div class="ph">Média de itens concluídos por dia por comprador ativo na semana · visão do ano · linha tracejada = média do período</div>
+                <div class="cv"><canvas id="c_ipdsem"></canvas></div>
+            </div>
+            <div class="grid g2">
+                <div class="panel" style="margin-bottom:0">
+                    <h3>Concluídos por comprador</h3>
+                    <div class="ph">Contribuição no recorte · cor = classe predominante do comprador (azul-claro = Material, azul-escuro = Serviço, amarelo = comprador selecionado)</div>
+                    <div class="cv" style="height:380px"><canvas id="c_pcomp"></canvas></div>
+                </div>
+                <div class="panel" style="margin-bottom:0">
+                    <h3>Itens/dia por comprador</h3>
+                    <div class="ph">Produtividade individual (Item/dia) — média das semanas no recorte · cor da barra = classe predominante (azul-claro = Material, azul-escuro = Serviço)</div>
+                    <div class="cv" style="height:380px"><canvas id="c_ipdcomp"></canvas></div>
                 </div>
             </div>
-            <div class="kpis k3" id="kpi-contr"></div>
-            <div class="grid g3">
-                <div class="panel">
-                    <h3>Contrato × Spot — Geral</h3>
-                    <div class="ph">Soma de todas as carteiras — % Contrato × % Spot no recorte</div>
-                    <div class="cv"><canvas id="c_contrmix"></canvas></div>
-                </div>
-                <div class="panel">
-                    <h3>Contrato × Spot — Material</h3>
-                    <div class="ph">Só itens Material — % Contrato × % Spot no recorte</div>
-                    <div class="cv"><canvas id="c_contrmix_mat"></canvas></div>
-                </div>
-                <div class="panel">
-                    <h3>Contrato × Spot — Serviço</h3>
-                    <div class="ph">Só itens Serviço — % Contrato × % Spot no recorte</div>
-                    <div class="cv"><canvas id="c_contrmix_serv"></canvas></div>
+            <div class="subsec">
+                <div class="subsec-title">Material × Serviço</div>
+                <div class="grid g2">
+                    <div class="panel" style="margin-bottom:0">
+                        <h3>Material × Serviço — quantidade</h3>
+                        <div class="ph">Itens concluídos por classe no recorte</div>
+                        <div class="cv" style="height:230px"><canvas id="c_mat_qtd"></canvas></div>
+                    </div>
+                    <div class="panel" style="margin-bottom:0">
+                        <h3>Material × Serviço — %</h3>
+                        <div class="ph">Participação de cada classe na produção</div>
+                        <div class="cv" style="height:230px"><canvas id="c_mat_pct"></canvas></div>
+                    </div>
                 </div>
             </div>
             <div class="panel">
-                <h3>RCs por Código de Carteira</h3>
-                <div class="ph">Quantidade de RCs por raiz de carteira (G / S / R) e demais — total do recorte</div>
-                <div class="cv"><canvas id="c_ccd"></canvas></div>
+                <h3>Entrada × Saída — total no recorte</h3>
+                <div class="ph">Demandas liberadas vs concluídas no período selecionado (muda com mês/semana)</div>
+                <div class="cv" style="height:230px"><canvas id="c_esgeral"></canvas></div>
             </div>
             <div class="panel">
-                <h3>% Contrato × Spot por carteira G</h3>
-                <div class="ph">Uma coluna por carteira G específica (todas) — % Contrato × % Spot, para comparar quem depende mais de Spot</div>
-                <div class="cv"><canvas id="c_ccd_tipo"></canvas></div>
+                <h3>Produtividade por tipo de demanda</h3>
+                <div class="ph">Itens concluídos por semana, empilhados por tipo de RC</div>
+                <div class="cv tall"><canvas id="c_tipo"></canvas></div>
             </div>
             <div class="panel">
-                <h3>Evolução semanal — Contrato × Spot</h3>
-                <div class="ph">RCs liberadas por semana, por tipo</div>
-                <div class="cv tall"><canvas id="c_contrevol"></canvas></div>
+                <h3>Entrada × saída por comprador</h3>
+                <div class="ph">Demandas recebidas (liberadas) vs concluídas por responsável no recorte</div>
+                <div class="cv tall"><canvas id="c_escomp"></canvas></div>
             </div>
             <div class="panel">
-                <h3>Base detalhada — Carteira × Tipo</h3>
-                <div class="ph">Quantidade de RCs por carteira, separadas por tipo · ordenado por volume total</div>
-                <table id="t_contr"><thead></thead><tbody></tbody></table>
+                <h3>Itens por faixa de valor de entrada</h3>
+                <div class="ph">Quantidade de itens liberados no recorte, por faixa de valor (R$)</div>
+                <div class="cv"><canvas id="c_valfaixa"></canvas></div>
             </div>
-            <div class="insight" id="ins-contr"></div>
+            <div class="panel">
+                <h3>Mapa de calor — produtividade por comprador × dia da semana</h3>
+                <div class="ph">Nº de RCs concluídas no recorte selecionado (período e tipo) · revela dias de maior/menor produção</div>
+                <div class="hm" id="heat_prod"></div>
+            </div>
+            <div class="insight" id="ins-prod"></div>
         </section>
 
-                <div class="note-box"><b>Notas de qualidade dos dados</b> 384 RCs concluídas têm "SLA Real" negativo (datas inconsistentes) — excluídas de todos os cálculos do painel de SLA (%SLA, atraso, gravidade, heatmap, comprador) · as colunas de dias por etapa têm ~30% de valores corrompidos; o Pareto de causas usa apenas valores sãos (≤400 dias) e é indicativo · "Saving/penalty" e "Cost Avoidance" próprias estão vazias, por isso o saving usa 1ª proposta vs. negociado · "Carteira/Categoria" vazia em ~64%.</div>
+                </div>
             </div>
         </div>
-    </div>
-    <script src="js/config.js?v=20260717"></script>
-    <script src="js/state.js?v=20260717"></script>
-    <script src="js/data.js?v=20260717"></script>
-    <script src="js/charts.js?v=20260717"></script>
-    <script src="js/render.js?v=20260717"></script>
-    <script src="js/filters.js?v=20260717"></script>
-    <script src="js/slides.js?v=20260717"></script>
-    <script src="js/main.js?v=20260717"></script>
+        <script src="js/config.js?v=20260724"></script>
+        <script src="js/state.js?v=20260724"></script>
+        <script src="js/data.js?v=20260724"></script>
+        <script src="js/charts.js?v=20260724"></script>
+        <script src="js/render_setor.js?v=20260724"></script>
+        <script src="js/filters_setor.js?v=20260724"></script>
+        <script src="js/main_setor.js?v=20260724"></script>
     </body>
 </html>
