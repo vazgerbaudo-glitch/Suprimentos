@@ -14,7 +14,7 @@
     <body>
         <div class="splash" id="splash"></div>
         <script>
-            // Tela de entrada — 3 fileiras de vagões; locomotiva puxa o "Ágeis"; botão alt leva ao "Terminais"
+            // Tela de entrada — 3 fileiras de vagões; locomotiva puxa o "Ágeis"; botões alt levam a "Terminais" e "Corporativo"
             function buildSplash() {
                 const el = document.getElementById('splash');
                 if (!el) return;
@@ -36,7 +36,7 @@
                     const cBtn = (r === 1) ? Math.round((vw / 2 - WW / 2 + shift) / stepX) : null;
                     let svg = `<svg width="${vw + 4 * stepX}" height="${H}" style="position:absolute;left:${-2 * stepX}px;top:0;overflow:visible">`;
                     for (let c = cA; c <= cB; c++) {
-                        if (c === cBtn || (cBtn != null && c === cBtn + 1)) continue;
+                        if (c === cBtn || (cBtn != null && (c === cBtn + 1 || c === cBtn + 2))) continue;
                         const x = c * stepX - shift + 2 * stepX;
                         if (cBtn != null && c === cBtn - 1) { svg += `<path d="${locoD(x + WW - LW)}" fill="#003865" stroke="#FFFFFF" stroke-width="${SW}" stroke-linejoin="round"/>`; continue; }
                         const k = (((c + r) % 2) + 2) % 2;
@@ -58,6 +58,7 @@
                         };
                         mkBtn(cBtn, 'brick-enter b', 'Ágeis', 'Entrar no dashboard Compras Ágeis', 'ageis.html');
                         mkBtn(cBtn + 1, 'brick-enter alt b', 'Terminais', 'Entrar no painel de Terminais', 'terminais.html');
+                        mkBtn(cBtn + 2, 'brick-enter alt b', 'Corporativo', 'Entrar no painel Corporativo', 'coorporativo.html');
                     }
                     rowsEls.push(row);
                     el.appendChild(row);
