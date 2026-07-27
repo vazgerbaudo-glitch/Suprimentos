@@ -14,7 +14,7 @@
     <body>
         <div class="splash" id="splash"></div>
         <script>
-            // Tela de entrada — 3 fileiras de vagões; locomotiva puxa o "Ágeis"; botão alt leva ao "Setores"
+            // Tela de entrada — 3 fileiras de vagões; locomotiva puxa o "Ágeis"; botão alt leva ao "Terminais"
             function buildSplash() {
                 const el = document.getElementById('splash');
                 if (!el) return;
@@ -57,7 +57,7 @@
                             row.appendChild(btn);
                         };
                         mkBtn(cBtn, 'brick-enter b', 'Ágeis', 'Entrar no dashboard Compras Ágeis', 'ageis.html');
-                        mkBtn(cBtn + 1, 'brick-enter alt b', 'Setores', 'Entrar no painel de Setores', 'setores.html');
+                        mkBtn(cBtn + 1, 'brick-enter alt b', 'Terminais', 'Entrar no painel de Terminais', 'terminais.html');
                     }
                     rowsEls.push(row);
                     el.appendChild(row);

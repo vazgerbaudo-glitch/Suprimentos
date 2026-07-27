@@ -15,7 +15,10 @@
       "Bash(git -C \".\" diff --stat js/render.js)",
       "Bash(git -C \".\" diff js/render.js)",
       "Bash(node --check \"js/data.js\")",
-      "Bash(node --check \"js/render.js\")"
+      "Bash(node --check \"js/render.js\")",
+      "Bash(powershell -NoProfile -Command \"Get-Content -Path 'Base_01_anonimizada.csv' -TotalCount 3 -Encoding UTF8\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node -c js/data.js)"
     ]
   }
 }

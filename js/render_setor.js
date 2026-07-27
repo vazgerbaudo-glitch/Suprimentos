@@ -361,18 +361,28 @@ function renderAging() {
     const msAgQ = MSag.map(c => ag.filter(r => r.cl === c).length);
     const msAgAvg = MSag.map(c => { const b = ag.filter(r => r.cl === c); return b.length ? Math.round(b.reduce((a, r) => a + r.age, 0) / b.length) : 0; });
 
-    // RCs em aberto por tipo — Contrato x Spot (informativo, sem meta)
+    // RCs em aberto por tipo — Contrato x Spot, com % vs meta (mesmas metas Contrato/Spot do painel Ágeis)
     const avgOf = arr => arr.length ? Math.round(arr.reduce((a, r) => a + r.age, 0) / arr.length) : 0;
     const agCon = ag.filter(r => r.td === 'Contrato');
     const agSpo = ag.filter(r => r.td === 'Spot');
+    const cAvg = avgOf(agCon), sAvg = avgOf(agSpo);
+    const cPct = STATE.metaAgC > 0 ? (cAvg - STATE.metaAgC) / STATE.metaAgC * 100 : 0;
+    const sPct = STATE.metaAgS > 0 ? (sAvg - STATE.metaAgS) / STATE.metaAgS * 100 : 0;
+    const pf = p => (p > 0 ? '+' : '') + p.toFixed(1) + '%';
 
     kpi('kpi-aging', [
+        // Geral
         { l: 'RCs em aberto', v: ag.length.toLocaleString('pt-BR'), n: 'no recorte de Período/Tipo' },
-        { l: 'RCs em aberto — Contrato', v: agCon.length.toLocaleString('pt-BR'), n: agCon.length ? 'aging médio ' + avgOf(agCon) + 'd' : 'sem RCs Contrato no recorte' },
-        { l: 'RCs em aberto — Spot', v: agSpo.length.toLocaleString('pt-BR'), n: agSpo.length ? 'aging médio ' + avgOf(agSpo) + 'd' : 'sem RCs Spot no recorte' },
         { l: 'Aging médio', v: avg + 'd', n: 'RCs em aberto no recorte' },
-        { l: 'Aging mediana', v: med + 'd', n: 'RCs em aberto no recorte' },
-        { l: 'RCs críticas (>30d)', v: crit.toLocaleString('pt-BR'), n: 'itens parados há mais tempo' }
+        { l: 'RCs críticas (>30d)', v: crit.toLocaleString('pt-BR'), n: 'itens parados há mais tempo' },
+        // Contrato
+        { l: 'RCs em aberto — Contrato', v: agCon.length.toLocaleString('pt-BR'), n: agCon.length ? 'no recorte' : 'sem RCs Contrato no recorte' },
+        { l: 'Aging médio — Contrato', v: cAvg + 'd', c: agCon.length ? (cPct <= 0 ? 'good' : 'bad') : '', n: 'meta ≤' + STATE.metaAgC + 'd' },
+        { l: '% vs meta — Contrato', v: agCon.length ? pf(cPct) : '—', c: agCon.length ? (cPct <= 0 ? 'good' : 'bad') : '', n: agCon.length ? (cPct <= 0 ? 'dentro da meta' : 'acima da meta') : '' },
+        // Spot
+        { l: 'RCs em aberto — Spot', v: agSpo.length.toLocaleString('pt-BR'), n: agSpo.length ? 'no recorte' : 'sem RCs Spot no recorte' },
+        { l: 'Aging médio — Spot', v: sAvg + 'd', c: agSpo.length ? (sPct <= 0 ? 'good' : 'bad') : '', n: 'meta ≤' + STATE.metaAgS + 'd' },
+        { l: '% vs meta — Spot', v: agSpo.length ? pf(sPct) : '—', c: agSpo.length ? (sPct <= 0 ? 'good' : 'bad') : '', n: agSpo.length ? (sPct <= 0 ? 'dentro da meta' : 'acima da meta') : '' }
     ]);
 
     // Distribuição por faixa de aging (c_afaixa)

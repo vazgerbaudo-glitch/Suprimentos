@@ -100,7 +100,8 @@ const MAP = {
     'numerodefuncionariosativos': 'fa', 'diasuteisnasemana': 'du',
     'diasem02': 'd2', 'diasem03': 'd3', 'diasem04': 'd4', 'diasem05': 'd5',
     'diasem06': 'd6', 'diasem07': 'd7', 'diasem08': 'd8', 'diasem09': 'd9',
-    'diasem10': 'd10', 'diasem11': 'd11', 'removerdecomprasageis': 'rm'
+    'diasem10': 'd10', 'diasem11': 'd11', 'removerdecomprasageis': 'rm',
+    'areacliente': 'ac', 'datainicio2analisedeescopo': 'di2'
 };
 
 function computeGar(o) {
@@ -126,7 +127,8 @@ function fromEmbedded() {
             ipd: +g('ipd') || 0, ipc: +g('ipc') || 0,
             cat: g('cat') || '', ccd: g('ccd') || '', tp: g('tp') || 'Outros', cen: g('cen') || '',
             gar: g('gar') || '', cl: g('cl') || '', td: g('td') || '',
-            fa: +g('fa') || 0, du: +g('du') || 0
+            fa: +g('fa') || 0, du: +g('du') || 0,
+            ac: g('ac') || '', di2: parseDate(g('di2')), rm: false
         };
     });
 }
@@ -141,12 +143,21 @@ function fromCSV(txt) {
         let st = ST(o.st);
         const rm = ('' + (o.rm || '')).trim().toLowerCase() === 'sim';
         if (rm && st === 'A') st = 'X';
+        const sa = parseNum(o.sa), sr = parseNum(o.sr);
+        let ss = SS(o.ss);
+        // Base "Gestão à Vista" (Terminais) não traz coluna de Status SLA — deriva de SLA Alvo × SLA Real
+        // (SLA Alvo chega como "#N/D"/"Não se aplica" nesses casos, e parseNum já normaliza para 0)
+        if (ss === '?') {
+            if (st === 'X') ss = 'X';
+            else if (!(sa > 0)) ss = 'S';
+            else ss = sr <= sa ? 'I' : 'F';
+        }
         const catRaw = (o.cat || '').trim();
         const ci = catRaw.indexOf(' - ');
         const ccd = ci > -1 ? catRaw.slice(0, ci).trim().toUpperCase() : '';
         const catd = ci > -1 ? catRaw.slice(ci + 3).trim() : catRaw;
         return {
-            st: st, ss: SS(o.ss), sa: parseNum(o.sa), sr: parseNum(o.sr),
+            st: st, ss: ss, sa: sa, sr: sr,
             cp: (o.cp || 'N/D').trim() || 'N/D', pf: (o.pf || '').trim(), et: (o.et || '').trim(),
             dc: parseDate(o.dc), dl: parseDate(o.dl),
             rc: o.rc, it: o.it,
@@ -154,7 +165,8 @@ function fromCSV(txt) {
             ipd: parseNum(o.ipd), ipc: parseNum(o.ipc),
             cat: catd, ccd: ccd, tp: classTipo(o.cen, o.tpc), cen: (o.cen || '').trim(),
             gar: computeGar(o), cl: (o.cl || '').trim(), td: (o.tpc || '').trim(),
-            fa: parseNum(o.fa), du: parseNum(o.du), rm: rm
+            fa: parseNum(o.fa), du: parseNum(o.du), rm: rm,
+            ac: (o.ac || '').trim(), di2: parseDate(o.di2)
         };
     });
 }
