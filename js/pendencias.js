@@ -38,30 +38,27 @@ function computePend(rule) {
 }
 
 function pendBars(rows) {
-    if (!rows.length) return '<div style="color:var(--muted);font-size:12px;padding:4px 0">Nenhuma pendência no recorte atual.</div>';
-    const top = rows.slice(0, 10), max = top[0].n;
-    const bars = top.map(r => {
-        const w = Math.max(6, Math.round(r.n / max * 100));
-        const a = .14 + .68 * r.n / max;
-        return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0">
-<div style="width:100px;flex:0 0 100px;font-size:11px;color:var(--ink);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.cp}">${r.cp}</div>
-<div style="height:20px;width:${w}%;background:rgba(210,55,60,${a.toFixed(2)});border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;color:${a > .5 ? '#FFFFFF' : '#13303F'};font-size:11px;font-weight:700;min-width:24px">${r.n}</div>
+    if (!rows.length) return '<div class="pend-empty">Nenhuma pendência no recorte atual.</div>';
+    const max = rows[0].n;
+    return rows.map(r => {
+        const w = Math.max(18, Math.round(r.n / max * 70));
+        const a = .18 + .64 * r.n / max;
+        return `<div class="pend-row">
+<span class="pend-name" title="${r.cp}">${r.cp}</span>
+<span class="pend-pill" style="width:${w}%;background:rgba(210,55,60,${a.toFixed(2)});color:${a > .5 ? '#FFFFFF' : 'var(--ink)'}">${r.n}</span>
 </div>`;
     }).join('');
-    const extra = rows.length > 10 ? `<div style="font-size:10.5px;color:var(--muted);margin-top:4px">+${rows.length - 10} outro(s) responsável(is)</div>` : '';
-    return bars + extra;
 }
 
 function renderPendencias() {
-    const html = PEND_RULES.map(rule => {
+    const cards = PEND_RULES.map(rule => {
         const data = computePend(rule);
-        return `<div class="panel" style="margin-bottom:14px">
-<h3>${rule.label} <span class="tag-sev s-rd">${data.total.toLocaleString('pt-BR')}</span></h3>
-<div class="ph">${rule.desc}</div>
+        return `<div class="pend-card">
+<h4 title="${rule.desc}">${rule.label} <span class="tag-sev s-rd">${data.total.toLocaleString('pt-BR')}</span></h4>
 ${pendBars(data.top)}
 </div>`;
     }).join('');
-    document.getElementById('pend-body').innerHTML = html;
+    document.getElementById('pend-body').innerHTML = `<div class="pend-shot" id="pend-shot"><div class="pend-grid">${cards}</div></div>`;
 }
 
 function openPendModal() {
@@ -70,18 +67,58 @@ function openPendModal() {
     document.getElementById('pend-ov').classList.add('open');
 }
 
+let _h2cPromise = null;
+function loadHtml2Canvas() {
+    if (window.html2canvas) return Promise.resolve();
+    if (_h2cPromise) return _h2cPromise;
+    _h2cPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+    });
+    return _h2cPromise;
+}
+
+function exportPendImage() {
+    const btn = document.getElementById('pend-export');
+    const target = document.getElementById('pend-shot');
+    if (!target) return;
+    const label = btn.textContent;
+    btn.textContent = '⏳ Gerando...';
+    btn.disabled = true;
+    loadHtml2Canvas().then(() => window.html2canvas(target, {
+        backgroundColor: '#F2F5F6',
+        scale: 2
+    })).then(canvas => {
+        const a = document.createElement('a');
+        const d = new Date();
+        const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+        a.download = `pendencias-preenchimento-${stamp}.png`;
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+    }).catch(() => {
+        alert('Não foi possível gerar a imagem. Tente novamente.');
+    }).finally(() => {
+        btn.textContent = label;
+        btn.disabled = false;
+    });
+}
+
 (function () {
     const ov = document.createElement('div');
     ov.className = 'modal-ov';
     ov.id = 'pend-ov';
-    ov.innerHTML = `<div class="modal">
+    ov.innerHTML = `<div class="modal wide">
     <h3>🔍 Pendências de preenchimento</h3>
     <div class="ph">Considera toda a base carregada, independente dos filtros de Período/Tipo/Comprador · exclui itens marcados como "Remover de Compras Ágeis".</div>
     <div id="pend-body" style="overflow-y:auto;flex:1;margin:10px 0"></div>
-    <div class="modal-actions"><button class="btn ghost" id="pend-close">Fechar</button></div>
+    <div class="modal-actions"><button class="btn ghost" id="pend-export">📷 Baixar imagem</button><button class="btn ghost" id="pend-close">Fechar</button></div>
  </div>`;
     document.body.appendChild(ov);
     document.getElementById('pend-close').onclick = () => ov.classList.remove('open');
+    document.getElementById('pend-export').onclick = exportPendImage;
     ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') ov.classList.remove('open'); });
     const btn = document.getElementById('btn_pend');

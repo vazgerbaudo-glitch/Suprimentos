@@ -18,7 +18,27 @@
       "Bash(node --check \"js/render.js\")",
       "Bash(powershell -NoProfile -Command \"Get-Content -Path 'Base_01_anonimizada.csv' -TotalCount 3 -Encoding UTF8\")",
       "Bash(python3 -c ' *)",
-      "Bash(node -c js/data.js)"
+      "Bash(node -c js/data.js)",
+      "Bash(command -v chromium-cli)",
+      "Bash(where.exe chromium-cli *)",
+      "Bash(npx --no-install chromium-cli --help)",
+      "Bash(mkdir -p \"/c/Users/cs454641/AppData/Local/Temp/claude/c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos/50be19cd-c34b-41b7-b571-5cf52e1d6b46/scratchpad\")",
+      "Bash(cp -r css /c/Users/cs454641/AppData/Local/Temp/claude/c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos/50be19cd-c34b-41b7-b571-5cf52e1d6b46/scratchpad/css)",
+      "Bash(cp -r js /c/Users/cs454641/AppData/Local/Temp/claude/c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos/50be19cd-c34b-41b7-b571-5cf52e1d6b46/scratchpad/js)",
+      "Bash(python3 - /c/Users/cs454641/AppData/Local/Temp/claude/c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos/50be19cd-c34b-41b7-b571-5cf52e1d6b46/scratchpad/terminais_test.html)",
+      "Read(//c/Users/cs454641/AppData/Local/Temp/claude/c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos/50be19cd-c34b-41b7-b571-5cf52e1d6b46/scratchpad/**)",
+      "Bash(sed -i 's#</body>#<script>window.addEventListener\\(\"load\", function\\(\\){ setTimeout\\(function\\(\\){ try { openPendModal\\(\\); } catch\\(e\\) { document.title = \"ERR:\" + e.message; } }, 1500\\); }\\);</script></body>#' /c/Users/cs454641/AppData/Local/Temp/claude/c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos/50be19cd-c34b-41b7-b571-5cf52e1d6b46/scratchpad/terminais_test.html)",
+      "Bash(SCRATCH=\"/c/Users/cs454641/AppData/Local/Temp/claude/c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos/50be19cd-c34b-41b7-b571-5cf52e1d6b46/scratchpad\" *)",
+      "Bash(rm -rf /c/Users/cs454641/AppData/Local/Temp/pendtest)",
+      "Bash(mkdir -p /c/Users/cs454641/AppData/Local/Temp/pendtest)",
+      "Bash(cp __TRACKED_VAR__/terminais_test.html /c/Users/cs454641/AppData/Local/Temp/pendtest/)",
+      "Bash(cp -r __TRACKED_VAR__/css /c/Users/cs454641/AppData/Local/Temp/pendtest/)",
+      "Bash(cp -r __TRACKED_VAR__/js /c/Users/cs454641/AppData/Local/Temp/pendtest/)",
+      "Read(//c/Users/cs454641/AppData/Local/Temp/pendtest/**)",
+      "Bash(pwd; grep *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\cs454641\\AppData\\Local\\Temp\\claude\\c--Users-cs454641-OneDrive---Rumo--rea-de-Trabalho-Suprimentos\\50be19cd-c34b-41b7-b571-5cf52e1d6b46\\scratchpad"
     ]
   }
 }
