@@ -34,6 +34,12 @@ function parseNum(v) {
     return isNaN(n) ? 0 : n;
 }
 
+// Remove zeros à esquerda de um RC para casar chaves entre bases com preenchimento diferente
+// (ex.: Spend "00012345" × Gestão à Vista "12345") — nunca zera a string inteira ("000" -> "0").
+function stripLeadZeros(v) {
+    return ('' + (v || '')).trim().replace(/^0+(?=\d)/, '');
+}
+
 const ST = v => ({
     'C': 'C', 'X': 'X', 'A': 'A', 'D': 'D',
     'Concluída': 'C', 'Cancelada': 'X', 'Em Aberto': 'A', 'Devolvida': 'D'

@@ -517,6 +517,21 @@ function renderSaving() {
 function renderContr() {
     const CCON = '#003865';
     const cartLoaded = CARTEIRAS.length > 0;
+    const rootLetter = code => { const m = /^[A-Za-z]/.exec((code || '').trim()); return m ? m[0].toUpperCase() : ''; };
+
+    // Cruzamento Spend × Gestão à Vista por chave RC+Item: quando a carteira do Spend começa
+    // com "A" (a classificar), busca a carteira já resolvida na Gestão à Vista (coluna
+    // Carteira/Categoria, campo "ccd") pela mesma RC+Item e assume o código de lá para
+    // determinar o G/R/S. RC do Spend perde zeros à esquerda para casar com a Gestão à Vista.
+    // Quando já é G/R/S, mantém o valor do Spend e só usa a Gestão à Vista para validar
+    // (RC sinalizada como divergente se os dois códigos não baterem).
+    const gvIndex = new Map();
+    ALL.forEach(r => {
+        if (!r.ccd) return;
+        const key = stripLeadZeros(r.rc) + '|' + ('' + (r.it || '')).trim();
+        if (!gvIndex.has(key)) gvIndex.set(key, r.ccd);
+    });
+    const divergentRC = new Set();
 
     // Rollup por RC direto da segundaBase (única fonte desta aba) — carteira e tipo predominantes
     // entre os itens da RC; data = menor DT Pedido entre os itens
@@ -527,7 +542,15 @@ function renderContr() {
         const carCount = {}, tdCount = {};
         let dt = null, matN = 0, servN = 0;
         items.forEach(it => {
-            if (it.car) carCount[it.car] = (carCount[it.car] || 0) + 1;
+            let car = it.car;
+            const root = rootLetter(car);
+            const gvCode = gvIndex.get(stripLeadZeros(it.rc) + '|' + it.it);
+            if (root === 'A') {
+                if (gvCode) car = gvCode;
+            } else if (root === 'G' || root === 'S' || root === 'R') {
+                if (gvCode && gvCode !== car) divergentRC.add(rc);
+            }
+            if (car) carCount[car] = (carCount[car] || 0) + 1;
             tdCount[it.td] = (tdCount[it.td] || 0) + 1;
             if (it.ms === 'Material') matN++;
             else if (it.ms === 'Serviço') servN++;
@@ -563,6 +586,8 @@ function renderContr() {
         const semCar = base.filter(r => !r.car).length;
         kpiContr.push({ l: 'Identificado (Material/Serviço)', v: identificadas.toLocaleString('pt-BR') + ' RCs', n: totMS ? Math.round(matSum / totMS * 100) + '% Material · ' + Math.round(servSum / totMS * 100) + '% Serviço' : '—' });
         kpiContr.push({ l: 'Sem Carteira preenchida', v: semCar.toLocaleString('pt-BR') + ' RCs', c: semCar > 0 ? 'warn' : 'good', n: base.length ? Math.round(semCar / base.length * 100) + '% do recorte' : '—' });
+        const divCount = base.filter(r => divergentRC.has(r.rc)).length;
+        kpiContr.push({ l: 'Carteira divergente (Spend × Gestão à Vista)', v: divCount.toLocaleString('pt-BR') + ' RCs', c: divCount > 0 ? 'warn' : 'good', n: base.length ? Math.round(divCount / base.length * 100) + '% do recorte' : '—' });
     }
     document.getElementById('kpi-contr').classList.toggle('k3', !cartLoaded);
     kpi('kpi-contr', kpiContr);
@@ -596,7 +621,7 @@ function renderContr() {
     typeList.forEach((t, i) => { colorMap[t] = t === 'Contrato' ? CCON : t === 'Spot' ? C.steel : t === 'N/D' ? '#CAD6DD' : OTH_PAL[(i - 2) % OTH_PAL.length]; });
 
     // RCs por Código de Carteira — G/S/R e demais (c_ccd) — raiz da carteira, direto da segundaBase
-    const rootLetter = code => { const m = /^[A-Za-z]/.exec((code || '').trim()); return m ? m[0].toUpperCase() : ''; };
+    // (resolvida contra a Gestão à Vista quando o Spend trazia "A"; rootLetter já definida no topo)
     const cdOrder = ['G', 'S', 'R', 'A'];
     const ALLOWED_CD = ['G', 'S', 'R', 'A', 'N/D'];
     const cdOf = r => { const c = rootLetter(carOf(r)) || 'N/D'; return ALLOWED_CD.includes(c) ? c : 'A'; };
