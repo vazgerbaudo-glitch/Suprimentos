@@ -2,6 +2,11 @@
 // independente dos filtros de Período/Tipo/Comprador do painel, mas exclui itens marcados
 // como "Remover de Compras Ágeis", RCs Canceladas/Devolvidas e itens liberados antes de
 // DATA_INI (abril/2026). Compartilhado entre os painéis Ágeis e Terminais.
+const isBlankOrCancelada = v => {
+    const s = ('' + (v || '')).trim();
+    return !s || s.toLowerCase() === 'cancelada';
+};
+
 const PEND_RULES = [
     {
         label: 'Falta "Data Início 2"',
@@ -15,13 +20,13 @@ const PEND_RULES = [
     },
     {
         label: 'SLA Alvo não preenchido',
-        desc: 'Itens sem SLA Alvo definido (em branco, "#N/D" ou "Não se aplica").',
-        hit: r => r.ss === 'S'
+        desc: 'Itens concluídos sem SLA Alvo definido (em branco, "#N/D" ou "Não se aplica") — exclui Status RC, Tipo e Classificação vazios ou "Cancelada", e RCs sem Data de Conclusão.',
+        hit: r => r.st !== '?' && !isBlankOrCancelada(r.td) && !isBlankOrCancelada(r.cl) && !!r.dc && r.ss === 'S'
     },
     {
         label: 'Falta "Área Cliente"',
-        desc: 'Itens sem a Área Cliente preenchida.',
-        hit: r => !r.ac
+        desc: 'Itens sem a Área Cliente preenchida — exclui Status RC, Tipo e Classificação vazios ou "Cancelada".',
+        hit: r => r.st !== '?' && !isBlankOrCancelada(r.td) && !isBlankOrCancelada(r.cl) && !r.ac
     },
     {
         label: 'SLA Real negativo',
