@@ -1,6 +1,7 @@
 // Auditoria de pendências de preenchimento — considera toda a base carregada (ALL),
-// independente dos filtros de Período/Tipo/Comprador do painel, e exclui itens marcados
-// como "Remover de Compras Ágeis". Compartilhado entre os painéis Ágeis e Terminais.
+// independente dos filtros de Período/Tipo/Comprador do painel, mas exclui itens marcados
+// como "Remover de Compras Ágeis", RCs Canceladas/Devolvidas e itens liberados antes de
+// DATA_INI (abril/2026). Compartilhado entre os painéis Ágeis e Terminais.
 const PEND_RULES = [
     {
         label: 'Falta "Data Início 2"',
@@ -30,7 +31,7 @@ const PEND_RULES = [
 ];
 
 function computePend(rule) {
-    const rows = ALL.filter(r => !r.rm && rule.hit(r));
+    const rows = ALL.filter(r => !r.rm && r.st !== 'X' && r.st !== 'D' && r.dl && r.dl >= DATA_INI && rule.hit(r));
     const byResp = {};
     rows.forEach(r => { const cp = r.cp || 'N/D'; byResp[cp] = (byResp[cp] || 0) + 1; });
     const top = Object.entries(byResp).map(([cp, n]) => ({ cp, n })).sort((a, b) => b.n - a.n);
@@ -112,7 +113,7 @@ function exportPendImage() {
     ov.id = 'pend-ov';
     ov.innerHTML = `<div class="modal wide">
     <h3>🔍 Pendências de preenchimento</h3>
-    <div class="ph">Considera toda a base carregada, independente dos filtros de Período/Tipo/Comprador · exclui itens marcados como "Remover de Compras Ágeis".</div>
+    <div class="ph">Considera toda a base carregada a partir de abril/2026, independente dos filtros de Período/Tipo/Comprador · exclui Canceladas, Devolvidas e itens marcados como "Remover de Compras Ágeis".</div>
     <div id="pend-body" style="overflow-y:auto;flex:1;margin:10px 0"></div>
     <div class="modal-actions"><button class="btn ghost" id="pend-export">📷 Baixar imagem</button><button class="btn ghost" id="pend-close">Fechar</button></div>
  </div>`;
