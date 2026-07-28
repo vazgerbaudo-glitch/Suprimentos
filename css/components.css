@@ -758,6 +758,13 @@ th.num {
 .brick-enter.alt:hover {
     filter: drop-shadow(0 0 18px rgba(30,159,127,.8))
 }
+.brick-enter.alt2 {
+    background: #3FA9F5;
+    animation: none
+}
+.brick-enter.alt2:hover {
+    filter: drop-shadow(0 0 18px rgba(63,169,245,.8))
+}
 @keyframes wagonPulse {
     0%,100% {
         filter: drop-shadow(0 0 5px rgba(251,211,0,.35));

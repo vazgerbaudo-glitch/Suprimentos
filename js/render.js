@@ -154,11 +154,12 @@ function renderProd() {
     ctx.forEach(r => { const w = isoWeek(r.dc); sai[w] = (sai[w] || 0) + 1; });
     const wksES = [...new Set([...Object.keys(ent), ...Object.keys(sai)])].sort();
     const eV = wksES.map(w => ent[w] || 0), sV = wksES.map(w => sai[w] || 0), labES = wksES.map(w => wkLabel(w));
-    const entC = {}, saiC = {};
+    const entC = {}, saiC = {}, devC = {};
     ALL.filter(r => r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r)).forEach(r => { entC[r.cp] = (entC[r.cp] || 0) + 1; });
     ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && compHit(r) && tpHit(r)).forEach(r => { saiC[r.cp] = (saiC[r.cp] || 0) + 1; });
-    const compsES = [...new Set([...Object.keys(entC), ...Object.keys(saiC)])].sort((a, b) => (saiC[b] || 0) - (saiC[a] || 0)).slice(0, 12);
-    mkChart('c_escomp', { type: 'bar', data: { labels: compsES, datasets: [{ label: 'Entrada', data: compsES.map(c => entC[c] || 0), backgroundColor: C.steel, borderRadius: 18 }, { label: 'Saída', data: compsES.map(c => saiC[c] || 0), backgroundColor: C.teal, borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } } }, scales: { x: { ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { ...soG, beginAtZero: true } } } });
+    ALL.filter(r => r.st === 'D' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r)).forEach(r => { devC[r.cp] = (devC[r.cp] || 0) + 1; });
+    const compsES = [...new Set([...Object.keys(entC), ...Object.keys(saiC), ...Object.keys(devC)])].sort((a, b) => (saiC[b] || 0) - (saiC[a] || 0)).slice(0, 12);
+    mkChart('c_escomp', { type: 'bar', data: { labels: compsES, datasets: [{ label: 'Entrada', data: compsES.map(c => entC[c] || 0), backgroundColor: C.steel, borderRadius: 18 }, { label: 'Saída', data: compsES.map(c => saiC[c] || 0), backgroundColor: C.teal, borderRadius: 18 }, { label: 'Devolvida', data: compsES.map(c => devC[c] || 0), backgroundColor: C.red, borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } } }, scales: { x: { ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { ...soG, beginAtZero: true } } } });
 
     // Entrada × saída vs meta de capacidade (c_esmeta)
     const wkInfo = {};
