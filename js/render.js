@@ -533,6 +533,16 @@ function renderContr() {
     });
     const divergentRC = new Set();
 
+    // Distribuição histórica de carteiras por Grupo Comprador (Sistema) — usada tanto para o
+    // painel informativo (RCs por Grupo Comprador) quanto para fracionar RCs ainda em "A..."
+    // nas colunas de carteira G do gráfico % Contrato × Spot por carteira G.
+    const gcsDist = {};
+    ALL.forEach(r => {
+        if (!r.gcs || !r.ccd) return;
+        const d = gcsDist[r.gcs] = gcsDist[r.gcs] || {};
+        d[r.ccd] = (d[r.ccd] || 0) + 1;
+    });
+
     // Rollup por RC direto da segundaBase (única fonte desta aba) — carteira e tipo predominantes
     // entre os itens da RC; data = menor DT Pedido entre os itens
     const byRC = {};
@@ -632,13 +642,28 @@ function renderContr() {
     mkChart('c_ccd', { type: 'bar', data: { labels: cdKeys, datasets: [{ data: cdKeys.map(k => byCd[k]), backgroundColor: cdKeys.map(cdCOL), borderRadius: 18 }] }, options: { maintainAspectRatio: false, layout: { padding: { top: 16 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
     // % Contrato × Spot por carteira G — 100% empilhado, uma coluna por carteira G específica (c_ccd_tipo)
+    // RCs ainda travadas em "A..." (Grupo Comprador, sem Carteira/Categoria resolvida) entram
+    // fracionadas nas colunas G desse grupo, proporcional ao histórico de carteiras G da Gestão
+    // à Vista (renormalizado só entre as G's do grupo, ignorando a fatia R/S) — assim a leitura
+    // por carteira G cobre 100% das RCs mesmo quando o Spend só traz o Grupo Comprador.
     const byGCar = {};
     base.forEach(r => {
         const code = carOf(r);
-        if (rootLetter(code) !== 'G') return;
         const t = typeOf(r);
-        const o = byGCar[code] = byGCar[code] || {};
-        o[t] = (o[t] || 0) + 1;
+        if (rootLetter(code) === 'G') {
+            const o = byGCar[code] = byGCar[code] || {};
+            o[t] = (o[t] || 0) + 1;
+            return;
+        }
+        const dist = gcsDist[code];
+        if (!dist) return;
+        const gEntries = Object.entries(dist).filter(([c]) => rootLetter(c) === 'G');
+        const gTotal = gEntries.reduce((a, [, n]) => a + n, 0);
+        if (!gTotal) return;
+        gEntries.forEach(([c, n]) => {
+            const o = byGCar[c] = byGCar[c] || {};
+            o[t] = (o[t] || 0) + n / gTotal;
+        });
     });
     const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
     const gCarKeys = gCarArr.map(x => x.c);
@@ -676,13 +701,7 @@ function renderContr() {
     // Quando o código do Spend ainda é "A..." (Grupo Comprador, sem Carteira/Categoria resolvida
     // nem no Spend nem na Gestão à Vista para aquela RC+Item específica), mostra quais carteiras
     // G/R/S esse mesmo Grupo Comprador (Sistema) mais usa em todo o histórico da Gestão à Vista,
-    // pra apontar onde focar a contratualização.
-    const gcsDist = {};
-    ALL.forEach(r => {
-        if (!r.gcs || !r.ccd) return;
-        const d = gcsDist[r.gcs] = gcsDist[r.gcs] || {};
-        d[r.ccd] = (d[r.ccd] || 0) + 1;
-    });
+    // pra apontar onde focar a contratualização. (gcsDist já calculado no topo da função.)
     const gcsRows = Object.entries(byCat)
         .filter(([c]) => rootLetter(c) !== 'G' && rootLetter(c) !== 'S' && rootLetter(c) !== 'R' && gcsDist[c])
         .map(([c, o]) => {
