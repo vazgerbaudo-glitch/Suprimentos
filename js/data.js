@@ -102,6 +102,7 @@ const MAP = {
     'datadeconclusaodarc': 'dc', 'dataliberacao': 'dl', 'rc': 'rc', 'itemrc': 'it',
     'valor': 'vl', 'valor1aproposta': 'vp', 'valornegociado': 'vn',
     'itemdia': 'ipd', 'itemdiacomprador': 'ipc', 'carteiracategoria': 'cat',
+    'grupocompradorsistema': 'gcs', 'grupodecompradorsistema': 'gcs',
     'cenariosla': 'cen', 'tipo': 'tpc', 'classificacao': 'cl',
     'numerodefuncionariosativos': 'fa', 'diasuteisnasemana': 'du',
     'diasem02': 'd2', 'diasem03': 'd3', 'diasem04': 'd4', 'diasem05': 'd5',
@@ -131,7 +132,7 @@ function fromEmbedded() {
             rc: g('rc'), it: g('it'),
             vl: +g('vl') || 0, vp: +g('vp') || 0, vn: +g('vn') || 0,
             ipd: +g('ipd') || 0, ipc: +g('ipc') || 0,
-            cat: g('cat') || '', ccd: g('ccd') || '', tp: g('tp') || 'Outros', cen: g('cen') || '',
+            cat: g('cat') || '', ccd: g('ccd') || '', gcs: ('' + (g('gcs') || '')).trim().toUpperCase(), tp: g('tp') || 'Outros', cen: g('cen') || '',
             gar: g('gar') || '', cl: g('cl') || '', td: g('td') || '',
             fa: +g('fa') || 0, du: +g('du') || 0,
             ac: g('ac') || '', di2: parseDate(g('di2')), rm: false
@@ -169,7 +170,7 @@ function fromCSV(txt) {
             rc: o.rc, it: o.it,
             vl: parseNum(o.vl), vp: parseNum(o.vp), vn: parseNum(o.vn),
             ipd: parseNum(o.ipd), ipc: parseNum(o.ipc),
-            cat: catd, ccd: ccd, tp: classTipo(o.cen, o.tpc), cen: (o.cen || '').trim(),
+            cat: catd, ccd: ccd, gcs: (o.gcs || '').trim().toUpperCase(), tp: classTipo(o.cen, o.tpc), cen: (o.cen || '').trim(),
             gar: computeGar(o), cl: (o.cl || '').trim(), td: (o.tpc || '').trim(),
             fa: parseNum(o.fa), du: parseNum(o.du), rm: rm,
             ac: (o.ac || '').trim(), di2: parseDate(o.di2)

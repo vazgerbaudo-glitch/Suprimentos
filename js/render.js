@@ -672,6 +672,29 @@ function renderContr() {
     document.querySelector('#t_contr thead').innerHTML = `<tr><th>Carteira/Categoria</th>${typeList.map(t => `<th class="num">${t}</th>`).join('')}<th class="num">Total</th><th class="num">% Contrato</th></tr>`;
     document.querySelector('#t_contr tbody').innerHTML = catsBySpot.map(x => `<tr><td>${x.c}</td>${typeList.map(t => `<td class="num">${x.o[t] || 0}</td>`).join('')}<td class="num">${x.tot}</td><td class="num">${x.tot ? Math.round((x.o['Contrato'] || 0) / x.tot * 100) : 0}%</td></tr>`).join('') || `<tr><td colspan="${typeList.length + 3}" style="color:#46606F">Nenhuma RC no recorte.</td></tr>`;
 
+    // Carteiras prováveis por Grupo Comprador (Sistema) — só informativo, não reclassifica nada.
+    // Quando o código do Spend ainda é "A..." (Grupo Comprador, sem Carteira/Categoria resolvida
+    // nem no Spend nem na Gestão à Vista para aquela RC+Item específica), mostra quais carteiras
+    // G/R/S esse mesmo Grupo Comprador (Sistema) mais usa em todo o histórico da Gestão à Vista,
+    // pra apontar onde focar a contratualização.
+    const gcsDist = {};
+    ALL.forEach(r => {
+        if (!r.gcs || !r.ccd) return;
+        const d = gcsDist[r.gcs] = gcsDist[r.gcs] || {};
+        d[r.ccd] = (d[r.ccd] || 0) + 1;
+    });
+    const gcsRows = Object.entries(byCat)
+        .filter(([c]) => rootLetter(c) !== 'G' && rootLetter(c) !== 'S' && rootLetter(c) !== 'R' && gcsDist[c])
+        .map(([c, o]) => {
+            const tot = typeList.reduce((a, t) => a + (o[t] || 0), 0);
+            const dist = Object.entries(gcsDist[c]).sort((a, b) => b[1] - a[1]);
+            const distTot = dist.reduce((a, [, n]) => a + n, 0);
+            return { c, tot, dist: dist.map(([car, n]) => ({ car, pct: Math.round(n / distTot * 100) })) };
+        })
+        .sort((a, b) => b.tot - a.tot);
+    const t_gcs = document.querySelector('#t_gcs tbody');
+    if (t_gcs) t_gcs.innerHTML = gcsRows.map(x => `<tr><td>${x.c}</td><td class="num">${x.tot}</td><td>${x.dist.map(d => `${d.car} (${d.pct}%)`).join(', ')}</td></tr>`).join('') || `<tr><td colspan="3" style="color:#46606F">Nenhum Grupo Comprador pendente com histórico de carteira na Gestão à Vista.</td></tr>`;
+
     // Leitura (texto de insight)
     const topCat = cats[0], nd = byCat['N/D'], ndTot = nd ? Object.values(nd).reduce((a, v) => a + v, 0) : 0;
     const topOther = typesOther.find(t => t !== 'N/D');
