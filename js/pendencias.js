@@ -32,11 +32,17 @@ const PEND_RULES = [
         label: 'SLA Real negativo',
         desc: 'Itens com SLA Real negativo — inconsistência de datas a corrigir.',
         hit: r => r.sr < 0
+    },
+    {
+        label: 'Falta "Carteira/Categoria"',
+        desc: 'Itens sem o código de Carteira/Categoria preenchido — exclui Status RC, Tipo e Classificação vazios ou "Cancelada". Considera desde janeiro/2026 (mesmo início da aba Contratualização), diferente das demais regras (abril/2026).',
+        hit: r => r.st !== '?' && !isBlankOrCancelada(r.td) && !isBlankOrCancelada(r.cl) && !('' + (r.cat || '')).trim(),
+        floor: DATA_INI_AGING
     }
 ];
 
 function computePend(rule) {
-    const rows = ALL.filter(r => !r.rm && r.st !== 'X' && r.st !== 'D' && r.dl && r.dl >= DATA_INI && rule.hit(r));
+    const rows = ALL.filter(r => !r.rm && r.st !== 'X' && r.st !== 'D' && r.dl && r.dl >= (rule.floor || DATA_INI) && rule.hit(r));
     const byResp = {};
     rows.forEach(r => { const cp = r.cp || 'N/D'; byResp[cp] = (byResp[cp] || 0) + 1; });
     const top = Object.entries(byResp).map(([cp, n]) => ({ cp, n })).sort((a, b) => b.n - a.n);
