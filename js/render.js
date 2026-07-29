@@ -337,12 +337,18 @@ function renderAging() {
     svg += '</svg>';
     document.getElementById('box_aging').innerHTML = boxComps.length ? svg : '<div style="color:#46606F;font-size:12px">Dados insuficientes para boxplot no recorte.</div>';
 
-    // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo
+    // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo · linhas de meta 80/100/150% conforme filtro Tipo de compra
     const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r)).map(r => ({ w: isoWeek(r.dc), cyc: Math.round((r.dc - r.dl) / 86400000) })).filter(r => r.cyc >= 0);
     const byW = {};
     concl.forEach(r => { (byW[r.w] = byW[r.w] || []).push(r.cyc); });
     const wk = Object.keys(byW).sort();
-    mkChart('c_agevol', { type: 'line', plugins: [crosshair], data: { labels: wk.map(wkLabel), datasets: [{ label: 'Ciclo médio', data: wk.map(w => Math.round(byW[w].reduce((a, b) => a + b, 0) / byW[w].length)), borderColor: C.blue, backgroundColor: 'rgba(14,83,140,.08)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue }] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, callbacks: { label: c => c.parsed.y + 'd' } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 10, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
+    const agMeta = STATE.tp === 'Contrato' ? STATE.metaAgC : STATE.tp === 'Spot' ? STATE.metaAgS : STATE.metaAgG;
+    mkChart('c_agevol', { type: 'line', plugins: [crosshair], data: { labels: wk.map(wkLabel), datasets: [
+        { label: 'Ciclo médio', data: wk.map(w => Math.round(byW[w].reduce((a, b) => a + b, 0) / byW[w].length)), borderColor: C.blue, backgroundColor: 'rgba(14,83,140,.08)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue },
+        { label: 'Meta 150% (-30%)', data: wk.map(() => +(agMeta * .7).toFixed(1)), borderColor: C.teal, borderDash: [6, 4], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.teal, fill: false },
+        { label: 'Meta 100% (-20%)', data: wk.map(() => +(agMeta * .8).toFixed(1)), borderColor: C.amber, borderDash: [6, 4], borderWidth: 1.3, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.amber, fill: false },
+        { label: 'Meta 80% (-10%)', data: wk.map(() => +(agMeta * .9).toFixed(1)), borderColor: C.red, borderDash: [6, 4], borderWidth: 1.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.red, fill: false }
+    ] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true, font: { size: 10 } } }, tooltip: { mode: 'index', intersect: false, callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + 'd' } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 10, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
 
     // Evolução dos itens críticos >30d (c_agcrit)
     const critW = {};

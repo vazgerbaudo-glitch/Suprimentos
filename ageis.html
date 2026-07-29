@@ -8,7 +8,7 @@
         <link rel="stylesheet" href="css/variables.css?v=20260724"/>
         <link rel="stylesheet" href="css/base.css?v=20260724"/>
         <link rel="stylesheet" href="css/layout.css?v=20260724"/>
-        <link rel="stylesheet" href="css/components.css?v=20260729b"/>
+        <link rel="stylesheet" href="css/components.css?v=20260729d"/>
     </head>
     <body>
         <aside class="filters-side">
@@ -296,7 +296,7 @@
             <div class="sec-head"><h2>Aging — RCs em aberto</h2></div>
             <div class="panel" style="margin-bottom:14px">
                 <h3>Meta de Aging por tipo</h3>
-                <div class="ph">Teto de aging médio (dias) — referência do COE: Contrato 101d · Spot 33d. Aging médio considera RCs concluídas e em aberto (tempo de vida da RC)</div>
+                <div class="ph">Teto de aging médio (dias) — referência 4º trimestre de 2025: Contrato 87d · Spot 67d. Aging médio considera RCs concluídas e em aberto (tempo de vida da RC) · veja as 3 linhas de meta (80%/100%/150% = -10%/-20%/-30% sobre a referência) no gráfico "Evolução do tempo de ciclo", abaixo</div>
                 <div class="metabar" style="margin-top:0">Meta Geral (dias): <input id="m_agg" type="number" step="1"/> · Meta Contrato (dias): <input id="m_agc" type="number" step="1"/> · Meta Spot (dias): <input id="m_ags" type="number" step="1"/> <button class="btn ghost" id="m_ag_apply">Aplicar metas</button></div>
             </div>
             <div class="kpis k3" id="kpi-aging"></div>
@@ -344,7 +344,7 @@
             <div class="grid g2">
                 <div class="panel" style="margin-bottom:0">
                     <h3>Evolução do tempo de ciclo</h3>
-                    <div class="ph">Dias entre liberação e conclusão · média por semana das concluídas (proxy de aging no tempo)</div>
+                    <div class="ph">Dias entre liberação e conclusão · média por semana das concluídas (proxy de aging no tempo) · linhas pontilhadas = metas 80%/100%/150% (-10%/-20%/-30% sobre a referência), conforme o filtro Tipo de compra</div>
                     <div class="cv"><canvas id="c_agevol"></canvas></div>
                 </div>
                 <div class="panel" style="margin-bottom:0">
@@ -539,10 +539,10 @@
         </div>
     </div>
     <script src="js/config.js?v=20260724"></script>
-    <script src="js/state.js?v=20260724"></script>
+    <script src="js/state.js?v=20260729b"></script>
     <script src="js/data.js?v=20260728b"></script>
     <script src="js/charts.js?v=20260724b"></script>
-    <script src="js/render.js?v=20260728d"></script>
+    <script src="js/render.js?v=20260729b"></script>
     <script src="js/filters.js?v=20260724"></script>
     <script src="js/slides.js?v=20260724"></script>
     <script src="js/pendencias.js?v=20260729d"></script>

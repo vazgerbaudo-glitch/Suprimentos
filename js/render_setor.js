@@ -229,11 +229,15 @@ function render() {
 
 function renderProd() {
     const base = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && compHit(r) && tpHit(r));
+    const CAP = { 'Material': STATE.metaMat, 'Serviço': STATE.metaServ };
     const byW = {};
     base.forEach(r => {
         const w = isoWeek(r.dc);
-        const o = (byW[w] = byW[w] || { ipd: 0, ipc: 0, bs: new Set() });
+        const o = (byW[w] = byW[w] || { ipd: 0, ipc: 0, bs: new Set(), cap: 0, duM: new Map() });
         o.ipd += r.ipd; o.ipc += r.ipc; o.bs.add(r.cp);
+        const capMeta = CAP[r.cl];
+        if (capMeta > 0) o.cap += 1 / capMeta;
+        if (r.du > 0) o.duM.set(r.du, (o.duM.get(r.du) || 0) + 1);
     });
     const weeks = Object.keys(byW).sort(), ger = STATE.comp === 'GERAL';
     let _fb = false;
@@ -245,6 +249,10 @@ function renderProd() {
         return 0;
     });
     const val = weeks.length ? wv.reduce((a, b) => a + b, 0) / weeks.length : 0;
+    const modeM3 = (m, def) => { let b = def, bc = -1; m.forEach((c, v) => { if (c > bc) { bc = c; b = v; } }); return b; };
+    const totCap = weeks.reduce((a, w) => a + byW[w].cap, 0);
+    const totDenom = weeks.reduce((a, w) => { const o = byW[w]; const du = modeM3(o.duM, 5); const buyers = ger ? (o.bs.size || 1) : 1; return a + du * buyers; }, 0);
+    const ating = totDenom > 0 ? totCap / totDenom * 100 : 0;
     kpi('kpi-prod', [
         { l: ger ? 'Itens/dia/comprador' : 'Itens/dia', v: val.toFixed(2), n: 'média do recorte' },
         { l: 'Itens concluídos', v: base.length.toLocaleString('pt-BR'), n: 'no recorte' },
@@ -342,7 +350,7 @@ function renderProd() {
     mkChart('c_esgeral', { type: 'bar', data: { labels: ['Entrada', 'Saída'], datasets: [{ data: [entG, msB.length], backgroundColor: [C.steel, C.teal], borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
     document.getElementById('ins-prod').innerHTML = `<b>Leitura:</b> ${ger ? 'a equipe concluiu em média' : STATE.comp + ' concluiu'} <b>${val.toFixed(2)} ${ger ? 'itens/dia/comprador' : 'itens/dia'}</b> no recorte.${_fb ? ' <b style="color:#8A6D00">⚠ Valor estimado:</b> a coluna <i>Item/dia/comprador</i> está vazia na base para a(s) semana(s) do recorte, então o itens/dia/comprador foi calculado como Item/dia ÷ compradores ativos.' : ''}`;
-    SUM.prod = { val, ger, concluidos: base.length, entradas: entG, weeks: cwk.map(wkLabel), weekly: cwk.map(w => cw[w] || 0), entries: cwk.map(w => ew[w] || 0), matLabels: MSc, matQ: msQ, matTot: totMS };
+    SUM.prod = { val, ger, ating, concluidos: base.length, entradas: entG, weeks: cwk.map(wkLabel), weekly: cwk.map(w => cw[w] || 0), entries: cwk.map(w => ew[w] || 0), matLabels: MSc, matQ: msQ, matTot: totMS };
 }
 
 function renderAging() {
@@ -434,12 +442,18 @@ function renderAging() {
     svg += '</svg>';
     document.getElementById('box_aging').innerHTML = boxComps.length ? svg : '<div style="color:#46606F;font-size:12px">Dados insuficientes para boxplot no recorte.</div>';
 
-    // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo
+    // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo · linhas de meta 80/100/150% conforme filtro Tipo de compra
     const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r)).map(r => ({ w: isoWeek(r.dc), cyc: Math.round((r.dc - r.dl) / 86400000) })).filter(r => r.cyc >= 0);
     const byW = {};
     concl.forEach(r => { (byW[r.w] = byW[r.w] || []).push(r.cyc); });
     const wk = Object.keys(byW).sort();
-    mkChart('c_agevol', { type: 'line', plugins: [crosshair], data: { labels: wk.map(wkLabel), datasets: [{ label: 'Ciclo médio', data: wk.map(w => Math.round(byW[w].reduce((a, b) => a + b, 0) / byW[w].length)), borderColor: C.blue, backgroundColor: 'rgba(14,83,140,.08)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue }] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, callbacks: { label: c => c.parsed.y + 'd' } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 10, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
+    const agMeta = STATE.tp === 'Contrato' ? STATE.metaAgC : STATE.tp === 'Spot' ? STATE.metaAgS : STATE.metaAgG;
+    mkChart('c_agevol', { type: 'line', plugins: [crosshair], data: { labels: wk.map(wkLabel), datasets: [
+        { label: 'Ciclo médio', data: wk.map(w => Math.round(byW[w].reduce((a, b) => a + b, 0) / byW[w].length)), borderColor: C.blue, backgroundColor: 'rgba(14,83,140,.08)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue },
+        { label: 'Meta 150% (-30%)', data: wk.map(() => +(agMeta * .7).toFixed(1)), borderColor: C.teal, borderDash: [6, 4], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.teal, fill: false },
+        { label: 'Meta 100% (-20%)', data: wk.map(() => +(agMeta * .8).toFixed(1)), borderColor: C.amber, borderDash: [6, 4], borderWidth: 1.3, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.amber, fill: false },
+        { label: 'Meta 80% (-10%)', data: wk.map(() => +(agMeta * .9).toFixed(1)), borderColor: C.red, borderDash: [6, 4], borderWidth: 1.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.red, fill: false }
+    ] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true, font: { size: 10 } } }, tooltip: { mode: 'index', intersect: false, callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + 'd' } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 10, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
 
     // Evolução dos itens críticos >30d (c_agcrit)
     const critW = {};
@@ -461,7 +475,7 @@ function renderAging() {
 
     const critSem = ag.filter(r => sevAg(r)[1] === 'Crítico').length;
     document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> mediana <b>${med}d</b> vs média <b>${avg}d</b> — a maioria flui, mas <b>${crit} RCs passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo da própria RC. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Use o funil e o backlog por mês para priorizar a limpeza da carteira.`;
-    SUM.aging = { open: ag.length, openTotal: ALL.filter(r => r.st === 'A').length, avg, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
+    SUM.aging = { open: ag.length, openTotal: ALL.filter(r => r.st === 'A').length, avg, meta: STATE.metaAgG, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
 }
 
 function renderSLA() {
@@ -481,7 +495,7 @@ function renderSLA() {
     const bw = {};
     baseTrend.forEach(r => { const w = isoWeek(r.dc); (bw[w] = bw[w] || { i: 0, t: 0 }); bw[w].t++; if (r.ss === 'I') bw[w].i++; });
     const wk = Object.keys(bw).sort();
-    mkChart('c_slatrend', { type: 'line', plugins: [crosshair], data: { labels: wk.map(w => wkLabel(w)), datasets: [{ label: '% dentro', data: wk.map(w => Math.round(bw[w].i / bw[w].t * 100)), borderColor: C.blue, backgroundColor: 'rgba(14,83,140,.08)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue }] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } }, scales: { x: { ...noG, ticks: { font: { size: 9 } } }, y: { ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    mkChart('c_slatrend', { type: 'line', plugins: [crosshair], data: { labels: wk.map(w => wkLabel(w)), datasets: [{ label: '% dentro', data: wk.map(w => Math.round(bw[w].i / bw[w].t * 100)), borderColor: C.blue, backgroundColor: 'rgba(14,83,140,.08)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue }, { label: 'Meta 150% (90%)', data: wk.map(() => 90), borderColor: C.teal, borderDash: [6, 4], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.teal, fill: false }, { label: 'Meta 100% (80%)', data: wk.map(() => 80), borderColor: C.amber, borderDash: [6, 4], borderWidth: 1.3, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.amber, fill: false }, { label: 'Meta 90% (75%)', data: wk.map(() => 75), borderColor: C.red, borderDash: [6, 4], borderWidth: 1.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.red, fill: false }] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true, font: { size: 10 } } }, tooltip: { mode: 'index', intersect: false } }, scales: { x: { ...noG, ticks: { font: { size: 9 } } }, y: { ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
     // Gravidade do atraso por faixa (c_slafaixa)
     const gf = { '1-7': 0, '8-15': 0, '16-30': 0, '>30': 0 };
@@ -621,6 +635,9 @@ function renderSaving() {
 function overviewRow(t, mod, ind, val) {
     return `<tr class="jump" data-t="${t}"><td>${mod}</td><td>${ind}</td><td class="num">${val}</td></tr>`;
 }
+function scoreRow(t, mod, ind, val, ref, status, label) {
+    return `<tr class="jump" data-t="${t}"><td>${mod}</td><td>${ind}</td><td class="num">${val}</td><td class="num">${ref}</td><td><span class="pill p-${status}">${label}</span></td></tr>`;
+}
 
 function renderOverview() {
     const P = SUM.prod, A = SUM.aging, S = SUM.sla, V = SUM.saving;
@@ -661,12 +678,18 @@ function renderOverview() {
     mkChart('c_ov_aging_mat_qtd', { type: 'bar', data: { labels: A.matLabels, datasets: [{ data: A.matQ, backgroundColor: [C.steel, C.blue], borderRadius: 18 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: { ...soG, beginAtZero: true }, y: noG } } });
     mkChart('c_ov_aging_mat_avg', { type: 'bar', data: { labels: A.matLabels, datasets: [{ data: A.matAvg, backgroundColor: C.blue, borderRadius: 18 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x + 'd' } } }, scales: { x: { ...soG, beginAtZero: true }, y: noG } } });
 
-    // Tabela — resumo por módulo (sem coluna de meta/status)
+    // Tabela — resumo por módulo · Meta/Referência e Status só aparecem se a página tiver essas colunas no cabeçalho (ex.: coorporativo.html)
+    const pCor = P.ating >= 100 ? 'good' : P.ating >= 80 ? 'warn' : 'bad';
+    const aCor = A.avg <= A.meta ? 'good' : A.avg <= A.meta * 1.3 ? 'warn' : 'bad';
+    const sCor = S.pct >= 90 ? 'good' : S.pct >= 80 ? 'warn' : 'bad';
+    const vCor = V.total >= 0 ? 'good' : 'bad';
+    const hasMeta = document.querySelectorAll('#t_overview thead th').length > 3;
+    const rowFn = hasMeta ? scoreRow : overviewRow;
     document.querySelector('#t_overview tbody').innerHTML = [
-        overviewRow('prod', 'Produtividade', 'Itens/dia' + (P.ger ? '/comprador' : ''), P.val.toFixed(2)),
-        overviewRow('aging', 'Aging', 'Aging médio (RCs abertas)', A.avg + 'd'),
-        overviewRow('sla', 'SLA', '% dentro do prazo', S.pct.toFixed(1) + '%'),
-        overviewRow('saving', 'Saving', 'Economia capturada', Kf(V.total) + ' (' + V.taxa.toFixed(1) + '%)')
+        rowFn('prod', 'Produtividade', 'Itens/dia' + (P.ger ? '/comprador' : ''), P.val.toFixed(2), P.ating.toFixed(0) + '% da meta ponderada (mín. 80%)', pCor, pCor === 'good' ? 'Na meta' : pCor === 'warn' ? 'Atenção' : 'Abaixo'),
+        rowFn('aging', 'Aging', 'Aging médio (RCs abertas)', A.avg + 'd', '≤ ' + A.meta + 'd', aCor, aCor === 'good' ? 'Na meta' : aCor === 'warn' ? 'Atenção' : 'Crítico'),
+        rowFn('sla', 'SLA', '% dentro do prazo', S.pct.toFixed(1) + '%', '≥ 90%', sCor, sCor === 'good' ? 'Na meta' : sCor === 'warn' ? 'Atenção' : 'Crítico'),
+        rowFn('saving', 'Saving', 'Economia capturada', Kf(V.total) + ' (' + V.taxa.toFixed(1) + '%)', V.taxa.toFixed(1) + '% de taxa', vCor, vCor === 'good' ? 'Positivo' : 'Negativo')
     ].join('');
 
     document.getElementById('ins-overview').innerHTML = `<b>Leitura:</b> produtividade de <b>${P.val.toFixed(2)} itens/dia${P.ger ? '/comprador' : ''}</b>, aging médio de <b>${A.avg} dias</b> (${A.openTotal} itens em aberto no total, ${A.crit} RCs críticas), SLA em <b>${S.pct.toFixed(1)}%</b> e saving de <b>${Kf(V.total)}</b> no recorte. Mix de entrada: <b>${K.pctCon.toFixed(0)}% Contrato</b> e <b>${K.pctSpo.toFixed(0)}% Spot</b>. Abra a aba correspondente para detalhar cada indicador.`;

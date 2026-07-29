@@ -7,6 +7,6 @@ let ALL = [], ALLRC = [], STATE = {
     metaMat: 11,
     metaServ: 3,
     metaAgG: 60,
-    metaAgC: 101,
-    metaAgS: 33
+    metaAgC: 87,
+    metaAgS: 67
 }, CH = {}, SUM = {}, compSort = { key: 'concl', dir: -1 }, CARTEIRAS = [];
