@@ -7,6 +7,7 @@ function buildFilters() {
     f_tipo.innerHTML = '<option value="GERAL">Geral</option><option value="CS">Visão COE</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option>'
         + tipos.map(t => `<option value="${t}">${t}</option>`).join('');
     f_tipo.value = STATE.tp;
+    f_status.value = STATE.st;
     if (meses.length) { STATE.mes = meses[meses.length - 1]; f_mes.value = STATE.mes; }
     if (sems.length) { STATE.sem = sems[sems.length - 1]; f_sem.value = STATE.sem; }
 }
@@ -20,6 +21,7 @@ f_modo.onchange = e => {
 f_mes.onchange = e => { STATE.mes = e.target.value; render(); };
 f_sem.onchange = e => { STATE.sem = e.target.value; render(); };
 f_tipo.onchange = e => { STATE.tp = e.target.value; render(); };
+f_status.onchange = e => { STATE.st = e.target.value; render(); };
 document.getElementById('ind-voltar').onclick = () => { STATE.comp = 'GERAL'; render(); };
 
 function movePillIndicator(btn, instant) {

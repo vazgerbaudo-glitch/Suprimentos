@@ -330,6 +330,7 @@ function periodHitAging(d) {
 
 const compHit = r => STATE.comp === 'GERAL' || r.cp === STATE.comp;
 const tpHit = r => STATE.tp === 'GERAL' || (STATE.tp === 'CS' ? ['Contrato', 'Spot', 'Exclusiva', 'Determinada'].indexOf(r.td) > -1 : r.td === STATE.tp);
+const stHit = r => STATE.st === 'GERAL' || r.st === STATE.st;
 
 // RCs excluídas da apuração de SLA a pedido do time — não representam atraso real do comprador
 const SLA_EXCL_RC = new Set(['920055115', '910104927', '910104998', '11413071', '970001260', '11413074', '11413106', '11422133', '11422300', '11422847', '11423317', '11423374', '11420372', '11426523', '910105439', '11420487', '11427653', '11427593', '11428002', '11428169', '910105570', '11428021', '940011954', '910105292', '11428003', '11428914', '910105382', '910105438', '910105350']);

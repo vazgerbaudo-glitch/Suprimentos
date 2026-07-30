@@ -4,6 +4,7 @@ let ALL = [], ALLRC = [], STATE = {
     sem: null,
     comp: 'GERAL',
     tp: 'GERAL',
+    st: 'GERAL',
     metaMat: 11,
     metaServ: 3,
     metaAgG: 60,
