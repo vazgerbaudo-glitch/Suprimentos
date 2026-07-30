@@ -17,14 +17,14 @@
             <div class="fg"><label>Período</label><select id="f_modo"><option value="geral">Geral (2026)</option><option value="mes">Mês</option><option value="atual">Semana atual</option><option value="semana">Semana específica</option></select></div>
             <div class="fg" id="wrap_mes" style="display:none"><label>Mês</label><select id="f_mes"></select></div>
             <div class="fg" id="wrap_sem" style="display:none"><label>Semana</label><select id="f_sem"></select></div>
-            <div class="fg"><label>Tipo de compra</label><select id="f_tipo"><option value="GERAL">Geral</option><option value="CS">Contrato e Spot</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option></select></div>
+            <div class="fg"><label>Tipo de compra</label><select id="f_tipo"><option value="GERAL">Geral</option><option value="CS">Visão COE</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option></select></div>
             <hr class="fside-sep"/>
             <div id="drop">
                 <label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">📁 Carregar CSV</label>
                 <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/>
             </div>
-            <button class="btn ghost" id="btn_slides">📋 Apresentação</button>
-            <button class="btn ghost" id="btn_pend">🔍 Pendências</button>
+            <button class="btn ghost" id="btn_slides"> Apresentação</button>
+            <button class="btn ghost" id="btn_pend"> Pendências</button>
             <hr class="fside-sep" style="margin-top:auto"/>
             <a class="side-link" href="terminais.html">Painel Terminais</a>
             <div class="fside-src"><span class="dot" id="srcdot" title="Carregando…"></span><span id="srctxt"></span>
@@ -483,7 +483,7 @@
                 <h3>Base de Carteiras (RC × Item → G/S/R)</h3>
                 <div class="ph">Fonte única desta aba — só linhas com Gerência Final = Compras Ágeis; período usa a Data do Pedido; sem filtro de Comprador (a segundaBase não tem esse campo)</div>
                 <div class="metabar" style="margin-top:0">
-                    <label for="f_cart" class="btn ghost" style="cursor:pointer">📁 Carregar base de carteiras</label>
+                    <label for="f_cart" class="btn ghost" style="cursor:pointer"> Carregar base de carteiras</label>
                     <input id="f_cart" type="file" accept=".csv,text/csv" style="display:none"/>
                     <span class="ph" id="cart_status" style="margin:0"></span>
                 </div>
@@ -540,11 +540,11 @@
     </div>
     <script src="js/config.js?v=20260724"></script>
     <script src="js/state.js?v=20260729b"></script>
-    <script src="js/data.js?v=20260728b"></script>
+    <script src="js/data.js?v=20260730"></script>
     <script src="js/charts.js?v=20260724b"></script>
     <script src="js/render.js?v=20260729b"></script>
-    <script src="js/filters.js?v=20260724"></script>
-    <script src="js/slides.js?v=20260724"></script>
+    <script src="js/filters.js?v=20260730"></script>
+    <script src="js/slides.js?v=20260730"></script>
     <script src="js/pendencias.js?v=20260729d"></script>
     <script src="js/main.js?v=20260724"></script>
     </body>

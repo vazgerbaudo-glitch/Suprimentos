@@ -108,7 +108,8 @@ const MAP = {
     'diasem02': 'd2', 'diasem03': 'd3', 'diasem04': 'd4', 'diasem05': 'd5',
     'diasem06': 'd6', 'diasem07': 'd7', 'diasem08': 'd8', 'diasem09': 'd9',
     'diasem10': 'd10', 'diasem11': 'd11', 'removerdecomprasageis': 'rm',
-    'areacliente': 'ac', 'datainicio2analisedeescopo': 'di2'
+    'areacliente': 'ac', 'datainicio2analisedeescopo': 'di2',
+    'contratosappedido': 'ped'
 };
 
 function computeGar(o) {
@@ -135,7 +136,7 @@ function fromEmbedded() {
             cat: g('cat') || '', ccd: g('ccd') || '', gcs: ('' + (g('gcs') || '')).trim().toUpperCase(), tp: g('tp') || 'Outros', cen: g('cen') || '',
             gar: g('gar') || '', cl: g('cl') || '', td: g('td') || '',
             fa: +g('fa') || 0, du: +g('du') || 0,
-            ac: g('ac') || '', di2: parseDate(g('di2')), rm: false
+            ac: g('ac') || '', di2: parseDate(g('di2')), rm: false, ped: g('ped') || ''
         };
     });
 }
@@ -173,7 +174,7 @@ function fromCSV(txt) {
             cat: catd, ccd: ccd, gcs: (o.gcs || '').trim().toUpperCase(), tp: classTipo(o.cen, o.tpc), cen: (o.cen || '').trim(),
             gar: computeGar(o), cl: (o.cl || '').trim(), td: (o.tpc || '').trim(),
             fa: parseNum(o.fa), du: parseNum(o.du), rm: rm,
-            ac: (o.ac || '').trim(), di2: parseDate(o.di2)
+            ac: (o.ac || '').trim(), di2: parseDate(o.di2), ped: (o.ped || '').trim()
         };
     });
 }
@@ -183,6 +184,7 @@ function fromCSV(txt) {
 const MAP_CART = {
     'requisicaodecompra': 'rc', 'requisicaodecomprax': 'rc', 'rc': 'rc',
     'item': 'it', 'itemrc': 'it',
+    'pedido': 'pedido', 'pedidox': 'pedido',
     'car': 'car', 'carx': 'car',
     'carteiranome': 'nome', 'carteiranomex': 'nome',
     'materialxservico': 'ms', 'materialservico': 'ms',
@@ -207,11 +209,12 @@ function fromCarteirasCSV(txt) {
         if (!rc || !it) return;
         const car = ('' + (o.car || '')).trim().toUpperCase();
         const nome = ('' + (o.nome || '')).trim();
+        const pedido = ('' + (o.pedido || '')).trim();
         const msRaw = ('' + (o.ms || '')).trim().toLowerCase();
         const ms = msRaw.indexOf('mat') > -1 ? 'Material' : msRaw.indexOf('serv') > -1 ? 'Serviço' : '';
         const tdRaw = ('' + (o.td || '')).trim(), tdLow = tdRaw.toLowerCase();
         const td = tdLow === 'contrato' ? 'Contrato' : tdLow === 'spot' ? 'Spot' : (tdRaw || 'N/D');
-        rows.push({ rc, it, car, nome, ms, td, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim() });
+        rows.push({ rc, it, car, nome, pedido, ms, td, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim() });
     });
     return rows;
 }
@@ -326,7 +329,7 @@ function periodHitAging(d) {
 }
 
 const compHit = r => STATE.comp === 'GERAL' || r.cp === STATE.comp;
-const tpHit = r => STATE.tp === 'GERAL' || (STATE.tp === 'CS' ? (r.td === 'Contrato' || r.td === 'Spot') : r.td === STATE.tp);
+const tpHit = r => STATE.tp === 'GERAL' || (STATE.tp === 'CS' ? ['Contrato', 'Spot', 'Exclusiva', 'Determinada'].indexOf(r.td) > -1 : r.td === STATE.tp);
 
 // RCs excluídas da apuração de SLA a pedido do time — não representam atraso real do comprador
 const SLA_EXCL_RC = new Set(['920055115', '910104927', '910104998', '11413071', '970001260', '11413074', '11413106', '11422133', '11422300', '11422847', '11423317', '11423374', '11420372', '11426523', '910105439', '11420487', '11427653', '11427593', '11428002', '11428169', '910105570', '11428021', '940011954', '910105292', '11428003', '11428914', '910105382', '910105438', '910105350']);

@@ -526,17 +526,25 @@ function renderContr() {
     const cartLoaded = CARTEIRAS.length > 0;
     const rootLetter = code => { const m = /^[A-Za-z]/.exec((code || '').trim()); return m ? m[0].toUpperCase() : ''; };
 
-    // Cruzamento Spend × Gestão à Vista por chave RC+Item: quando a carteira do Spend começa
-    // com "A" (a classificar), busca a carteira já resolvida na Gestão à Vista (coluna
-    // Carteira/Categoria, campo "ccd") pela mesma RC+Item e assume o código de lá para
-    // determinar o G/R/S. RC do Spend perde zeros à esquerda para casar com a Gestão à Vista.
-    // Quando já é G/R/S, mantém o valor do Spend e só usa a Gestão à Vista para validar
-    // (RC sinalizada como divergente se os dois códigos não baterem).
+    // Cruzamento Spend × Gestão à Vista: quando a carteira do Spend começa com "A" (a
+    // classificar), busca a carteira já resolvida na Gestão à Vista (coluna Carteira/
+    // Categoria, campo "ccd") em duas etapas — 1ª ocorrência encontrada vence em cada uma:
+    //  1) por Pedido: "Pedido" do Spend contra "Contrato SAP/ Pedido" da Gestão à Vista
+    //     (célula pode trazer vários pedidos separados por "/", todos indexados);
+    //  2) se não achar, por RC+Item (RC do Spend perde zeros à esquerda para casar).
+    // Sem match em nenhuma das duas, mantém o código "A..." original (não resolvido).
+    // Quando já é G/R/S, mantém o valor do Spend e só usa a Gestão à Vista (RC+Item) para
+    // validar (RC sinalizada como divergente se os dois códigos não baterem).
     const gvIndex = new Map();
+    const pedIndex = new Map();
     ALL.forEach(r => {
         if (!r.ccd) return;
         const key = stripLeadZeros(r.rc) + '|' + ('' + (r.it || '')).trim();
         if (!gvIndex.has(key)) gvIndex.set(key, r.ccd);
+        (r.ped || '').split('/').forEach(p => {
+            p = p.trim();
+            if (p && !pedIndex.has(p)) pedIndex.set(p, r.ccd);
+        });
     });
     const divergentRC = new Set();
 
@@ -563,7 +571,8 @@ function renderContr() {
             const root = rootLetter(car);
             const gvCode = gvIndex.get(stripLeadZeros(it.rc) + '|' + it.it);
             if (root === 'A') {
-                if (gvCode) car = gvCode;
+                const pedCode = it.pedido && pedIndex.get(it.pedido.trim());
+                car = pedCode || gvCode || car;
             } else if (root === 'G' || root === 'S' || root === 'R') {
                 if (gvCode && gvCode !== car) divergentRC.add(rc);
             }

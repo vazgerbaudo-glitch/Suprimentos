@@ -4,7 +4,7 @@ function buildFilters() {
     const tipos = [...new Set(ALL.map(r => r.td).filter(t => t && t !== 'Contrato' && t !== 'Spot'))].sort();
     f_mes.innerHTML = meses.map(m => `<option value="${m}">${mLabel(m)}</option>`).join('');
     f_sem.innerHTML = sems.map(s => `<option value="${s}">${wkLabelFull(s)}</option>`).join('');
-    f_tipo.innerHTML = '<option value="GERAL">Geral</option><option value="CS">Contrato e Spot</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option>'
+    f_tipo.innerHTML = '<option value="GERAL">Geral</option><option value="CS">Visão COE</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option>'
         + tipos.map(t => `<option value="${t}">${t}</option>`).join('');
     f_tipo.value = STATE.tp;
     if (meses.length) { STATE.mes = meses[meses.length - 1]; f_mes.value = STATE.mes; }

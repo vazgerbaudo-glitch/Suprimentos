@@ -6,7 +6,7 @@ function periodoLabel() {
 }
 
 function tipoLabel() {
-    return STATE.tp === 'GERAL' ? 'Geral (todos os tipos)' : STATE.tp === 'CS' ? 'Contrato e Spot' : STATE.tp;
+    return STATE.tp === 'GERAL' ? 'Geral (todos os tipos)' : STATE.tp === 'CS' ? 'Visão COE' : STATE.tp;
 }
 
 function leitura(id) {
