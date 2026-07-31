@@ -137,7 +137,8 @@ const MAP = {
     'diasem06': 'd6', 'diasem07': 'd7', 'diasem08': 'd8', 'diasem09': 'd9',
     'diasem10': 'd10', 'diasem11': 'd11', 'removerdecomprasageis': 'rm',
     'areacliente': 'ac', 'datainicio2analisedeescopo': 'di2',
-    'contratosappedido': 'ped'
+    'contratosappedido': 'ped',
+    'datadadevolucaoparaat': 'dev', 'dataretornosupri': 'ret'
 };
 
 function computeGar(o) {
@@ -164,7 +165,8 @@ function fromEmbedded() {
             cat: g('cat') || '', ccd: g('ccd') || '', gcs: ('' + (g('gcs') || '')).trim().toUpperCase(), tp: g('tp') || 'Outros', cen: g('cen') || '',
             gar: g('gar') || '', cl: g('cl') || '', td: g('td') || '',
             fa: +g('fa') || 0, du: +g('du') || 0,
-            ac: g('ac') || '', di2: parseDate(g('di2')), rm: false, ped: g('ped') || ''
+            ac: g('ac') || '', di2: parseDate(g('di2')), rm: false, ped: g('ped') || '',
+            dev: parseDate(g('dev')), ret: parseDate(g('ret'))
         };
     });
 }
@@ -183,7 +185,10 @@ function fromCSV(txt) {
         let ss = SS(o.ss);
         // Base "Gestão à Vista" (Terminais) não traz coluna de Status SLA — deriva de SLA Alvo × SLA Real
         // (SLA Alvo chega como "#N/D"/"Não se aplica" nesses casos, e parseNum já normaliza para 0)
+        // ssDerived marca esse caso p/ rollupRC recalcular com o SLA Real líquido (descontada a devolução p/ AT)
+        let ssDerived = false;
         if (ss === '?') {
+            ssDerived = true;
             if (st === 'X') ss = 'X';
             else if (!(sa > 0)) ss = 'S';
             else ss = sr <= sa ? 'I' : 'F';
@@ -202,7 +207,8 @@ function fromCSV(txt) {
             cat: catd, ccd: ccd, gcs: (o.gcs || '').trim().toUpperCase(), tp: classTipo(o.cen, o.tpc), cen: (o.cen || '').trim(),
             gar: computeGar(o), cl: (o.cl || '').trim(), td: (o.tpc || '').trim(),
             fa: parseNum(o.fa), du: parseNum(o.du), rm: rm,
-            ac: (o.ac || '').trim(), di2: parseDate(o.di2), ped: (o.ped || '').trim()
+            ac: (o.ac || '').trim(), di2: parseDate(o.di2), ped: (o.ped || '').trim(),
+            dev: parseDate(o.dev), ret: parseDate(o.ret), ssDerived
         };
     });
 }
@@ -358,14 +364,32 @@ function rollupRC(rows) {
         const dl = (its.find(x => x.dl) || {}).dl || null;
         const anyOpen = its.some(x => x.st === 'A');
         const st = anyOpen ? 'A' : (its.some(x => x.st === 'C') ? 'C' : (its.some(x => x.st === 'D') ? 'D' : 'X'));
-        const anyF = its.some(x => x.ss === 'F'), anyI = its.some(x => x.ss === 'I');
-        const ss = anyF ? 'F' : (anyI ? 'I' : its[0].ss);
         const openIt = its.filter(x => x.st === 'A');
         const srNeg = its.some(x => x.st === 'C' && x.sr < 0);
+        const sa = Math.max(0, ...its.map(x => x.sa || 0));
+        // Devolução para AT (aguardando retorno do solicitante) não conta contra o comprador — desconta
+        // do SLA Real (dias úteis parados com AT, até o retorno ou, se ainda não voltou, até hoje/conclusão)
+        const srRaw = Math.max(0, ...its.map(x => x.sr || 0));
+        const devHold = Math.max(0, ...its.map(x => {
+            if (!x.dev) return 0;
+            const end = x.ret || (x.st === 'A' ? HOJE : x.dc);
+            if (!end) return 0;
+            const h = bizDaysDiff(x.dev, end);
+            return h > 0 ? h : 0;
+        }));
+        const sr = Math.max(0, srRaw - devHold);
+        const anyF = its.some(x => x.ss === 'F'), anyI = its.some(x => x.ss === 'I');
+        let ss = anyF ? 'F' : (anyI ? 'I' : its[0].ss);
+        // Quando o Status SLA não veio da base (foi derivado de SLA Alvo × SLA Real), recalcula com o
+        // SLA Real já líquido de devolução — senão a devolução não corrigiria o % dentro do SLA
+        if (its.some(x => x.ssDerived)) {
+            if (st === 'X') ss = 'X';
+            else if (!(sa > 0)) ss = 'S';
+            else ss = sr <= sa ? 'I' : 'F';
+        }
         return {
             rc, it: its.length, dl, dc, st, ss, srNeg,
-            sa: Math.max(0, ...its.map(x => x.sa || 0)),
-            sr: Math.max(0, ...its.map(x => x.sr || 0)),
+            sa, sr, devHold,
             cp: mode(its.map(x => x.cp)) || 'N/D',
             pf: mode(its.map(x => x.pf)) || '',
             et: ((openIt[0] || its[0]).et) || '',
