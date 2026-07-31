@@ -12,11 +12,11 @@ function kpi(el, a) {
 function fmtDia(d) {
     return d ? String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getFullYear()).slice(2) : '—';
 }
-// Semáforo de RC aberta vs. SLA Alvo da própria RC (dado da base, não é meta configurável)
+// Semáforo de RC aberta vs. SLA Alvo da própria RC — conta é SLA Alvo × SLA Real (dado da base, não é meta configurável)
 function sevOpen(r) {
     const lim = r.sa > 0 ? r.sa : 15;
-    if (r.age > lim) return ['s-rd', 'Crítico', 'f-rd'];
-    if (lim - r.age <= 2) return ['s-or', 'Atenção', 'f-or'];
+    if (r.sr > lim) return ['s-rd', 'Crítico', 'f-rd'];
+    if (lim - r.sr <= 2) return ['s-or', 'Atenção', 'f-or'];
     return ['s-am', 'Dentro do prazo', 'f-am'];
 }
 
@@ -46,7 +46,7 @@ function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true) {
     document.getElementById(sumId).innerHTML = rcs.length ? `<b>${rcs.length}</b> RC${rcs.length > 1 ? 's' : ''} em aberto no recorte · aging médio <b>${avg}d</b> · <span class="tag-sev s-am">Dentro do prazo: ${cnt['Dentro do prazo']}</span> <span class="tag-sev s-or">Atenção: ${cnt['Atenção']}</span> <span class="tag-sev s-rd">Crítico: ${cnt['Crítico']}</span>` : 'Nenhuma RC em aberto no recorte.';
     document.querySelector('#' + tblId + ' tbody').innerHTML = rcs.map(r => {
         const s = sevOpen(r);
-        const saldo = r.sa > 0 ? r.sa - r.age : null;
+        const saldo = r.sa > 0 ? r.sa - r.sr : null;
         const saldoTxt = saldo == null ? '—' : (saldo >= 0 ? '+' : '') + saldo + 'd';
         const saldoCol = saldo == null ? 'color:var(--muted)' : saldo >= 0 ? 'color:#14705A' : 'color:#C0272D';
         return `<tr${showComp ? ` class="jump" data-cp="${r.cp}" style="cursor:pointer"` : ''}>${showComp ? `<td>${r.cp}</td>` : ''}<td>${r.rc || '-'}</td><td class="num">${r.it}</td>${showExtra ? `<td>${(r.td || '').trim() || '-'}</td><td>${(r.et || '').replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${fmtDia(r.dl)}</td>` : ''}<td class="num">${r.sa || '—'}</td><td class="num">${r.age}</td><td class="num" style="${saldoCol}">${saldoTxt}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`;
@@ -67,13 +67,16 @@ function renderCompradores() {
         const wks = Object.keys(byW);
         const ipd = wks.length ? wks.reduce((a, w) => a + byW[w], 0) / wks.length : 0;
         const open = openBase.filter(r => r.cp === cp);
-        const ages = open.map(r => Math.round((HOJE - r.dl) / 86400000)).filter(a => a >= 0);
-        const agingAvg = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : null;
+        const openAged = open.map(r => ({ age: Math.round((HOJE - r.dl) / 86400000), sa: r.sa, sr: r.sr })).filter(o => o.age >= 0);
+        const agingAvg = openAged.length ? Math.round(openAged.reduce((a, o) => a + o.age, 0) / openAged.length) : null;
+        // Saldo SLA médio (SLA Alvo − SLA Real) — mesma régua da tabela de RCs abertas, usada para apontar criticidade
+        const saldos = openAged.map(o => (o.sa > 0 ? o.sa : 15) - o.sr);
+        const saldoAvg = saldos.length ? Math.round(saldos.reduce((a, b) => a + b, 0) / saldos.length) : null;
         const sla = slaBase.filter(r => r.cp === cp);
         const slaPct = sla.length ? sla.filter(r => r.ss === 'I').length / sla.length * 100 : null;
         const sav = savBase.filter(r => r.cp === cp);
         const saving = sav.reduce((a, r) => a + (r.vp - r.vn), 0);
-        return { cp, concl: done.length, ipd, openN: open.length, agingAvg, slaPct, slaN: sla.length, saving, matN: done.filter(r => r.cl === 'Material').length, servN: done.filter(r => r.cl === 'Serviço').length };
+        return { cp, concl: done.length, ipd, openN: open.length, agingAvg, saldoAvg, slaPct, slaN: sla.length, saving, matN: done.filter(r => r.cl === 'Material').length, servN: done.filter(r => r.cl === 'Serviço').length };
     });
     renderCompList(rows);
 
@@ -99,7 +102,7 @@ function renderCompradores() {
 
     // Produtividade x SLA — bolha (c_compscatter)
     const maxConcl = Math.max(1, ...rows.map(r => r.concl));
-    const ageColor = r => r.agingAvg == null ? '#7A8C97' : r.agingAvg <= 15 ? C.teal : r.agingAvg <= 30 ? C.amber : C.red;
+    const ageColor = r => r.saldoAvg == null ? '#7A8C97' : r.saldoAvg < 0 ? C.red : r.saldoAvg <= 2 ? C.amber : C.teal;
     const bubbles = rows.filter(r => r.ipd > 0 || r.slaPct != null).map(r => ({ x: +r.ipd.toFixed(2), y: r.slaPct != null ? Math.round(r.slaPct) : 0, r: 6 + 12 * Math.sqrt(r.concl / maxConcl), cp: r.cp, concl: r.concl }));
     mkChart('c_compscatter', { type: 'bubble', data: { datasets: [{ data: bubbles, backgroundColor: bubbles.map(b => ageColor(rows.find(r => r.cp === b.cp)) + 'cc'), borderColor: bubbles.map(b => b.cp === STATE.comp ? '#003865' : 'transparent'), borderWidth: bubbles.map(b => b.cp === STATE.comp ? 3 : 0) }] }, options: { maintainAspectRatio: false, onClick: (evt, els) => { if (els.length) { const cp = bubbles[els[0].index].cp; STATE.comp = STATE.comp === cp ? 'GERAL' : cp; render(); } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => { const b = bubbles[c.dataIndex]; return b.cp + ': ' + b.x + ' itens/dia · ' + b.y + '% SLA · ' + b.concl + ' concluídos'; } } } }, scales: { x: { ...soG, beginAtZero: true, title: { display: true, text: 'Itens/dia', font: { size: 10 } } }, y: { ...soG, min: 0, max: 100, title: { display: true, text: '% dentro do SLA', font: { size: 10 } }, ticks: { callback: v => v + '%' } } } } });
 
@@ -113,7 +116,7 @@ function renderCompradores() {
     document.querySelector('#t_comp thead').innerHTML = '<tr>' + COMP_COLS.map(c => `<th class="${c.k === 'cp' ? '' : 'num'}" data-key="${c.k}" style="cursor:pointer">${c.l}${compSort.key === c.k ? (compSort.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('') + '</tr>';
     document.querySelector('#t_comp tbody').innerHTML = sorted.map(r => {
         const slaTxt = r.slaPct != null ? r.slaPct.toFixed(1) + '%' : '—', slaCol = r.slaPct == null ? '' : r.slaPct >= 90 ? '#14705A' : r.slaPct >= 80 ? '#8A6D00' : '#C0272D';
-        const ageTxt = r.agingAvg != null ? r.agingAvg + 'd' : '—', ageCol = r.agingAvg == null ? '' : r.agingAvg <= 15 ? '#14705A' : r.agingAvg <= 30 ? '#8A6D00' : '#C0272D';
+        const ageTxt = r.agingAvg != null ? r.agingAvg + 'd' : '—', ageCol = r.saldoAvg == null ? '' : r.saldoAvg < 0 ? '#C0272D' : r.saldoAvg <= 2 ? '#8A6D00' : '#14705A';
         const bg = r.cp === STATE.comp ? 'background:rgba(0,56,101,.07)' : '';
         return `<tr class="jump" data-cp="${r.cp}" style="${bg}"><td>${r.cp}</td><td class="num">${r.concl.toLocaleString('pt-BR')}</td><td class="num">${r.ipd.toFixed(2)}</td><td class="num">${r.openN}</td><td class="num" style="color:${ageCol}">${ageTxt}</td><td class="num" style="color:${slaCol}">${slaTxt}</td><td class="num" style="${r.saving < 0 ? 'color:#C0272D' : ''}">${BRL(r.saving)}</td></tr>`;
     }).join('') || '<tr><td colspan="7" style="color:#46606F">Nenhum comprador com dados no recorte.</td></tr>';
@@ -159,9 +162,11 @@ function renderCompIndividual(cp, team) {
 
     // Aging — RCs abertas no recorte
     const openP = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && tpHit(r) && stHit(r) && r.cp === cp);
-    const agesP = openP.map(r => Math.round((HOJE - r.dl) / 86400000)).filter(a => a >= 0);
+    const openPAged = openP.map(r => ({ age: Math.round((HOJE - r.dl) / 86400000), sa: r.sa, sr: r.sr })).filter(o => o.age >= 0);
+    const agesP = openPAged.map(o => o.age);
     const agingAvg = agesP.length ? Math.round(agesP.reduce((a, b) => a + b, 0) / agesP.length) : null;
-    const critN = agesP.filter(a => a > 30).length;
+    // Crítico = SLA Real ultrapassou o SLA Alvo (alvo fixo de 15d quando sem SLA Alvo) — mesma régua da tabela de RCs abertas
+    const critN = openPAged.filter(o => o.sr > (o.sa > 0 ? o.sa : 15)).length;
     const fCounts = FA.map(() => 0);
     agesP.forEach(a => fCounts[faIdx(a)]++);
 
@@ -204,7 +209,7 @@ function renderCompIndividual(cp, team) {
         { l: '% dentro do SLA', v: slaPct != null ? slaPct.toFixed(1) + '%' : '—', c: sCor, n: slaPct != null ? (dSla >= 0 ? '+' : '') + dSla.toFixed(1) + 'pp vs média do time' : 'sem base avaliada' },
         { l: 'Saving capturado', v: Kf(savTotal), c: vCor, n: BRL(savTotal) },
         { l: 'Mix Contrato', v: pctConP.toFixed(0) + '%', n: nConP + ' Contrato · ' + nSpoP + ' Spot' },
-        { l: 'RCs críticas de aging', v: critN, c: critN > 0 ? 'warn' : 'good', n: 'ciclo aberto > 30 dias' }
+        { l: 'RCs críticas de aging', v: critN, c: critN > 0 ? 'warn' : 'good', n: 'acima do SLA Alvo' }
     ]);
     mkChart('c_ind_prod', { data: { labels: cwk.map(wkLabel), datasets: [{ type: 'bar', label: cp, data: cwk.map(w => cw[w]), backgroundColor: C.steel, borderRadius: 18, order: 2 }, { type: 'line', label: 'Média do time', data: cwk.map(teamAvg), borderColor: '#003865', borderWidth: 2, pointRadius: 0, tension: .3, fill: false, order: 1 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 10, usePointStyle: true, font: { size: 9 } } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 8, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
     mkChart('c_ind_aging', { type: 'bar', data: { labels: FA.map(x => x[0]), datasets: [{ data: fCounts, backgroundColor: FCOL, borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
@@ -214,7 +219,7 @@ function renderCompIndividual(cp, team) {
 
     // RCs em aberto — acompanhamento individual (t_rcopen_ind)
     renderOpenRCPanel('t_rcopen_ind', 'sum_rcopen_ind', openRCsFor(cp), false);
-    document.getElementById('ins-individual').innerHTML = `<b>Leitura:</b> ${cp} concluiu <b>${doneP.length} itens</b> (<b>${ipdVal.toFixed(2)} itens/dia</b>, ${dIpd >= 0 ? '+' : ''}${dIpd.toFixed(0)}% vs média do time), tem <b>${openP.length} RCs abertas</b>${agingAvg != null ? ` (aging médio ${agingAvg}d)` : ''} e está em <b>${slaPct != null ? slaPct.toFixed(1) + '%' : '—'}</b> dentro do SLA. Saving capturado: <b>${Kf(savTotal)}</b>. Mix de entrada: <b>${nConP} RCs Contrato</b> e <b>${nSpoP} RCs Spot</b>.${critN > 0 ? ` <b style="color:#8A6D00">⚠ ${critN} RC(s) com aging acima de 30 dias.</b>` : ''}`;
+    document.getElementById('ins-individual').innerHTML = `<b>Leitura:</b> ${cp} concluiu <b>${doneP.length} itens</b> (<b>${ipdVal.toFixed(2)} itens/dia</b>, ${dIpd >= 0 ? '+' : ''}${dIpd.toFixed(0)}% vs média do time), tem <b>${openP.length} RCs abertas</b>${agingAvg != null ? ` (aging médio ${agingAvg}d)` : ''} e está em <b>${slaPct != null ? slaPct.toFixed(1) + '%' : '—'}</b> dentro do SLA. Saving capturado: <b>${Kf(savTotal)}</b>. Mix de entrada: <b>${nConP} RCs Contrato</b> e <b>${nSpoP} RCs Spot</b>.${critN > 0 ? ` <b style="color:#8A6D00">⚠ ${critN} RC(s) acima do SLA Alvo.</b>` : ''}`;
 }
 
 function render() {
