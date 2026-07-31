@@ -1,4 +1,4 @@
-let ALL = [], ALLRC = [], STATE = {
+let ALL = [], ALLRC = [], DUCAL = {}, STATE = {
     modo: 'geral',
     mes: null,
     sem: null,

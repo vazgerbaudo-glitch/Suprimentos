@@ -255,7 +255,30 @@ function fromCarteirasCSV(txt) {
     return rows;
 }
 
-// Aging/ciclo em dias úteis (seg-sex) entre duas datas — não desconta feriados
+// Calendário de dias úteis por semana ISO, a partir da coluna "Dias Úteis na Semana" (du) da
+// própria base — evita depender de uma lista de feriados mantida à parte. Cada semana usa o
+// valor de du mais comum entre os itens concluídos (dc) nela; sem dado próprio, cai no padrão de 5.
+function buildDuCalendar(all) {
+    const m = {};
+    all.forEach(r => {
+        if (!(r.du > 0)) return;
+        const d = r.dc || r.dl;
+        if (!d) return;
+        const w = isoWeek(d);
+        (m[w] = m[w] || new Map()).set(r.du, (m[w].get(r.du) || 0) + 1);
+    });
+    const out = {};
+    Object.keys(m).forEach(w => {
+        let best = 5, bc = -1;
+        m[w].forEach((c, v) => { if (c > bc) { bc = c; best = v; } });
+        out[w] = best;
+    });
+    return out;
+}
+// Aging/ciclo em dias úteis entre duas datas, respeitando o nº de dias úteis de cada semana
+// (DUCAL, calculado em render()). Numa semana com du < 5, assume que o(s) dia(s) fora do
+// expediente caem no fim da semana (aproximação: a base diz quantos dias úteis a semana teve,
+// não qual dia específico foi feriado).
 function bizDaysDiff(from, to) {
     if (!from || !to) return null;
     const a = new Date(from.getFullYear(), from.getMonth(), from.getDate());
@@ -266,7 +289,11 @@ function bizDaysDiff(from, to) {
     while (d.getTime() !== b.getTime()) {
         d.setDate(d.getDate() + dir);
         const dow = d.getDay();
-        if (dow !== 0 && dow !== 6) n += dir;
+        if (dow !== 0 && dow !== 6) {
+            const wIdx = (dow + 6) % 7;
+            const du = DUCAL[isoWeek(d)];
+            if (wIdx < (du != null ? du : 5)) n += dir;
+        }
     }
     return n;
 }

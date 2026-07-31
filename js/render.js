@@ -67,6 +67,7 @@ function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true) {
     if (showComp) document.querySelectorAll('#' + tblId + ' tbody tr.jump').forEach(tr => tr.onclick = () => { STATE.comp = tr.dataset.cp; render(); });
 }
 function render() {
+    DUCAL = buildDuCalendar(ALL);
     ALLRC = rollupRC(ALL);
     renderProd();
     renderAging();

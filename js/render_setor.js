@@ -223,6 +223,7 @@ function renderCompIndividual(cp, team) {
 }
 
 function render() {
+    DUCAL = buildDuCalendar(ALL);
     ALLRC = rollupRC(ALL);
     renderProd();
     renderAging();
