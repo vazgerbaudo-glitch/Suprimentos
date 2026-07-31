@@ -48,7 +48,7 @@ function sevOpen(r) {
 // RCs abertas para acompanhamento (aba Compradores) — mesma base da aba Aging (2025+2026, sem corte de data); cp=null traz todo o time
 function openRCsFor(cp) {
     return ALLRC.filter(r => r.st === 'A' && r.dl && periodHitAging(r.dl) && tpHit(r) && stHit(r) && (!cp || r.cp === cp))
-        .map(r => ({ ...r, age: Math.round((HOJE - r.dl) / 86400000) }))
+        .map(r => ({ ...r, age: bizDaysDiff(r.dl, HOJE) }))
         .filter(r => r.age > 0)
         .sort((a, b) => b.age - a.age);
 }
@@ -218,7 +218,7 @@ function renderProd() {
 function renderAging() {
     // Aging das RCs em aberto — distribuição e KPIs base
     const base = ALLRC.filter(r => r.st === 'A' && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r) && stHit(r));
-    const ag = base.map(r => ({ ...r, age: Math.round((HOJE - r.dl) / 86400000) })).filter(r => r.age > 0);
+    const ag = base.map(r => ({ ...r, age: bizDaysDiff(r.dl, HOJE) })).filter(r => r.age > 0);
     const FA = [['0-3', 0, 3], ['4-7', 4, 7], ['8-15', 8, 15], ['16-30', 16, 30], ['>30', 31, 1e9]];
     const FCOL = ['#1E9F7F', '#7FE06C', '#FBD300', '#C79100', '#D2373C'];
     const faIdx = a => { for (let i = 0; i < FA.length; i++) if (a >= FA[i][1] && a <= FA[i][2]) return i; return FA.length - 1; };
@@ -247,8 +247,8 @@ function renderAging() {
             if (!rc || it.st === 'X' || it.rm) return;
             if (splitByTipo && it.td !== 'Contrato' && it.td !== 'Spot') return;
             let age;
-            if (it.st === 'A') age = Math.round((HOJE - it.dl) / 86400000);
-            else if (it.st === 'C' && it.dl && it.dc) age = Math.round((it.dc - it.dl) / 86400000);
+            if (it.st === 'A') age = bizDaysDiff(it.dl, HOJE);
+            else if (it.st === 'C' && it.dl && it.dc) age = bizDaysDiff(it.dl, it.dc);
             else return;
             if (!Number.isFinite(age) || age <= 0) return;
             const key = splitByTipo ? rc + '|' + it.td : rc;
@@ -338,7 +338,7 @@ function renderAging() {
     document.getElementById('box_aging').innerHTML = boxComps.length ? svg : '<div style="color:#46606F;font-size:12px">Dados insuficientes para boxplot no recorte.</div>';
 
     // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo · linhas de meta 80/100/150% conforme filtro Tipo de compra
-    const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r) && stHit(r)).map(r => ({ w: isoWeek(r.dc), cyc: Math.round((r.dc - r.dl) / 86400000) })).filter(r => r.cyc >= 0);
+    const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r) && stHit(r)).map(r => ({ w: isoWeek(r.dc), cyc: bizDaysDiff(r.dl, r.dc) })).filter(r => r.cyc >= 0);
     const byW = {};
     concl.forEach(r => { (byW[r.w] = byW[r.w] || []).push(r.cyc); });
     const wk = Object.keys(byW).sort();
@@ -364,7 +364,7 @@ function renderAging() {
 
     // Tabela detalhada — semáforo de aging (t_aging)
     const sevAg = r => sevOpen(r);
-    const tabAll = ALLRC.filter(r => (r.st === 'A' || r.st === 'C') && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r) && stHit(r)).map(r => { const isOpen = r.st === 'A'; const age = isOpen ? Math.round((HOJE - r.dl) / 86400000) : (r.dc ? Math.round((r.dc - r.dl) / 86400000) : null); return { ...r, age, isOpen }; }).filter(r => r.age != null && r.age > 0);
+    const tabAll = ALLRC.filter(r => (r.st === 'A' || r.st === 'C') && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r) && stHit(r)).map(r => { const isOpen = r.st === 'A'; const age = isOpen ? bizDaysDiff(r.dl, HOJE) : (r.dc ? bizDaysDiff(r.dl, r.dc) : null); return { ...r, age, isOpen }; }).filter(r => r.age != null && r.age > 0);
     const tab = tabAll.slice().sort((a, b) => b.age - a.age).slice(0, 40);
     document.querySelector('#t_aging tbody').innerHTML = tab.map(r => { const s = sevAg(r); const stBadge = `<span class="tag-sev" style="background:${r.isOpen ? '#E1EDF5' : '#DFF2EA'};color:${r.isOpen ? '#0E538C' : '#14705A'}">${r.isOpen ? 'Em Aberto' : 'Concluída'}</span>`; return `<tr><td>${r.rc || '-'}</td><td>${r.it || '-'}</td><td>${r.cp}</td><td>${stBadge}</td><td>${r.et.replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${r.sa || '-'}</td><td class="num">${r.age}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`; }).join('') || '<tr><td colspan=8 style="color:#46606F">Nenhuma RC no recorte.</td></tr>';
 
@@ -847,7 +847,7 @@ function renderCompradores() {
         const wks = Object.keys(byW);
         const ipd = wks.length ? wks.reduce((a, w) => a + byW[w], 0) / wks.length : 0;
         const open = openBase.filter(r => r.cp === cp);
-        const openAged = open.map(r => ({ age: Math.round((HOJE - r.dl) / 86400000), sa: r.sa, sr: r.sr })).filter(o => o.age > 0);
+        const openAged = open.map(r => ({ age: bizDaysDiff(r.dl, HOJE), sa: r.sa, sr: r.sr })).filter(o => o.age > 0);
         const agingAvg = openAged.length ? Math.round(openAged.reduce((a, o) => a + o.age, 0) / openAged.length) : null;
         // Saldo SLA médio (SLA Alvo − SLA Real) — mesma régua da tabela de RCs abertas, usada para apontar criticidade
         const saldos = openAged.map(o => (o.sa > 0 ? o.sa : 15) - o.sr);
@@ -942,7 +942,7 @@ function renderCompIndividual(cp, team) {
 
     // Aging — RCs abertas no recorte
     const openP = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && tpHit(r) && stHit(r) && r.cp === cp);
-    const openPAged = openP.map(r => ({ age: Math.round((HOJE - r.dl) / 86400000), sa: r.sa, sr: r.sr })).filter(o => o.age > 0);
+    const openPAged = openP.map(r => ({ age: bizDaysDiff(r.dl, HOJE), sa: r.sa, sr: r.sr })).filter(o => o.age > 0);
     const agesP = openPAged.map(o => o.age);
     const agingAvg = agesP.length ? Math.round(agesP.reduce((a, b) => a + b, 0) / agesP.length) : null;
     // Crítico = SLA Real ultrapassou o SLA Alvo (alvo fixo de 15d quando sem SLA Alvo) — mesma régua da tabela de RCs abertas

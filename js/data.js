@@ -255,6 +255,21 @@ function fromCarteirasCSV(txt) {
     return rows;
 }
 
+// Aging/ciclo em dias úteis (seg-sex) entre duas datas — não desconta feriados
+function bizDaysDiff(from, to) {
+    if (!from || !to) return null;
+    const a = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+    const b = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+    const dir = b >= a ? 1 : -1;
+    let n = 0;
+    const d = new Date(a);
+    while (d.getTime() !== b.getTime()) {
+        d.setDate(d.getDate() + dir);
+        const dow = d.getDay();
+        if (dow !== 0 && dow !== 6) n += dir;
+    }
+    return n;
+}
 function isoWeek(d) {
     const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     const dn = (t.getUTCDay() + 6) % 7;
