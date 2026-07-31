@@ -526,31 +526,123 @@ function renderContr() {
     const cartLoaded = CARTEIRAS.length > 0;
     const rootLetter = code => { const m = /^[A-Za-z]/.exec((code || '').trim()); return m ? m[0].toUpperCase() : ''; };
 
-    // Cruzamento Spend × Gestão à Vista: quando a carteira do Spend começa com "A" (a
-    // classificar), busca a carteira já resolvida na Gestão à Vista (coluna Carteira/
-    // Categoria, campo "ccd") em duas etapas — 1ª ocorrência encontrada vence em cada uma:
-    //  1) por Pedido: "Pedido" do Spend contra "Contrato SAP/ Pedido" da Gestão à Vista
-    //     (célula pode trazer vários pedidos separados por "/", todos indexados);
-    //  2) se não achar, por RC+Item (RC do Spend perde zeros à esquerda para casar).
-    // Sem match em nenhuma das duas, mantém o código "A..." original (não resolvido).
-    // Quando já é G/R/S, mantém o valor do Spend e só usa a Gestão à Vista (RC+Item) para
-    // validar (RC sinalizada como divergente se os dois códigos não baterem).
-    const gvIndex = new Map();
-    const pedIndex = new Map();
+    if (!cartLoaded) {
+        document.getElementById('kpi-contr').classList.add('k3');
+        kpi('kpi-contr', [{ l: 'Base de Carteiras / Spend', v: 'Não carregada', c: 'warn', n: 'Carregue o 2º arquivo (Spend) para calcular o mix Contrato × Spot' }]);
+        document.getElementById('ins-contr').innerHTML = '<b>Carregue a base de carteiras (2º arquivo / Spend) para ver esta aba.</b>';
+        SUM.contr = null;
+        return;
+    }
+
+    // ===== Índices da Gestão à Vista (base principal, ALL) para resolver/validar carteiras =====
+    // Chave por Pedido: "Contrato SAP/ Pedido" pode trazer vários pedidos (barra, vírgula, ponto
+    // e vírgula ou quebra de linha), cada um indexado. Chave por RC: só dígitos, sem zeros à
+    // esquerda. NUNCA usa Item — o Item do Spend é item do PEDIDO, não o "Item RC" da Gestão à
+    // Vista, então RC+Item nunca é usado para casar as duas bases nesta aba.
+    const gvByPed = new Map(), gvByRC = new Map();
     ALL.forEach(r => {
         if (!r.ccd) return;
-        const key = stripLeadZeros(r.rc) + '|' + ('' + (r.it || '')).trim();
-        if (!gvIndex.has(key)) gvIndex.set(key, r.ccd);
-        (r.ped || '').split('/').forEach(p => {
-            p = p.trim();
-            if (p && !pedIndex.has(p)) pedIndex.set(p, r.ccd);
+        const rcNorm = normRC(r.rc);
+        if (rcNorm) {
+            if (!gvByRC.has(rcNorm)) gvByRC.set(rcNorm, []);
+            gvByRC.get(rcNorm).push({ ccd: r.ccd, tp: r.tp, cp: r.cp });
+        }
+        splitPedidos(r.ped).forEach(pn => {
+            if (!gvByPed.has(pn)) gvByPed.set(pn, []);
+            gvByPed.get(pn).push({ ccd: r.ccd, tp: r.tp, cp: r.cp });
         });
     });
-    const divergentRC = new Set();
+    const summarize = arr => {
+        if (!arr || !arr.length) return null;
+        const ccds = [...new Set(arr.map(x => x.ccd))];
+        return { unique: ccds.length === 1, ccd: ccds.length === 1 ? ccds[0] : null, tp: mode(arr.map(x => x.tp)), cp: mode(arr.map(x => x.cp)) };
+    };
+    // Ordem de resolução: 1) Pedido — só aceito quando TODAS as ocorrências apontam para a mesma
+    // Carteira/Categoria; 2) RC — só entra quando o Pedido não resolveu com segurança, e só é
+    // aceito quando TODAS as linhas dessa RC na Gestão à Vista apontam para a mesma carteira.
+    // Nunca escolhe a primeira ocorrência num conflito.
+    function resolveCarteira(pedidoNorm, rcNorm) {
+        const pedSum = summarize(gvByPed.get(pedidoNorm));
+        if (pedSum) {
+            if (pedSum.unique) return { ...pedSum, method: 'Pedido', outcome: 'pedido_unique' };
+            const rcSum = summarize(gvByRC.get(rcNorm));
+            if (rcSum && rcSum.unique) return { ...rcSum, method: 'RC única', outcome: 'rc_unique' };
+            return { ccd: null, tp: null, cp: null, method: 'Original', outcome: 'pedido_conflict' };
+        }
+        const rcSum = summarize(gvByRC.get(rcNorm));
+        if (rcSum) return rcSum.unique ? { ...rcSum, method: 'RC única', outcome: 'rc_unique' } : { ccd: null, tp: null, cp: null, method: 'Original', outcome: 'rc_ambiguous' };
+        return { ccd: null, tp: null, cp: null, method: 'Não encontrado', outcome: 'no_match' };
+    }
+    // Status de auditoria do eixo Contrato×Spot — não substitui a classificação original do Spend,
+    // só compara contra o que a Gestão à Vista indica para a mesma Carteira/Categoria resolvida.
+    const tipoStatus = (tdSpend, res) => {
+        if (res.outcome === 'pedido_conflict') return 'Pedido conflitante';
+        if (res.outcome === 'rc_ambiguous') return 'RC ambígua';
+        if (res.outcome === 'no_match') return 'Sem correspondência na Gestão';
+        if (!tdSpend || tdSpend === 'N/D' || !res.tp || res.tp === 'Outros') return 'Informação insuficiente';
+        if (tdSpend === 'Contrato' && res.tp === 'Contrato') return 'Contrato validado';
+        if (tdSpend === 'Spot' && res.tp === 'Spot') return 'Spot validado';
+        if (tdSpend === 'Contrato' && res.tp === 'Spot') return 'Spend Contrato x Gestão Spot';
+        if (tdSpend === 'Spot' && res.tp === 'Contrato') return 'Spend Spot x Gestão Contrato';
+        return 'Informação insuficiente';
+    };
 
-    // Distribuição histórica de carteiras por Grupo Comprador (Sistema) — usada tanto para o
-    // painel informativo (RCs por Grupo Comprador) quanto para fracionar RCs ainda em "A..."
-    // nas colunas de carteira G do gráfico % Contrato × Spot por carteira G.
+    // ===== Reclassificação de Car por linha do Spend =====
+    // "A..." (Grupo Comprador, não classificado): tenta resolver por Pedido, depois por RC única;
+    // sem resolução seguro mantém o código "A..." original. "G/S/R": nunca reclassifica — a
+    // Gestão à Vista só valida (marca "Divergente" quando os códigos não batem).
+    const resolvedLines = CARTEIRAS.map(ln => {
+        const root = rootLetter(ln.car);
+        const res = resolveCarteira(ln.pedidoNorm, ln.rcNorm);
+        let carFinal, statusCarteira;
+        if (root === 'A') {
+            if (res.outcome === 'pedido_unique') { carFinal = res.ccd; statusCarteira = 'Resolvido por Pedido'; }
+            else if (res.outcome === 'rc_unique') { carFinal = res.ccd; statusCarteira = 'Resolvido por RC única'; }
+            else if (res.outcome === 'pedido_conflict') { carFinal = ln.car; statusCarteira = 'Pedido conflitante'; }
+            else if (res.outcome === 'rc_ambiguous') { carFinal = ln.car; statusCarteira = 'RC ambígua'; }
+            else { carFinal = ln.car; statusCarteira = 'A não resolvido'; }
+        } else if (root === 'G' || root === 'S' || root === 'R') {
+            carFinal = ln.car;
+            if (res.outcome === 'pedido_unique' || res.outcome === 'rc_unique') statusCarteira = res.ccd === ln.car ? 'Mantido e validado' : 'Divergente';
+            else if (res.outcome === 'pedido_conflict') statusCarteira = 'Pedido conflitante';
+            else if (res.outcome === 'rc_ambiguous') statusCarteira = 'RC ambígua';
+            else statusCarteira = 'RC não encontrada';
+        } else {
+            carFinal = ln.car || '';
+            statusCarteira = 'Informação insuficiente';
+        }
+        return { ...ln, root, carFinal, statusCarteira, statusTipo: tipoStatus(ln.td, res), carEncontrado: res.ccd || '', compradorEncontrado: res.cp || '', metodoConexao: res.method };
+    });
+
+    // ===== Rollup por RC — consolida as linhas do Spend sem duplicar contagens/valores =====
+    const byRC = {};
+    resolvedLines.forEach(ln => { if (!ln.rcNorm) return; (byRC[ln.rcNorm] = byRC[ln.rcNorm] || []).push(ln); });
+    const rcRows = Object.keys(byRC).map(rcNorm => {
+        const lines = byRC[rcNorm];
+        const carFinals = [...new Set(lines.map(l => (l.carFinal || '').trim()).filter(Boolean))];
+        // Ambígua tanto quando os próprios itens da RC apontam para carteiras finais diferentes,
+        // quanto quando a resolução por RC (fallback) encontrou mais de uma carteira na Gestão à Vista
+        const rcAmbigua = carFinals.length > 1 || lines.some(l => l.statusCarteira === 'RC ambígua');
+        const car = rcAmbigua ? '' : (carFinals[0] || '');
+        const hasCon = lines.some(l => l.td === 'Contrato'), hasSpo = lines.some(l => l.td === 'Spot');
+        // Regra explícita: RC com itens de Contrato E Spot vira "Mista" — nunca usa a 1ª ocorrência
+        const td = hasCon && hasSpo ? 'Mista' : hasCon ? 'Contrato' : hasSpo ? 'Spot' : (mode(lines.map(l => l.td)) || 'N/D');
+        let dt = null;
+        lines.forEach(l => { if (l.dt && (!dt || l.dt < dt)) dt = l.dt; });
+        return {
+            rc: lines[0].rc, rcNorm, car, rcAmbigua, td, dt, it: lines.length,
+            matN: lines.reduce((a, l) => a + (l.ms === 'Material' ? 1 : 0), 0),
+            servN: lines.reduce((a, l) => a + (l.ms === 'Serviço' ? 1 : 0), 0),
+            semCarteira: !rcAmbigua && !car,
+            anyDivergente: lines.some(l => l.statusCarteira === 'Divergente'),
+            anyPedidoConflitante: lines.some(l => l.statusCarteira === 'Pedido conflitante'),
+            anyANaoResolvido: lines.some(l => l.statusCarteira === 'A não resolvido'),
+            anyAResolved: lines.some(l => l.statusCarteira === 'Resolvido por Pedido' || l.statusCarteira === 'Resolvido por RC única')
+        };
+    });
+
+    // Distribuição histórica de carteiras por Grupo Comprador (Sistema) — usada só pelo painel
+    // informativo e para fracionar (só analítico) RCs "A..." ainda não resolvidas no gráfico por carteira G
     const gcsDist = {};
     ALL.forEach(r => {
         if (!r.gcs || !r.ccd) return;
@@ -558,64 +650,42 @@ function renderContr() {
         d[r.ccd] = (d[r.ccd] || 0) + 1;
     });
 
-    // Rollup por RC direto da segundaBase (única fonte desta aba) — carteira e tipo predominantes
-    // entre os itens da RC; data = menor DT Pedido entre os itens
-    const byRC = {};
-    CARTEIRAS.forEach(r => { (byRC[r.rc] = byRC[r.rc] || []).push(r); });
-    const rcRows = Object.keys(byRC).map(rc => {
-        const items = byRC[rc];
-        const carCount = {}, tdCount = {};
-        let dt = null, matN = 0, servN = 0;
-        items.forEach(it => {
-            let car = it.car;
-            const root = rootLetter(car);
-            const gvCode = gvIndex.get(stripLeadZeros(it.rc) + '|' + it.it);
-            if (root === 'A') {
-                const pedCode = it.pedido && pedIndex.get(it.pedido.trim());
-                car = pedCode || gvCode || car;
-            } else if (root === 'G' || root === 'S' || root === 'R') {
-                if (gvCode && gvCode !== car) divergentRC.add(rc);
-            }
-            if (car) carCount[car] = (carCount[car] || 0) + 1;
-            tdCount[it.td] = (tdCount[it.td] || 0) + 1;
-            if (it.ms === 'Material') matN++;
-            else if (it.ms === 'Serviço') servN++;
-            if (it.dt && (!dt || it.dt < dt)) dt = it.dt;
-        });
-        let car = '', bcCar = -1;
-        Object.entries(carCount).forEach(([c, n]) => { if (n > bcCar) { bcCar = n; car = c; } });
-        let td = 'N/D', bcTd = -1;
-        Object.entries(tdCount).forEach(([t, n]) => { if (n > bcTd) { bcTd = n; td = t; } });
-        return { rc, it: items.length, car, td, dt, matN, servN };
-    });
-
-    // Recorte: respeita Período e Tipo de compra do painel lateral; a segundaBase não tem
-    // Comprador Responsável nem Status RC, então o filtro de comprador não se aplica aqui
-    const base = rcRows.filter(r => r.dt && r.dt >= DATA_INI_AGING && periodHit(r.dt) && tpHit(r) && stHit(r));
+    // Recorte: respeita Período e Tipo de compra do painel lateral; a base de Carteiras/Spend não
+    // tem Comprador Responsável nem Status RC (Status de Liberação é outro conceito), então nenhum
+    // dos dois filtros se aplica aqui
+    const base = rcRows.filter(r => r.dt && r.dt >= DATA_INI_AGING && periodHit(r.dt) && tpHit(r));
     const carOf = r => r.car || '';
     const typeOf = r => r.td || 'N/D';
+    const baseRCSet = new Set(base.map(r => r.rcNorm));
 
     const typeCounts = {};
     base.forEach(r => { const t = typeOf(r); typeCounts[t] = (typeCounts[t] || 0) + 1; });
-    const nCon = typeCounts['Contrato'] || 0, nSpo = typeCounts['Spot'] || 0, nOut = base.length - nCon - nSpo;
+    const nCon = typeCounts['Contrato'] || 0, nSpo = typeCounts['Spot'] || 0, nMista = typeCounts['Mista'] || 0, nOut = base.length - nCon - nSpo - nMista;
     const pctCon = base.length ? nCon / base.length * 100 : 0, pctSpo = base.length ? nSpo / base.length * 100 : 0;
+
+    const matSum = base.reduce((a, r) => a + r.matN, 0), servSum = base.reduce((a, r) => a + r.servN, 0), totMS = matSum + servSum;
+    const semCarCount = base.filter(r => r.semCarteira).length;
+    const divergCount = base.filter(r => r.anyDivergente).length;
+    const aResolvidoCount = base.filter(r => r.anyAResolved).length;
+    const aNaoResolvidoCount = base.filter(r => r.anyANaoResolvido).length;
+    const pedidoConflitanteCount = base.filter(r => r.anyPedidoConflitante).length;
+    const rcAmbiguaCount = base.filter(r => r.rcAmbigua).length;
+
     const kpiContr = [
         { l: 'RCs Contrato', v: nCon.toLocaleString('pt-BR'), n: pctCon.toFixed(0) + '% do recorte' },
-        { l: 'RCs Spot', v: nSpo.toLocaleString('pt-BR'), n: pctSpo.toFixed(0) + '% do recorte' }
+        { l: 'RCs Spot', v: nSpo.toLocaleString('pt-BR'), n: pctSpo.toFixed(0) + '% do recorte' },
+        { l: 'Material', v: totMS ? Math.round(matSum / totMS * 100) + '%' : '—', n: matSum.toLocaleString('pt-BR') + ' itens' },
+        { l: 'Serviço', v: totMS ? Math.round(servSum / totMS * 100) + '%' : '—', n: servSum.toLocaleString('pt-BR') + ' itens' },
+        { l: 'RCs Mista (Contrato + Spot)', v: nMista.toLocaleString('pt-BR'), c: nMista > 0 ? 'warn' : 'good', n: 'Itens de Contrato e de Spot na mesma RC' },
+        { l: 'Sem carteira preenchida', v: semCarCount.toLocaleString('pt-BR') + ' RCs', c: semCarCount > 0 ? 'warn' : 'good', n: base.length ? Math.round(semCarCount / base.length * 100) + '% do recorte' : '—' },
+        { l: 'Carteira divergente (Spend × Gestão à Vista)', v: divergCount.toLocaleString('pt-BR') + ' RCs', c: divergCount > 0 ? 'warn' : 'good', n: 'G/S/R original ≠ carteira encontrada' },
+        { l: 'Códigos "A" resolvidos', v: aResolvidoCount.toLocaleString('pt-BR') + ' RCs', c: 'good', n: 'Por Pedido ou por RC única' },
+        { l: 'Códigos "A" não resolvidos', v: aNaoResolvidoCount.toLocaleString('pt-BR') + ' RCs', c: aNaoResolvidoCount > 0 ? 'warn' : 'good', n: 'Sem correspondência segura na Gestão à Vista' },
+        { l: 'Pedidos conflitantes', v: pedidoConflitanteCount.toLocaleString('pt-BR') + ' RCs', c: pedidoConflitanteCount > 0 ? 'warn' : 'good', n: 'Mesmo Pedido aponta para carteiras diferentes' },
+        { l: 'RCs ambíguas', v: rcAmbiguaCount.toLocaleString('pt-BR'), c: rcAmbiguaCount > 0 ? 'warn' : 'good', n: 'Itens da própria RC apontam para carteiras diferentes' }
     ];
 
-    // Qualidade do dado: quantas RCs do recorte têm Material/Serviço e Carteira preenchidos na própria segundaBase
-    if (cartLoaded) {
-        const matSum = base.reduce((a, r) => a + r.matN, 0), servSum = base.reduce((a, r) => a + r.servN, 0);
-        const totMS = matSum + servSum;
-        const identificadas = base.filter(r => r.matN + r.servN > 0).length;
-        const semCar = base.filter(r => !r.car).length;
-        kpiContr.push({ l: 'Identificado (Material/Serviço)', v: identificadas.toLocaleString('pt-BR') + ' RCs', n: totMS ? Math.round(matSum / totMS * 100) + '% Material · ' + Math.round(servSum / totMS * 100) + '% Serviço' : '—' });
-        kpiContr.push({ l: 'Sem Carteira preenchida', v: semCar.toLocaleString('pt-BR') + ' RCs', c: semCar > 0 ? 'warn' : 'good', n: base.length ? Math.round(semCar / base.length * 100) + '% do recorte' : '—' });
-        const divCount = base.filter(r => divergentRC.has(r.rc)).length;
-        kpiContr.push({ l: 'Carteira divergente (Spend × Gestão à Vista)', v: divCount.toLocaleString('pt-BR') + ' RCs', c: divCount > 0 ? 'warn' : 'good', n: base.length ? Math.round(divCount / base.length * 100) + '% do recorte' : '—' });
-    }
-    document.getElementById('kpi-contr').classList.toggle('k3', !cartLoaded);
+    document.getElementById('kpi-contr').classList.remove('k3');
     kpi('kpi-contr', kpiContr);
 
     // Contrato × Spot — Geral: soma de todas as carteiras, uma coluna 100% empilhada (c_contrmix)
@@ -625,10 +695,9 @@ function renderContr() {
     mkChart('c_contrmix', { type: 'bar', plugins: [stackPctLabels], data: { labels: ['Geral'], datasets: [{ label: 'Contrato', data: [mixConPct], backgroundColor: CCON, stack: 's' }, { label: 'Spot', data: [mixSpoPct], backgroundColor: C.steel, stack: 's' }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
     // Contrato × Spot — Material e Serviço: mesma coluna 100% empilhada, cada uma só com os itens da classe (c_contrmix_mat/serv)
-    const baseRCSet = new Set(base.map(r => r.rc));
     const msMix = { Material: { Contrato: 0, Spot: 0 }, Serviço: { Contrato: 0, Spot: 0 } };
     CARTEIRAS.forEach(it => {
-        if (!baseRCSet.has(it.rc) || (it.ms !== 'Material' && it.ms !== 'Serviço')) return;
+        if (!baseRCSet.has(it.rcNorm) || (it.ms !== 'Material' && it.ms !== 'Serviço')) return;
         if (it.td === 'Contrato') msMix[it.ms].Contrato++;
         else if (it.td === 'Spot') msMix[it.ms].Spot++;
     });
@@ -639,23 +708,25 @@ function renderContr() {
     mkMixChart('c_contrmix_mat', msMix.Material, msMix.Material.Contrato + msMix.Material.Spot);
     mkMixChart('c_contrmix_serv', msMix.Serviço, msMix.Serviço.Contrato + msMix.Serviço.Spot);
 
-    // Contrato e Spot como tipos principais + demais tipos individualmente (não agrupados em "Outros")
-    const typesOther = Object.keys(typeCounts).filter(t => t !== 'Contrato' && t !== 'Spot').sort((a, b) => a === 'N/D' ? 1 : b === 'N/D' ? -1 : typeCounts[b] - typeCounts[a]);
-    const typeList = ['Contrato', 'Spot', ...typesOther];
-    const OTH_PAL = [C.teal, C.amber, C.blue, '#7FE06C', '#E9C400', '#35505E', '#B7D3E8', '#7A8C97', '#8FCDBA', '#CAD6DD'];
+    // Contrato, Spot e Mista como tipos principais + demais tipos individualmente (não agrupados em "Outros")
+    const typesOther = Object.keys(typeCounts).filter(t => t !== 'Contrato' && t !== 'Spot' && t !== 'Mista').sort((a, b) => a === 'N/D' ? 1 : b === 'N/D' ? -1 : typeCounts[b] - typeCounts[a]);
+    const typeList = ['Contrato', 'Spot', 'Mista', ...typesOther];
+    const OTH_PAL = [C.teal, C.blue, '#7FE06C', '#E9C400', '#35505E', '#B7D3E8', '#7A8C97', '#8FCDBA', '#CAD6DD'];
     const colorMap = {};
-    typeList.forEach((t, i) => { colorMap[t] = t === 'Contrato' ? CCON : t === 'Spot' ? C.steel : t === 'N/D' ? '#CAD6DD' : OTH_PAL[(i - 2) % OTH_PAL.length]; });
+    typeList.forEach((t, i) => { colorMap[t] = t === 'Contrato' ? CCON : t === 'Spot' ? C.steel : t === 'Mista' ? C.amber : t === 'N/D' ? '#CAD6DD' : OTH_PAL[(i - 3) % OTH_PAL.length]; });
 
-    // RCs por Código de Carteira — G/S/R e demais (c_ccd) — raiz da carteira, direto da segundaBase
-    // (resolvida contra a Gestão à Vista quando o Spend trazia "A"; rootLetter já definida no topo)
-    const cdOrder = ['G', 'S', 'R', 'A'];
-    const ALLOWED_CD = ['G', 'S', 'R', 'A', 'N/D'];
-    const cdOf = r => { const c = rootLetter(carOf(r)) || 'N/D'; return ALLOWED_CD.includes(c) ? c : 'A'; };
+    // RCs por Código de Carteira — G/S/R/A e Ambígua (c_ccd) — raiz da carteira final da RC.
+    // "Ambígua" (itens da própria RC apontam para carteiras diferentes) fica separada de "A" (Grupo
+    // Comprador ainda não resolvido) e de "N/D" (sem Car preenchido) — são alertas distintos.
+    const cdOrder = ['G', 'S', 'R', 'A', 'AMB'];
+    const ALLOWED_CD = ['G', 'S', 'R', 'A', 'AMB', 'N/D'];
+    const cdOf = r => { if (r.rcAmbigua) return 'AMB'; const c = rootLetter(carOf(r)) || 'N/D'; return ALLOWED_CD.includes(c) ? c : 'A'; };
+    const cdLabel = k => k === 'AMB' ? 'Ambígua' : k;
     const byCd = {};
     base.forEach(r => { const c = cdOf(r); byCd[c] = (byCd[c] || 0) + 1; });
     const cdKeys = Object.keys(byCd).sort((a, b) => { const ia = cdOrder.indexOf(a), ib = cdOrder.indexOf(b); if (ia > -1 && ib > -1) return ia - ib; if (ia > -1) return -1; if (ib > -1) return 1; if (a === 'N/D') return 1; if (b === 'N/D') return -1; return a.localeCompare(b); });
-    const cdCOL = k => k === 'G' ? '#1E9F7F' : k === 'S' ? '#0E538C' : k === 'R' ? '#D9A400' : k === 'N/D' ? '#9AACB5' : C.red;
-    mkChart('c_ccd', { type: 'bar', data: { labels: cdKeys, datasets: [{ data: cdKeys.map(k => byCd[k]), backgroundColor: cdKeys.map(cdCOL), borderRadius: 18 }] }, options: { maintainAspectRatio: false, layout: { padding: { top: 16 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
+    const cdCOL = k => k === 'G' ? '#1E9F7F' : k === 'S' ? '#0E538C' : k === 'R' ? '#D9A400' : k === 'A' ? C.red : k === 'AMB' ? '#8C1419' : k === 'N/D' ? '#9AACB5' : C.red;
+    mkChart('c_ccd', { type: 'bar', data: { labels: cdKeys.map(cdLabel), datasets: [{ data: cdKeys.map(k => byCd[k]), backgroundColor: cdKeys.map(cdCOL), borderRadius: 18 }] }, options: { maintainAspectRatio: false, layout: { padding: { top: 16 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
     // % Contrato × Spot por carteira G — 100% empilhado, uma coluna por carteira G específica (c_ccd_tipo)
     // RCs ainda travadas em "A..." (Grupo Comprador, sem Carteira/Categoria resolvida) entram
@@ -685,17 +756,35 @@ function renderContr() {
     const gCarKeys = gCarArr.map(x => x.c);
     mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeList.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMap[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
-    // Carteira/Categoria por RC — só o código (G35, S12...); sem carteira preenchida na segundaBase, cai em N/D
-    // (mantido só para a tabela detalhada e o resumo usado na apresentação — os gráficos foram removidos)
-    const catOf = r => carOf(r) || 'N/D';
+    // % Contrato × Spot por carteira G — Visão Spend (c_ccd_tipo_spend): mesma leitura acima, mas só
+    // com carteiras G já identificadas diretamente no Spend (originais ou resolvidas por Pedido/RC
+    // única) — sem a fração estimada a partir do histórico da Gestão à Vista para códigos "A..." ainda
+    // não resolvidos, então aqui só entram RCs com carteira G confirmada.
+    const byGCarSpend = {};
+    base.forEach(r => {
+        const code = carOf(r);
+        if (rootLetter(code) !== 'G') return;
+        const t = typeOf(r);
+        const o = byGCarSpend[code] = byGCarSpend[code] || {};
+        o[t] = (o[t] || 0) + 1;
+    });
+    const gCarSpendArr = Object.entries(byGCarSpend).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
+    const gCarSpendKeys = gCarSpendArr.map(x => x.c);
+    mkChart('c_ccd_tipo_spend', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarSpendKeys, datasets: typeList.map(t => ({ label: t, data: gCarSpendArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMap[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+
+    // Carteira/Categoria por RC — só o código (G35, S12...); RC ambígua ganha rótulo próprio (não
+    // se confunde com "N/D", que é falta de preenchimento) — mantido para a tabela detalhada e o
+    // resumo usado na apresentação (os gráficos por carteira específica foram removidos)
+    const catOf = r => r.rcAmbigua ? 'Ambígua' : (carOf(r) || 'N/D');
     const byCat = {};
     base.forEach(r => { const c = catOf(r); const t = typeOf(r); const o = byCat[c] = byCat[c] || {}; o[t] = (o[t] || 0) + 1; });
     const cats = Object.entries(byCat).map(([c, o]) => ({ c, o, tot: typeList.reduce((a, t) => a + (o[t] || 0), 0) })).sort((a, b) => b.tot - a.tot).slice(0, 15);
     const top8 = cats.slice(0, 8);
 
-    // Evolução semanal — Contrato x Spot, demais tipos agregados (c_contrevol) — por semana da Data do Pedido
+    // Evolução semanal — Contrato, Spot e Mista com série própria; demais tipos agregados em
+    // "Outros" (c_contrevol) — por semana da Data do Pedido
     const bw = {};
-    base.forEach(r => { const w = isoWeek(r.dt); const o = bw[w] = bw[w] || { Contrato: 0, Spot: 0, Outros: 0 }; const t = typeOf(r); if (t === 'Contrato') o.Contrato++; else if (t === 'Spot') o.Spot++; else o.Outros++; });
+    base.forEach(r => { const w = isoWeek(r.dt); const o = bw[w] = bw[w] || { Contrato: 0, Spot: 0, Mista: 0, Outros: 0 }; const t = typeOf(r); if (t === 'Contrato') o.Contrato++; else if (t === 'Spot') o.Spot++; else if (t === 'Mista') o.Mista++; else o.Outros++; });
     const wks = Object.keys(bw).sort();
     mkChart('c_contrevol', {
         type: 'line', plugins: [crosshair], data: {
@@ -703,6 +792,7 @@ function renderContr() {
                 [
                     { label: 'Contrato', data: wks.map(w => bw[w].Contrato), borderColor: CCON, backgroundColor: 'rgba(0,56,101,.10)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: CCON },
                     { label: 'Spot', data: wks.map(w => bw[w].Spot), borderColor: C.steel, backgroundColor: 'rgba(90,140,174,.14)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.steel },
+                    { label: 'Mista', data: wks.map(w => bw[w].Mista), borderColor: C.amber, backgroundColor: 'rgba(217,164,0,.14)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.amber, borderDash: [2, 2] },
                     { label: 'Outros tipos', data: wks.map(w => bw[w].Outros), borderColor: '#7A8C97', backgroundColor: 'rgba(122,140,151,.10)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#7A8C97', borderDash: [4, 3] }
                 ]
         }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: c => 'Semana de ' + c[0].label, label: c => c.dataset.label + ': ' + c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 13, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } }
@@ -714,12 +804,12 @@ function renderContr() {
     document.querySelector('#t_contr tbody').innerHTML = catsBySpot.map(x => `<tr><td>${x.c}</td>${typeList.map(t => `<td class="num">${x.o[t] || 0}</td>`).join('')}<td class="num">${x.tot}</td><td class="num">${x.tot ? Math.round((x.o['Contrato'] || 0) / x.tot * 100) : 0}%</td></tr>`).join('') || `<tr><td colspan="${typeList.length + 3}" style="color:#46606F">Nenhuma RC no recorte.</td></tr>`;
 
     // Carteiras prováveis por Grupo Comprador (Sistema) — só informativo, não reclassifica nada.
-    // Quando o código do Spend ainda é "A..." (Grupo Comprador, sem Carteira/Categoria resolvida
-    // nem no Spend nem na Gestão à Vista para aquela RC+Item específica), mostra quais carteiras
-    // G/R/S esse mesmo Grupo Comprador (Sistema) mais usa em todo o histórico da Gestão à Vista,
-    // pra apontar onde focar a contratualização. (gcsDist já calculado no topo da função.)
+    // Quando o código do Spend ainda é "A..." (Grupo Comprador não resolvido por Pedido nem por RC
+    // única), mostra quais carteiras G/R/S esse mesmo Grupo Comprador mais usa em todo o histórico
+    // da Gestão à Vista, pra apontar onde focar a contratualização. Estimativa apenas analítica —
+    // nunca é apresentada como classificação confirmada. (gcsDist já calculado no topo da função.)
     const gcsRows = Object.entries(byCat)
-        .filter(([c]) => rootLetter(c) !== 'G' && rootLetter(c) !== 'S' && rootLetter(c) !== 'R' && gcsDist[c])
+        .filter(([c]) => c !== 'Ambígua' && rootLetter(c) !== 'G' && rootLetter(c) !== 'S' && rootLetter(c) !== 'R' && gcsDist[c])
         .map(([c, o]) => {
             const tot = typeList.reduce((a, t) => a + (o[t] || 0), 0);
             const dist = Object.entries(gcsDist[c]).sort((a, b) => b[1] - a[1]);
@@ -728,13 +818,20 @@ function renderContr() {
         })
         .sort((a, b) => b.tot - a.tot);
     const t_gcs = document.querySelector('#t_gcs tbody');
-    if (t_gcs) t_gcs.innerHTML = gcsRows.map(x => `<tr><td>${x.c}</td><td class="num">${x.tot}</td><td>${x.dist.map(d => `${d.car} (${d.pct}%)`).join(', ')}</td></tr>`).join('') || `<tr><td colspan="3" style="color:#46606F">Nenhum Grupo Comprador pendente com histórico de carteira na Gestão à Vista.</td></tr>`;
+    if (t_gcs) t_gcs.innerHTML = gcsRows.map(x => `<tr><td>${x.c}</td><td class="num">${x.tot}</td><td>${x.dist.map(d => `${d.car} (${d.pct}% histórico — estimativa)`).join(', ')}</td></tr>`).join('') || `<tr><td colspan="3" style="color:#46606F">Nenhum Grupo Comprador pendente com histórico de carteira na Gestão à Vista.</td></tr>`;
 
-    // Leitura (texto de insight)
+    // Leitura (texto de insight) — alerta sobre os pontos de qualidade de dado exigidos: código "A"
+    // não resolvido, carteira divergente, Pedido conflitante, RC ambígua e registros N/D
     const topCat = cats[0], nd = byCat['N/D'], ndTot = nd ? Object.values(nd).reduce((a, v) => a + v, 0) : 0;
     const topOther = typesOther.find(t => t !== 'N/D');
-    document.getElementById('ins-contr').innerHTML = base.length ? `<b>Leitura:</b> no recorte (segundaBase) entraram <b>${nCon} RCs de Contrato</b> e <b>${nSpo} RCs de Spot</b> (${pctCon.toFixed(0)}% / ${pctSpo.toFixed(0)}% do mix)${topOther ? `, além de <b>${nOut} RCs em outros tipos</b> — o mais comum é <b>${topOther}</b> (${typeCounts[topOther]}). ` : '. '}${topCat ? `Carteira com maior volume: <b>${topCat.c}</b> (${topCat.tot} RCs). ` : ''}${ndTot ? `<b style="color:#8A6D00">⚠ ${ndTot} RCs (${Math.round(ndTot / base.length * 100)}%) estão sem Carteira/Categoria preenchida</b> — priorize o preenchimento para uma leitura confiável por carteira.` : ''}` : (cartLoaded ? '<b>Sem RCs no recorte.</b>' : '<b>Carregue a base de carteiras (2º arquivo) para ver esta aba.</b>');
-    SUM.contr = { nCon, nSpo, nOut, pctCon, pctSpo, total: base.length, top: top8.map(x => ({ c: x.c, tot: x.tot })) };
+    const alerts = [];
+    if (aNaoResolvidoCount) alerts.push(`${aNaoResolvidoCount} RCs com código "A" não resolvido`);
+    if (divergCount) alerts.push(`${divergCount} RCs com carteira divergente`);
+    if (pedidoConflitanteCount) alerts.push(`${pedidoConflitanteCount} Pedidos conflitantes`);
+    if (rcAmbiguaCount) alerts.push(`${rcAmbiguaCount} RCs ambíguas`);
+    if (ndTot) alerts.push(`${ndTot} RCs (${Math.round(ndTot / base.length * 100)}%) sem Carteira/Categoria`);
+    document.getElementById('ins-contr').innerHTML = base.length ? `<b>Leitura:</b> no recorte entraram <b>${nCon} RCs de Contrato</b> e <b>${nSpo} RCs de Spot</b> (${pctCon.toFixed(0)}% / ${pctSpo.toFixed(0)}% do mix)${nMista ? `, <b>${nMista} RCs Mista</b> (Contrato e Spot na mesma RC)` : ''}${topOther ? `, além de <b>${nOut} RCs em outros tipos</b> — o mais comum é <b>${topOther}</b> (${typeCounts[topOther]}). ` : '. '}${topCat ? `Carteira com maior volume: <b>${topCat.c}</b> (${topCat.tot} RCs). ` : ''}${alerts.length ? `<b style="color:#8A6D00">⚠ ${alerts.join(' · ')}</b> — priorize o saneamento para uma leitura confiável por carteira.` : ''}` : '<b>Sem RCs no recorte.</b>';
+    SUM.contr = { nCon, nSpo, nOut, nMista, pctCon, pctSpo, total: base.length, top: top8.map(x => ({ c: x.c, tot: x.tot })) };
 }
 function renderCompradores() {
     // Base independente do filtro Comprador (compHit) — para permitir comparação entre todos

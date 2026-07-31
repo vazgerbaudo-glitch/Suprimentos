@@ -1,4 +1,4 @@
-const BRL = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+﻿const BRL = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
 
 const Kf = n => {
     n = Math.round(n);
@@ -38,6 +38,34 @@ function parseNum(v) {
 // (ex.: Spend "00012345" × Gestão à Vista "12345") — nunca zera a string inteira ("000" -> "0").
 function stripLeadZeros(v) {
     return ('' + (v || '')).trim().replace(/^0+(?=\d)/, '');
+}
+
+// RC como texto: mantém só dígitos (nunca converte para número) e remove zeros à esquerda —
+// usado para casar Spend[Requisição de compra] × Gestão à Vista[RC] na aba Contratualização.
+function normRC(v) {
+    const digits = ('' + (v == null ? '' : v)).replace(/\D+/g, '');
+    return digits.replace(/^0+(?=\d)/, '');
+}
+
+// Pedido como texto: remove espaços/tabs/quebras de linha, caracteres invisíveis (zero-width,
+// NBSP) e um eventual sufixo ".0" (artefato de Excel/float) — usado para casar Spend[Pedido] ×
+// Gestão à Vista[Contrato SAP/ Pedido] na aba Contratualização.
+function normPed(v) {
+    const s = '' + (v == null ? '' : v);
+    let out = '';
+    for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+        if (c === 32 || c === 9 || c === 10 || c === 13 || c === 160 || (c >= 8203 && c <= 8207) || c === 65279) continue;
+        out += s[i];
+    }
+    if (out.slice(-2) === '.0') out = out.slice(0, -2);
+    return out;
+}
+
+// "Contrato SAP/ Pedido" da Gestão à Vista pode trazer vários números de pedido separados por
+// barra, vírgula, ponto e vírgula ou quebra de linha — cada um é indexado separadamente.
+function splitPedidos(v) {
+    return ('' + (v == null ? '' : v)).split(/[\/,;\n]+/).map(normPed).filter(Boolean);
 }
 
 const ST = v => ({
@@ -179,22 +207,26 @@ function fromCSV(txt) {
     });
 }
 
-// ===== Base de Carteiras (CSV auxiliar, "segundaBase") — única fonte da aba Contratualização =====
-// RC+Item, código G/S/R, Material×Serviço e Contrato×Spot, tudo por linha do próprio arquivo
+// ===== Base de Carteiras / Spend (CSV auxiliar) — fonte principal da aba Contratualização =====
+// Uma linha por linha do Spend. O campo "Item" aqui é o ITEM DO PEDIDO — nunca o "Item RC" da
+// Gestão à Vista; por isso a aba nunca casa as duas bases por RC+Item, só por Pedido ou por RC
+// (ver normPed/normRC/splitPedidos e a resolução em renderContr, js/render.js).
 const MAP_CART = {
-    'requisicaodecompra': 'rc', 'requisicaodecomprax': 'rc', 'rc': 'rc',
-    'item': 'it', 'itemrc': 'it',
-    'pedido': 'pedido', 'pedidox': 'pedido',
-    'car': 'car', 'carx': 'car',
-    'carteiranome': 'nome', 'carteiranomex': 'nome',
+    'requisicaodecompra': 'rc', 'rc': 'rc',
+    'item': 'it',
+    'pedido': 'pedido',
+    'car': 'car',
+    'carteiranome': 'nome',
     'materialxservico': 'ms', 'materialservico': 'ms',
-    'contratoxspot': 'td', 'contratoxspotx': 'td',
+    'contratoxspot': 'td',
     'dtpedido': 'dt', 'statusdeliberacao': 'status',
-    'gerenciafinal': 'gerFinal', 'gerenciafinalx': 'gerFinal'
+    'gerenciafinal': 'gerFinal'
 };
 const GERENCIA_ALVO = 'comprasageis';
 
-// Retorna a lista de linhas (uma por RC+Item) da segundaBase, só as de Gerência Final = "Compras Ágeis"
+// Retorna a lista de linhas do Spend (uma por linha do arquivo, sem deduplicar), só as de
+// Gerência Final = "Compras Ágeis". Preserva todas as linhas — nenhum valor é somado ou
+// descartado aqui; o rollup por RC acontece depois, em renderContr.
 function fromCarteirasCSV(txt) {
     const g = parseCSV(txt).filter(r => r.length > 1);
     if (!g.length) return [];
@@ -205,8 +237,9 @@ function fromCarteirasCSV(txt) {
         const o = {};
         head.forEach((f, k) => { if (f) o[f] = r[k]; });
         if (hasGerCol && nrm(o.gerFinal) !== GERENCIA_ALVO) return;
-        const rc = ('' + (o.rc || '')).trim(), it = ('' + (o.it || '')).trim();
-        if (!rc || !it) return;
+        const rc = ('' + (o.rc || '')).trim();
+        if (!rc) return;
+        const it = ('' + (o.it || '')).trim();
         const car = ('' + (o.car || '')).trim().toUpperCase();
         const nome = ('' + (o.nome || '')).trim();
         const pedido = ('' + (o.pedido || '')).trim();
@@ -214,7 +247,10 @@ function fromCarteirasCSV(txt) {
         const ms = msRaw.indexOf('mat') > -1 ? 'Material' : msRaw.indexOf('serv') > -1 ? 'Serviço' : '';
         const tdRaw = ('' + (o.td || '')).trim(), tdLow = tdRaw.toLowerCase();
         const td = tdLow === 'contrato' ? 'Contrato' : tdLow === 'spot' ? 'Spot' : (tdRaw || 'N/D');
-        rows.push({ rc, it, car, nome, pedido, ms, td, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim() });
+        rows.push({
+            rc, rcNorm: normRC(rc), it, car, nome, pedido, pedidoNorm: normPed(pedido),
+            ms, td, tdRaw, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim()
+        });
     });
     return rows;
 }

@@ -93,13 +93,48 @@ function loadHtml2Canvas() {
     return _h2cPromise;
 }
 
+// html2canvas não calcula bem CSS Grid (os cartões saem sobrepostos na imagem, mesmo alinhados
+// na tela) — antes de capturar, "congela" o grid em posições absolutas idênticas às da tela
+// (pixel a pixel), captura, e desfaz depois para o layout responsivo continuar funcionando.
+function freezeGridForCapture(grid) {
+    const cards = Array.from(grid.querySelectorAll('.pend-card'));
+    const gridRect = grid.getBoundingClientRect();
+    const positions = cards.map(card => {
+        const r = card.getBoundingClientRect();
+        return { left: r.left - gridRect.left, top: r.top - gridRect.top, width: r.width, height: r.height };
+    });
+    const maxBottom = Math.max(0, ...positions.map(p => p.top + p.height));
+    const prevGridStyle = grid.getAttribute('style');
+    grid.style.position = 'relative';
+    grid.style.height = maxBottom + 'px';
+    cards.forEach((card, i) => {
+        const prev = card.getAttribute('style');
+        const p = positions[i];
+        card.style.position = 'absolute';
+        card.style.margin = '0';
+        card.style.left = p.left + 'px';
+        card.style.top = p.top + 'px';
+        card.style.width = p.width + 'px';
+        card._prevStyle = prev;
+    });
+    return () => {
+        if (prevGridStyle == null) grid.removeAttribute('style'); else grid.setAttribute('style', prevGridStyle);
+        cards.forEach(card => {
+            if (card._prevStyle == null) card.removeAttribute('style'); else card.setAttribute('style', card._prevStyle);
+            delete card._prevStyle;
+        });
+    };
+}
+
 function exportPendImage() {
     const btn = document.getElementById('pend-export');
     const target = document.getElementById('pend-shot');
     if (!target) return;
+    const grid = target.querySelector('.pend-grid');
     const label = btn.textContent;
     btn.textContent = '⏳ Gerando...';
     btn.disabled = true;
+    const unfreeze = grid ? freezeGridForCapture(grid) : null;
     loadHtml2Canvas().then(() => window.html2canvas(target, {
         backgroundColor: '#F2F5F6',
         scale: 2
@@ -113,6 +148,7 @@ function exportPendImage() {
     }).catch(() => {
         alert('Não foi possível gerar a imagem. Tente novamente.');
     }).finally(() => {
+        if (unfreeze) unfreeze();
         btn.textContent = label;
         btn.disabled = false;
     });

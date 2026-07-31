@@ -481,8 +481,8 @@
         <section class="tab" id="contr">
             <div class="sec-head"><h2>Contratualização — Carteira × Tipo</h2></div>
             <div class="panel" style="margin-bottom:14px">
-                <h3>Base de Carteiras (RC × Item → G/S/R)</h3>
-                <div class="ph">Fonte única desta aba — só linhas com Gerência Final = Compras Ágeis; período usa a Data do Pedido; sem filtro de Comprador (a segundaBase não tem esse campo)</div>
+                <h3>Base de Carteiras / Spend (RC → G/S/R)</h3>
+                <div class="ph">Fonte principal desta aba — só linhas com Gerência Final = Compras Ágeis; período usa a Data do Pedido; sem filtro de Comprador nem de Status RC (o Spend não tem esses campos). O campo "Item" é o item do PEDIDO, não o "Item RC" da Gestão à Vista — por isso as duas bases só são cruzadas por Pedido ou por RC, nunca por Item.</div>
                 <div class="metabar" style="margin-top:0">
                     <label for="f_cart" class="btn ghost" style="cursor:pointer"> Carregar base de carteiras</label>
                     <input id="f_cart" type="file" accept=".csv,text/csv" style="display:none"/>
@@ -516,6 +516,11 @@
                 <h3>% Contrato × Spot por carteira G</h3>
                 <div class="ph">Uma coluna por carteira G específica (todas) — % Contrato × % Spot, para comparar quem depende mais de Spot. RCs sem Carteira/Categoria resolvida (Grupo Comprador "A...") entram fracionadas nas G's do grupo, conforme o histórico da Gestão à Vista.</div>
                 <div class="cv"><canvas id="c_ccd_tipo"></canvas></div>
+            </div>
+            <div class="panel">
+                <h3>% Contrato × Spot por carteira G — Visão Spend</h3>
+                <div class="ph">Mesma leitura, só com carteiras G já identificadas diretamente no Spend (originais ou resolvidas por Pedido/RC única) — sem a fração estimada pelo histórico da Gestão à Vista para códigos "A..." ainda não resolvidos.</div>
+                <div class="cv"><canvas id="c_ccd_tipo_spend"></canvas></div>
             </div>
             <div class="panel">
                 <h3>Evolução semanal — Contrato × Spot</h3>

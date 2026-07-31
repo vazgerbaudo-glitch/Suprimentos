@@ -78,9 +78,9 @@ function loadCarteirasFile(file) {
         try {
             const rows = fromCarteirasCSV(rd.result);
             const n = rows.length;
-            if (!n) throw new Error('nenhuma linha reconhecida (confira as colunas RC/Item/Car)');
+            if (!n) throw new Error('nenhuma linha reconhecida (confira as colunas Requisição de compra/Car)');
             CARTEIRAS = rows;
-            st.textContent = n.toLocaleString('pt-BR') + ' RC/Item carregados de ' + file.name;
+            st.textContent = n.toLocaleString('pt-BR') + ' linhas do Spend carregadas de ' + file.name;
             st.style.color = '';
             render();
         } catch (err) {
