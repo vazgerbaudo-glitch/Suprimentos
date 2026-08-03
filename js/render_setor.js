@@ -264,8 +264,22 @@ function renderProd() {
     const totCap = weeks.reduce((a, w) => a + byW[w].cap, 0);
     const totDenom = weeks.reduce((a, w) => { const o = byW[w]; const du = modeM3(o.duM, 5); const buyers = ger ? (o.bs.size || 1) : 1; return a + du * buyers; }, 0);
     const ating = totDenom > 0 ? totCap / totDenom * 100 : 0;
-    // Negociações em aberto (WS) — 1 por RC em aberto, não por linha/item
-    const wsOpen = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
+    // Negociações em aberto (WS) — em bases com coluna WS (Corporativo): 1 por negociação,
+    // não por linha/item nem por RC — quando o mesmo WS se repete em várias linhas/RCs, só a
+    // linha de Data Liberação mais antiga representa a negociação, as demais são descartadas.
+    // Em bases sem WS (Terminais), mantém a contagem antiga (1 por RC em aberto).
+    let wsOpen;
+    if (ALL.some(r => r.ws)) {
+        const wsFirst = {};
+        ALL.forEach(r => {
+            const w = r.ws;
+            if (!w || !r.dl) return;
+            if (!wsFirst[w] || r.dl < wsFirst[w].dl) wsFirst[w] = r;
+        });
+        wsOpen = Object.values(wsFirst).filter(r => r.st === 'A' && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
+    } else {
+        wsOpen = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
+    }
     kpi('kpi-prod', [
         { l: ger ? 'Itens/dia/comprador' : 'Itens/dia', v: val.toFixed(2), n: 'média do recorte' },
         { l: 'Itens concluídos', v: base.length.toLocaleString('pt-BR'), n: 'no recorte' },
