@@ -334,6 +334,10 @@ function wkLabelFull(s) {
 
 const ymKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 
+// Chave/rótulo por dia (usados quando o recorte de Período é uma semana específica, p/ granularidade diária)
+const ymdKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const ymdLabel = k => { const p = k.split('-'); return p[2] + '/' + p[1]; };
+
 const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const mLabel = k => {
     const [y, m] = k.split('-');
