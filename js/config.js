@@ -25,8 +25,17 @@ const COMP_COLS = [
     { k: 'cp', l: 'Comprador' },
     { k: 'concl', l: 'Concluídos' },
     { k: 'ipd', l: 'Itens/dia' },
-    { k: 'openN', l: 'Abertas' },
+    { k: 'openN', l: 'Itens abertos' },
     { k: 'agingAvg', l: 'Aging médio' },
     { k: 'slaPct', l: '% SLA' },
     { k: 'saving', l: 'Saving (R$)' }
+];
+
+const RCOPEN_COLS = [
+    { k: 'cp', l: 'Comprador' },
+    { k: 'rc', l: 'RC' },
+    { k: 'it', l: 'Itens' },
+    { k: 'sa', l: 'SLA Alvo' },
+    { k: 'age', l: 'Aging (d)' },
+    { k: 'saldo', l: 'Saldo SLA' }
 ];

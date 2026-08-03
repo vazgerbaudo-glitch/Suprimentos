@@ -52,11 +52,22 @@ function openRCsFor(cp) {
         .filter(r => r.age > 0)
         .sort((a, b) => b.age - a.age);
 }
-function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true) {
+function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true, sortable = false) {
     const cnt = { 'Dentro do prazo': 0, 'Atenção': 0, 'Crítico': 0 };
     rcs.forEach(r => cnt[sevOpen(r)[1]]++);
     const avg = rcs.length ? Math.round(rcs.reduce((a, r) => a + r.age, 0) / rcs.length) : 0;
     document.getElementById(sumId).innerHTML = rcs.length ? `<b>${rcs.length}</b> RC${rcs.length > 1 ? 's' : ''} em aberto no recorte · aging médio <b>${avg}d</b> · <span class="tag-sev s-am">Dentro do prazo: ${cnt['Dentro do prazo']}</span> <span class="tag-sev s-or">Atenção: ${cnt['Atenção']}</span> <span class="tag-sev s-rd">Crítico: ${cnt['Crítico']}</span>` : 'Nenhuma RC em aberto no recorte.';
+    if (sortable) {
+        const dir = rcOpenSort.dir, key = rcOpenSort.key;
+        rcs = rcs.map(r => ({ ...r, saldo: r.sa > 0 ? r.sa - r.sr : null })).sort((a, b) => {
+            let va = a[key], vb = b[key];
+            if (va == null) va = (key === 'cp' || key === 'rc') ? '' : -1;
+            if (vb == null) vb = (key === 'cp' || key === 'rc') ? '' : -1;
+            if (typeof va === 'string') return va.localeCompare(vb) * dir;
+            return (va - vb) * dir;
+        });
+        document.querySelector('#' + tblId + ' thead').innerHTML = '<tr>' + RCOPEN_COLS.map(c => `<th class="${c.k === 'cp' || c.k === 'rc' ? '' : 'num'}" data-key="${c.k}" style="cursor:pointer">${c.l}${rcOpenSort.key === c.k ? (rcOpenSort.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('') + '<th>Semáforo</th></tr>';
+    }
     document.querySelector('#' + tblId + ' tbody').innerHTML = rcs.map(r => {
         const s = sevOpen(r);
         const saldo = r.sa > 0 ? r.sa - r.sr : null;
@@ -65,6 +76,7 @@ function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true) {
         return `<tr${showComp ? ` class="jump" data-cp="${r.cp}" style="cursor:pointer"` : ''}>${showComp ? `<td>${r.cp}</td>` : ''}<td>${r.rc || '-'}</td><td class="num">${r.it}</td>${showExtra ? `<td>${(r.td || '').trim() || '-'}</td><td>${(r.et || '').replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${fmtDia(r.dl)}</td>` : ''}<td class="num">${r.sa || '—'}</td><td class="num">${r.age}</td><td class="num" style="${saldoCol}">${saldoTxt}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`;
     }).join('') || `<tr><td colspan="${(showComp ? 1 : 0) + (showExtra ? 3 : 0) + 6}" style="color:#46606F">Nenhuma RC em aberto no recorte.</td></tr>`;
     if (showComp) document.querySelectorAll('#' + tblId + ' tbody tr.jump').forEach(tr => tr.onclick = () => { STATE.comp = tr.dataset.cp; render(); });
+    if (sortable) document.querySelectorAll('#' + tblId + ' thead th[data-key]').forEach(th => th.onclick = () => { const k = th.dataset.key; if (rcOpenSort.key === k) rcOpenSort.dir *= -1; else { rcOpenSort.key = k; rcOpenSort.dir = (k === 'cp' || k === 'rc') ? 1 : -1; } renderCompradores(); });
 }
 function render() {
     DUCAL = buildDuCalendar(ALL);
@@ -857,7 +869,7 @@ function renderCompradores() {
         const slaPct = sla.length ? sla.filter(r => r.ss === 'I').length / sla.length * 100 : null;
         const sav = savBase.filter(r => r.cp === cp);
         const saving = sav.reduce((a, r) => a + (r.vp - r.vn), 0);
-        return { cp, concl: done.length, ipd, openN: open.length, agingAvg, saldoAvg, slaPct, slaN: sla.length, saving, matN: done.filter(r => r.cl === 'Material').length, servN: done.filter(r => r.cl === 'Serviço').length };
+        return { cp, concl: done.length, ipd, openN: open.reduce((a, r) => a + r.it, 0), agingAvg, saldoAvg, slaPct, slaN: sla.length, saving, matN: done.filter(r => r.cl === 'Material').length, servN: done.filter(r => r.cl === 'Serviço').length };
     });
     renderCompList(rows);
 
@@ -905,7 +917,7 @@ function renderCompradores() {
     document.querySelectorAll('#t_comp tbody tr.jump').forEach(tr => tr.onclick = () => { const cp = tr.dataset.cp; STATE.comp = STATE.comp === cp ? 'GERAL' : cp; render(); });
 
     // RCs em aberto — acompanhamento do time (t_rcopen_all)
-    renderOpenRCPanel('t_rcopen_all', 'sum_rcopen_all', openRCsFor(null), true, false);
+    renderOpenRCPanel('t_rcopen_all', 'sum_rcopen_all', openRCsFor(null), true, false, true);
 
     // Leitura
     document.getElementById('ins-comp').innerHTML = comps.length ? `<b>Leitura:</b> <b>${comps.length} compradores</b> ativos no recorte, produtividade média de <b>${avgIpd.toFixed(2)} itens/dia</b> e SLA médio de <b>${avgSla.toFixed(1)}%</b>. ${topIpd ? `Maior produtividade: <b>${topIpd.cp}</b> (${topIpd.ipd.toFixed(2)} itens/dia). ` : ''}${topAge ? `Maior aging: <b>${topAge.cp}</b> (${topAge.agingAvg}d). ` : ''}Use a bolha Produtividade × SLA para achar quem produz bem <i>e</i> cumpre prazo (canto superior direito) — e clique numa linha da tabela ou numa bolha para abrir a visão individual.` : '<b>Sem compradores com dados no recorte.</b>';

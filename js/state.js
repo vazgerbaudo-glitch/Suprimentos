@@ -10,4 +10,4 @@ let ALL = [], ALLRC = [], DUCAL = {}, STATE = {
     metaAgG: 60,
     metaAgC: 87,
     metaAgS: 67
-}, CH = {}, SUM = {}, compSort = { key: 'concl', dir: -1 }, CARTEIRAS = [];
+}, CH = {}, SUM = {}, compSort = { key: 'concl', dir: -1 }, rcOpenSort = { key: 'age', dir: -1 }, CARTEIRAS = [];
