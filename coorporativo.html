@@ -286,10 +286,15 @@
             <div class="sec-head"><h2>SLA — Aderência ao prazo</h2></div>
             <div class="kpis" id="kpi-sla"></div>
             <div class="grid g12">
-                <div class="panel">
+                <div class="panel" id="pnl_slatrend">
                     <h3>Evolução do % dentro do SLA</h3>
                     <div class="ph">Segue o filtro de Período: Geral/Mês por semana (no mês, só as semanas dele) · Semana/Atual por dia · metas pontilhadas: 90% (meta 150%), 80% (meta 100%), 75% (meta 90%)</div>
                     <div class="cv tall"><canvas id="c_slatrend"></canvas></div>
+                </div>
+                <div class="panel" id="pnl_slaaberto" style="display:none">
+                    <h3>RCs em aberto — efeito potencial no SLA</h3>
+                    <div class="ph" id="sum_sla_aberto">Corte de hoje: projeta como as RCs em aberto no recorte ficariam se fossem concluídas agora, e o efeito disso no % dentro do SLA.</div>
+                    <div class="cv tall"><canvas id="c_slaaberto"></canvas></div>
                 </div>
                 <div class="panel">
                     <h3>Gravidade do atraso</h3>
@@ -468,7 +473,7 @@
         <script src="js/state.js?v=20260803"></script>
         <script src="js/data.js?v=20260803"></script>
         <script src="js/charts.js?v=20260724b"></script>
-        <script src="js/render_setor.js?v=20260803c"></script>
+        <script src="js/render_setor.js?v=20260803e"></script>
         <script src="js/data_corp.js?v=20260803"></script>
         <script src="js/filters_setor.js?v=20260730"></script>
         <script src="js/pendencias.js?v=20260729d"></script>

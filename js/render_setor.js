@@ -519,26 +519,61 @@ function renderAging() {
 }
 
 function renderSLA() {
+    const stAberto = STATE.st === 'A';
+    const pnlTrend = document.getElementById('pnl_slatrend'), pnlAberto = document.getElementById('pnl_slaaberto');
+    if (pnlTrend) pnlTrend.style.display = stAberto ? 'none' : '';
+    if (pnlAberto) pnlAberto.style.display = stAberto ? '' : 'none';
+
     const base = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
     const ins = base.filter(r => r.ss === 'I').length, foraR = base.filter(r => r.ss === 'F'), fora = foraR.length, tot = ins + fora, pct = tot ? ins / tot * 100 : 0;
     const atrasos = foraR.map(r => r.sr - r.sa).filter(d => d > 0);
     const atrMed = atrasos.length ? Math.round(atrasos.reduce((a, b) => a + b, 0) / atrasos.length) : 0;
-    kpi('kpi-sla', [
-        { l: '% dentro do SLA', v: pct.toFixed(1) + '%', n: 'aderência ao prazo no recorte' },
-        { l: 'Base avaliada', v: tot.toLocaleString('pt-BR'), n: 'desde abr/2026' },
-        { l: 'Fora do SLA', v: fora.toLocaleString('pt-BR'), n: tot ? (100 - pct).toFixed(1) + '%' : '' },
-        { l: 'Atraso médio', v: atrMed + 'd', n: 'além do alvo (Fora)' }
-    ]);
+    let wk = [], bw = {};
 
-    // Evolução do % dentro do SLA (c_slatrend) — segue o filtro de Período: Geral mantém o ano por
-    // semana; Mês restringe ao mês selecionado (ainda por semana); Semana/Atual muda a granularidade p/ dia
-    const trendPorDia = STATE.modo === 'semana' || STATE.modo === 'atual';
-    const baseTrend = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && compHit(r) && tpHit(r) && stHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg && periodHit(r.dc));
-    const bw = {};
-    baseTrend.forEach(r => { const k = trendPorDia ? ymdKey(r.dc) : isoWeek(r.dc); (bw[k] = bw[k] || { i: 0, t: 0 }); bw[k].t++; if (r.ss === 'I') bw[k].i++; });
-    const wk = Object.keys(bw).sort();
-    const wkLbl = trendPorDia ? ymdLabel : wkLabel;
-    mkChart('c_slatrend', { type: 'line', plugins: [crosshair], data: { labels: wk.map(w => wkLbl(w)), datasets: [{ label: '% dentro', data: wk.map(w => Math.round(bw[w].i / bw[w].t * 100)), borderColor: C.blue, backgroundColor: 'rgba(14,83,140,.08)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue }, { label: 'Meta 150% (90%)', data: wk.map(() => 90), borderColor: C.teal, borderDash: [6, 4], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.teal, fill: false }, { label: 'Meta 100% (80%)', data: wk.map(() => 80), borderColor: C.amber, borderDash: [6, 4], borderWidth: 1.3, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.amber, fill: false }, { label: 'Meta 90% (75%)', data: wk.map(() => 75), borderColor: C.red, borderDash: [6, 4], borderWidth: 1.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.red, fill: false }] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true, font: { size: 10 } } }, tooltip: { mode: 'index', intersect: false } }, scales: { x: { ...noG, ticks: { font: { size: 9 } } }, y: { ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    if (stAberto) {
+        // Status = Em Aberto: a base de concluídas fica vazia (contraditória com o filtro), então o recorte
+        // vira um "corte de hoje" das RCs abertas — projeta a severidade atual (sevOpen) como se cada uma
+        // fosse concluída agora, e mostra o efeito disso sobre o % dentro do SLA (baseline: concluídas no
+        // recorte de Período/Tipo/Comprador, sem o filtro de Status, que serve só de referência aqui)
+        const baseConcl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && periodHit(r.dc) && compHit(r) && tpHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
+        const insConcl = baseConcl.filter(r => r.ss === 'I').length, totConcl = baseConcl.length, pctConcl = totConcl ? insConcl / totConcl * 100 : 0;
+        const openSla = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r))
+            .map(r => ({ ...r, age: agingOf(r.dl, HOJE, r.devHold), sev: sevOpen(r) }))
+            .filter(r => r.age >= 0);
+        const critN = openSla.filter(r => r.sev[1] === 'Crítico').length, insOpen = openSla.length - critN;
+        const pctOpen = openSla.length ? insOpen / openSla.length * 100 : 0;
+        const totComb = totConcl + openSla.length, pctComb = totComb ? (insConcl + insOpen) / totComb * 100 : 0;
+        const delta = pctComb - pctConcl;
+        const atrasosOpen = openSla.filter(r => r.sev[1] === 'Crítico').map(r => r.sr - (r.sa > 0 ? r.sa : 15));
+        const atrMedOpen = atrasosOpen.length ? Math.round(atrasosOpen.reduce((a, b) => a + b, 0) / atrasosOpen.length) : 0;
+
+        kpi('kpi-sla', [
+            { l: '% dentro do SLA (concluídas)', v: totConcl ? pctConcl.toFixed(1) + '%' : '—', n: totConcl + ' concluídas no recorte · referência, sem o filtro de Status' },
+            { l: 'RCs em aberto no recorte', v: openSla.length.toLocaleString('pt-BR'), n: 'corte de hoje' },
+            { l: '% dentro se fechassem hoje', v: openSla.length ? pctOpen.toFixed(1) + '%' : '—', c: openSla.length ? (pctOpen >= 90 ? 'good' : pctOpen >= 80 ? 'warn' : 'bad') : '', n: critN + ' já fora do SLA Alvo' + (atrMedOpen ? ' · atraso médio ' + atrMedOpen + 'd' : '') },
+            { l: 'Efeito no SLA geral', v: totComb ? (delta >= 0 ? '+' : '') + delta.toFixed(1) + 'pp' : '—', c: delta >= 0 ? 'good' : 'bad', n: totComb ? 'projeção combinada: ' + pctComb.toFixed(1) + '%' : 'sem base para projeção' }
+        ]);
+
+        document.getElementById('sum_sla_aberto').innerHTML = openSla.length ? `<b>${openSla.length}</b> RC${openSla.length > 1 ? 's' : ''} em aberto no recorte · <b>${critN}</b> já fora do SLA Alvo (${(100 - pctOpen).toFixed(1)}%)${atrMedOpen ? `, atraso médio de <b>${atrMedOpen}d</b>` : ''}${totConcl ? ` · se todas fechassem hoje, o % dentro do SLA iria de <b>${pctConcl.toFixed(1)}%</b> para <b>${pctComb.toFixed(1)}%</b>` : ''}.` : 'Nenhuma RC em aberto no recorte.';
+
+        mkChart('c_slaaberto', { type: 'bar', data: { labels: ['Atual (só concluídas)', 'Projetado (+ abertas, se fechassem hoje)'], datasets: [{ data: [totConcl ? +pctConcl.toFixed(1) : 0, totComb ? +pctComb.toFixed(1) : 0], backgroundColor: [C.steel, delta >= 0 ? C.teal : C.red], borderRadius: 18 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x.toFixed(1) + '%' } } }, scales: { x: { ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } }, y: noG } } });
+    } else {
+        kpi('kpi-sla', [
+            { l: '% dentro do SLA', v: pct.toFixed(1) + '%', n: 'aderência ao prazo no recorte' },
+            { l: 'Base avaliada', v: tot.toLocaleString('pt-BR'), n: 'desde abr/2026' },
+            { l: 'Fora do SLA', v: fora.toLocaleString('pt-BR'), n: tot ? (100 - pct).toFixed(1) + '%' : '' },
+            { l: 'Atraso médio', v: atrMed + 'd', n: 'além do alvo (Fora)' }
+        ]);
+
+        // Evolução do % dentro do SLA (c_slatrend) — segue o filtro de Período: Geral mantém o ano por
+        // semana; Mês restringe ao mês selecionado (ainda por semana); Semana/Atual muda a granularidade p/ dia
+        const trendPorDia = STATE.modo === 'semana' || STATE.modo === 'atual';
+        const baseTrend = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && compHit(r) && tpHit(r) && stHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg && periodHit(r.dc));
+        baseTrend.forEach(r => { const k = trendPorDia ? ymdKey(r.dc) : isoWeek(r.dc); (bw[k] = bw[k] || { i: 0, t: 0 }); bw[k].t++; if (r.ss === 'I') bw[k].i++; });
+        wk = Object.keys(bw).sort();
+        const wkLbl = trendPorDia ? ymdLabel : wkLabel;
+        mkChart('c_slatrend', { type: 'line', plugins: [crosshair], data: { labels: wk.map(w => wkLbl(w)), datasets: [{ label: '% dentro', data: wk.map(w => Math.round(bw[w].i / bw[w].t * 100)), borderColor: C.blue, backgroundColor: 'rgba(14,83,140,.08)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue }, { label: 'Meta 150% (90%)', data: wk.map(() => 90), borderColor: C.teal, borderDash: [6, 4], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.teal, fill: false }, { label: 'Meta 100% (80%)', data: wk.map(() => 80), borderColor: C.amber, borderDash: [6, 4], borderWidth: 1.3, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.amber, fill: false }, { label: 'Meta 90% (75%)', data: wk.map(() => 75), borderColor: C.red, borderDash: [6, 4], borderWidth: 1.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.red, fill: false }] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true, font: { size: 10 } } }, tooltip: { mode: 'index', intersect: false } }, scales: { x: { ...noG, ticks: { font: { size: 9 } } }, y: { ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    }
 
     // Gravidade do atraso por faixa (c_slafaixa)
     const gf = { '1-7': 0, '8-15': 0, '16-30': 0, '>30': 0 };
