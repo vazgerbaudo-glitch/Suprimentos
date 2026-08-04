@@ -392,7 +392,9 @@ function rollupRC(rows) {
             else ss = sr <= sa ? 'I' : 'F';
         }
         return {
-            rc, it: its.length, dl, dc, st, ss, srNeg,
+            // it: RC aberta conta só os itens ainda pendentes (não os já concluídos dentro da mesma RC),
+            // senão infla "itens abertos" com itens que já terminaram — RC concluída já tem só itens concluídos
+            rc, it: st === 'A' ? openIt.length : its.length, dl, dc, st, ss, srNeg,
             sa, sr, devHold,
             cp: mode(its.map(x => x.cp)) || 'N/D',
             pf: mode(its.map(x => x.pf)) || '',

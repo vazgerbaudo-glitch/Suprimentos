@@ -73,7 +73,7 @@ function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true, sortab
 function renderCompradores() {
     // Base independente do filtro Comprador (compHit) — para permitir comparação entre todos
     const doneBase = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && stHit(r));
-    const openBase = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && tpHit(r) && stHit(r));
+    const openBase = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && tpHit(r) && stHit(r));
     const slaBase = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && stHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
     const savBase = ALL.filter(r => r.vp > 0 && r.vn > 0 && r.st !== 'X' && r.st !== 'D' && periodHit(r.dc) && tpHit(r) && stHit(r));
     const comps = [...new Set([...doneBase, ...openBase, ...slaBase, ...savBase].map(r => r.cp))].filter(c => c && c !== 'N/D').sort();
@@ -178,7 +178,7 @@ function renderCompIndividual(cp, team) {
     const ipdVal = wksI.length ? wksI.reduce((a, w) => a + byWI[w], 0) / wksI.length : 0;
 
     // Aging — RCs abertas no recorte
-    const openP = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && tpHit(r) && stHit(r) && r.cp === cp);
+    const openP = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && tpHit(r) && stHit(r) && r.cp === cp);
     const openPAged = openP.map(r => ({ age: agingOf(r.dl, HOJE, r.devHold), sa: r.sa, sr: r.sr })).filter(o => o.age >= 0);
     const agesP = openPAged.map(o => o.age);
     const agingAvg = agesP.length ? Math.round(agesP.reduce((a, b) => a + b, 0) / agesP.length) : null;
@@ -288,9 +288,9 @@ function renderProd() {
             if (!w || !r.dl) return;
             if (!wsFirst[w] || r.dl < wsFirst[w].dl) wsFirst[w] = r;
         });
-        wsOpen = Object.values(wsFirst).filter(r => r.st === 'A' && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
+        wsOpen = Object.values(wsFirst).filter(r => r.st === 'A' && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
     } else {
-        wsOpen = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
+        wsOpen = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
     }
     kpi('kpi-prod', [
         { l: ger ? 'Itens/dia/comprador' : 'Itens/dia', v: val.toFixed(2), n: 'média do recorte' },
@@ -537,7 +537,7 @@ function renderSLA() {
         // recorte de Período/Tipo/Comprador, sem o filtro de Status, que serve só de referência aqui)
         const baseConcl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && periodHit(r.dc) && compHit(r) && tpHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
         const insConcl = baseConcl.filter(r => r.ss === 'I').length, totConcl = baseConcl.length, pctConcl = totConcl ? insConcl / totConcl * 100 : 0;
-        const openSla = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r))
+        const openSla = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r))
             .map(r => ({ ...r, age: agingOf(r.dl, HOJE, r.devHold), sev: sevOpen(r) }))
             .filter(r => r.age >= 0);
         const critN = openSla.filter(r => r.sev[1] === 'Crítico').length, insOpen = openSla.length - critN;
