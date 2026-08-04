@@ -216,6 +216,11 @@
         <section class="tab" id="aging">
             <div class="sec-head"><h2>Aging — RCs em aberto</h2></div>
             <div class="kpis k3" id="kpi-aging"></div>
+            <div class="panel">
+                <h3>Evolução do tempo de ciclo</h3>
+                <div class="ph">Dias entre liberação e conclusão · média por semana das concluídas, separado por Contrato e Spot</div>
+                <div class="cv"><canvas id="c_agevol"></canvas></div>
+            </div>
             <div class="grid g2">
                 <div class="panel" style="margin-bottom:0">
                     <h3>Distribuição por faixa de aging</h3>
@@ -257,17 +262,10 @@
                     <div id="box_aging"></div>
                 </div>
             </div>
-            <div class="grid g2">
-                <div class="panel" style="margin-bottom:0">
-                    <h3>Evolução do tempo de ciclo</h3>
-                    <div class="ph">Dias entre liberação e conclusão · média por semana das concluídas (proxy de aging no tempo) · linhas pontilhadas = metas 80%/100%/150% (-10%/-20%/-30% sobre a referência), conforme o filtro Tipo de compra</div>
-                    <div class="cv"><canvas id="c_agevol"></canvas></div>
-                </div>
-                <div class="panel" style="margin-bottom:0">
-                    <h3>Evolução dos itens críticos</h3>
-                    <div class="ph">RCs concluídas por semana com ciclo &gt; 30 dias</div>
-                    <div class="cv"><canvas id="c_agcrit"></canvas></div>
-                </div>
+            <div class="panel">
+                <h3>Evolução dos itens críticos</h3>
+                <div class="ph">RCs concluídas por semana com ciclo &gt; 30 dias</div>
+                <div class="cv"><canvas id="c_agcrit"></canvas></div>
             </div>
             <div class="panel">
                 <h3>Funil — aging por etapa do processo</h3>
@@ -471,9 +469,9 @@
         </div>
         <script src="js/config.js?v=20260803"></script>
         <script src="js/state.js?v=20260803"></script>
-        <script src="js/data.js?v=20260803"></script>
+        <script src="js/data.js?v=20260804"></script>
         <script src="js/charts.js?v=20260724b"></script>
-        <script src="js/render_setor.js?v=20260803e"></script>
+        <script src="js/render_setor.js?v=20260804"></script>
         <script src="js/data_corp.js?v=20260803"></script>
         <script src="js/filters_setor.js?v=20260730"></script>
         <script src="js/pendencias.js?v=20260729d"></script>
