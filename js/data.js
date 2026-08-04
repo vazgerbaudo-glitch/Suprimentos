@@ -230,9 +230,13 @@ const MAP_CART = {
 };
 const GERENCIA_ALVO = 'comprasageis';
 
-// Retorna a lista de linhas do Spend (uma por linha do arquivo, sem deduplicar), só as de
-// Gerência Final = "Compras Ágeis". Preserva todas as linhas — nenhum valor é somado ou
-// descartado aqui; o rollup por RC acontece depois, em renderContr.
+// Retorna a lista de linhas do Spend (uma por linha do arquivo, sem deduplicar) — de TODAS as
+// Gerências Finais (Compras Ágeis, Rodantes, Corporativo, Terminais etc.), cada uma marcada em
+// gerFinal/gerFinalNorm. renderContr (js/render.js) filtra para Compras Ágeis onde precisa (KPIs,
+// resolução contra a Gestão à Vista, que só existe para Ágeis) e usa a base completa só no gráfico
+// por Gerência Final. Sem coluna de Gerência Final no arquivo, assume tudo como Compras Ágeis
+// (mesmo comportamento de antes da coluna existir). Preserva todas as linhas — nenhum valor é
+// somado ou descartado aqui; o rollup por RC acontece depois, em renderContr.
 function fromCarteirasCSV(txt) {
     const g = parseCSV(txt).filter(r => r.length > 1);
     if (!g.length) return [];
@@ -242,7 +246,6 @@ function fromCarteirasCSV(txt) {
     g.slice(1).forEach(r => {
         const o = {};
         head.forEach((f, k) => { if (f) o[f] = r[k]; });
-        if (hasGerCol && nrm(o.gerFinal) !== GERENCIA_ALVO) return;
         const rc = ('' + (o.rc || '')).trim();
         if (!rc) return;
         const it = ('' + (o.it || '')).trim();
@@ -253,9 +256,11 @@ function fromCarteirasCSV(txt) {
         const ms = msRaw.indexOf('mat') > -1 ? 'Material' : msRaw.indexOf('serv') > -1 ? 'Serviço' : '';
         const tdRaw = ('' + (o.td || '')).trim(), tdLow = tdRaw.toLowerCase();
         const td = tdLow === 'contrato' ? 'Contrato' : tdLow === 'spot' ? 'Spot' : (tdRaw || 'N/D');
+        const gerFinal = hasGerCol ? (('' + (o.gerFinal || '')).trim() || 'N/D') : 'Compras Ágeis';
         rows.push({
             rc, rcNorm: normRC(rc), it, car, nome, pedido, pedidoNorm: normPed(pedido),
-            ms, td, tdRaw, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim()
+            ms, td, tdRaw, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim(),
+            gerFinal, gerFinalNorm: nrm(gerFinal)
         });
     });
     return rows;

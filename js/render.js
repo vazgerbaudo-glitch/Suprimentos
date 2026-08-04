@@ -585,6 +585,18 @@ function renderContr() {
         return;
     }
 
+    // RCs por Gerência Final (Compras Ágeis, Rodantes, Corporativo, Terminais etc.) — c_gerfinal.
+    // Usa a base bruta do Spend (todas as gerências, sem cruzar com a Gestão à Vista, que só cobre
+    // Compras Ágeis) — só volume de RCs por gerência, respeitando Período/Tipo do painel lateral
+    // (mesmo recorte de data usado pelo resto da aba: Data do Pedido, desde jan/2026).
+    const gerRCs = {};
+    CARTEIRAS.filter(ln => ln.dt && ln.dt >= DATA_INI_AGING && periodHit(ln.dt) && tpHit(ln)).forEach(ln => { (gerRCs[ln.gerFinal] = gerRCs[ln.gerFinal] || new Set()).add(ln.rcNorm); });
+    const gerArr = Object.entries(gerRCs).map(([g, set]) => [g, set.size]).sort((a, b) => b[1] - a[1]);
+    mkChart('c_gerfinal', { type: 'bar', data: { labels: gerArr.map(x => x[0]), datasets: [{ data: gerArr.map(x => x[1]), backgroundColor: gerArr.map(x => x[0] === 'Compras Ágeis' ? CCON : C.steel), borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: { ...noG, ticks: { font: { size: 9 } } }, y: { ...soG, beginAtZero: true } } } });
+
+    // A partir daqui, só Compras Ágeis — é a única Gerência com Gestão à Vista para cruzar/validar carteira
+    const cartAgeis = CARTEIRAS.filter(ln => ln.gerFinalNorm === GERENCIA_ALVO);
+
     // ===== Índices da Gestão à Vista (base principal, ALL) para resolver/validar carteiras =====
     // Chave por Pedido: "Contrato SAP/ Pedido" pode trazer vários pedidos (barra, vírgula, ponto
     // e vírgula ou quebra de linha), cada um indexado. Chave por RC: só dígitos, sem zeros à
@@ -642,7 +654,7 @@ function renderContr() {
     // "A..." (Grupo Comprador, não classificado): tenta resolver por Pedido, depois por RC única;
     // sem resolução seguro mantém o código "A..." original. "G/S/R": nunca reclassifica — a
     // Gestão à Vista só valida (marca "Divergente" quando os códigos não batem).
-    const resolvedLines = CARTEIRAS.map(ln => {
+    const resolvedLines = cartAgeis.map(ln => {
         const root = rootLetter(ln.car);
         const res = resolveCarteira(ln.pedidoNorm, ln.rcNorm);
         let carFinal, statusCarteira;
@@ -747,7 +759,7 @@ function renderContr() {
 
     // Contrato × Spot — Material e Serviço: mesma coluna 100% empilhada, cada uma só com os itens da classe (c_contrmix_mat/serv)
     const msMix = { Material: { Contrato: 0, Spot: 0 }, Serviço: { Contrato: 0, Spot: 0 } };
-    CARTEIRAS.forEach(it => {
+    cartAgeis.forEach(it => {
         if (!baseRCSet.has(it.rcNorm) || (it.ms !== 'Material' && it.ms !== 'Serviço')) return;
         if (it.td === 'Contrato') msMix[it.ms].Contrato++;
         else if (it.td === 'Spot') msMix[it.ms].Spot++;
