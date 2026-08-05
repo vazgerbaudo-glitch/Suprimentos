@@ -611,21 +611,8 @@ function renderContr() {
         o[td]++;
     });
     const GER_TYPE_COLORS = { Contrato: CCON, Spot: C.steel, Mista: C.amber, Outros: '#7A8C97' };
-    const gerCharts = gerArr.map(([g], gi) => {
-        const cars = gerCarStats[g] || {};
-        const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Mista + o.Outros })).filter(k => k.tot > 0).sort((a, b) => b.tot - a.tot);
-        return { g, cid: 'c_ger_' + gi, carKeys };
-    }).filter(x => x.carKeys.length);
-    document.getElementById('gerfinal-charts').innerHTML = gerCharts.map(x => `<div class="panel" style="margin-bottom:0">
-<h3>% Contrato × Spot por carteira — ${x.g}</h3>
-<div class="cv"><canvas id="${x.cid}"></canvas></div>
-</div>`).join('');
-    upgradeHeaders();
-    gerCharts.forEach(x => {
-        const hasOutros = x.carKeys.some(k => k.o.Outros > 0);
-        const types = hasOutros ? ['Contrato', 'Spot', 'Mista', 'Outros'] : ['Contrato', 'Spot', 'Mista'];
-        mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
-    });
+    // Renderizado mais abaixo, depois de gCarKeys (a lista de carteiras G confirmadas/estimadas de
+    // Compras Ágeis) estar pronta — as demais Gerências só mostram carteira G que bate com essa lista.
 
     // A partir daqui, só Compras Ágeis — é a única Gerência com Gestão à Vista para cruzar/validar carteira
     const cartAgeis = CARTEIRAS.filter(ln => ln.gerFinalNorm === GERENCIA_ALVO);
@@ -857,6 +844,27 @@ function renderContr() {
     const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
     const gCarKeys = gCarArr.map(x => x.c);
     mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+
+    // % Contrato × Spot por carteira, uma coluna de gráficos por Gerência Final (c_ger_N, dinâmico).
+    // Compras Ágeis fica de fora — já tem os gráficos "por carteira G" dedicados abaixo. As demais
+    // Gerências (Rodantes, Corporativo, Terminais etc.) só mostram carteira de raiz G que também
+    // aparece em gCarKeys — a mesma lista G confirmada/estimada do gráfico "% Contrato × Spot por
+    // carteira G" acima — assim os dois gráficos ficam comparáveis.
+    const gerCharts = gerArr.filter(([g]) => g !== 'Compras Ágeis').map(([g], gi) => {
+        const cars = gerCarStats[g] || {};
+        const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Mista + o.Outros })).filter(k => k.tot > 0 && rootLetter(k.c) === 'G' && gCarKeys.includes(k.c)).sort((a, b) => b.tot - a.tot);
+        return { g, cid: 'c_ger_' + gi, carKeys };
+    }).filter(x => x.carKeys.length);
+    document.getElementById('gerfinal-charts').innerHTML = gerCharts.map(x => `<div class="panel" style="margin-bottom:0">
+<h3>% Contrato × Spot por carteira — ${x.g}</h3>
+<div class="cv"><canvas id="${x.cid}"></canvas></div>
+</div>`).join('');
+    upgradeHeaders();
+    gerCharts.forEach(x => {
+        const hasOutros = x.carKeys.some(k => k.o.Outros > 0);
+        const types = hasOutros ? ['Contrato', 'Spot', 'Mista', 'Outros'] : ['Contrato', 'Spot', 'Mista'];
+        mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    });
 
     // % Contrato × Spot por carteira G — Visão Spend (c_ccd_tipo_spend): mesma leitura acima, mas só
     // com carteiras G já identificadas diretamente no Spend (originais ou resolvidas por Pedido/RC
