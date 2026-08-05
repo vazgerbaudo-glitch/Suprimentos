@@ -783,19 +783,16 @@ function renderContr() {
     mkChart('c_ccd', { type: 'bar', data: { labels: cdKeys.map(cdLabel), datasets: [{ data: cdKeys.map(k => byCd[k]), backgroundColor: cdKeys.map(cdCOL), borderRadius: 18 }] }, options: { maintainAspectRatio: false, layout: { padding: { top: 16 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
     // % Contrato × Spot por carteira G — 100% empilhado, uma coluna por carteira G específica (c_ccd_tipo)
-    // RCs ainda travadas em "A..." (Grupo Comprador, sem Carteira/Categoria resolvida) entram
-    // fracionadas nas colunas G desse grupo, proporcional ao histórico de carteiras G da Gestão
-    // à Vista (renormalizado só entre as G's do grupo, ignorando a fatia R/S) — assim a leitura
-    // por carteira G cobre 100% das RCs mesmo quando o Spend só traz o Grupo Comprador.
-    // A fatia "A (raiz)" isola essa estimativa (não é Contrato/Spot/Outros confirmado no Spend,
-    // e sim resolvido pela raiz da carteira via histórico) — RCs diretas do tipo "Mista" entram
-    // em "Outros", já que aqui o Mista deixa de ser categoria própria.
+    // Só RCs com carteira G já confirmada no Spend — os "A..." (Grupo Comprador, sem Carteira/Categoria
+    // resolvida) saíram daqui e viraram o gráfico separado "A (raiz)" (c_ccd_tipo_araiz, amarelo),
+    // fracionados por G via histórico da Gestão à Vista.
     const byGCar = {};
+    const byGCarA = {};
     base.forEach(r => {
         const code = carOf(r);
+        const t = typeOf(r);
+        const bucket = t === 'Contrato' ? 'Contrato' : t === 'Spot' ? 'Spot' : 'Outros';
         if (rootLetter(code) === 'G') {
-            const t = typeOf(r);
-            const bucket = t === 'Contrato' ? 'Contrato' : t === 'Spot' ? 'Spot' : 'Outros';
             const o = byGCar[code] = byGCar[code] || {};
             o[bucket] = (o[bucket] || 0) + 1;
             return;
@@ -806,12 +803,12 @@ function renderContr() {
         const gTotal = gEntries.reduce((a, [, n]) => a + n, 0);
         if (!gTotal) return;
         gEntries.forEach(([c, n]) => {
-            const o = byGCar[c] = byGCar[c] || {};
-            o['A (raiz)'] = (o['A (raiz)'] || 0) + n / gTotal;
+            const o = byGCarA[c] = byGCarA[c] || {};
+            o[bucket] = (o[bucket] || 0) + n / gTotal;
         });
     });
-    const typeListG = ['Contrato', 'Spot', 'A (raiz)', 'Outros'];
-    const colorMapG = { Contrato: CCON, Spot: C.steel, 'A (raiz)': C.amber, Outros: '#7A8C97' };
+    const typeListG = ['Contrato', 'Spot', 'Outros'];
+    const colorMapG = { Contrato: CCON, Spot: C.steel, Outros: '#7A8C97' };
     const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
     const gCarKeys = gCarArr.map(x => x.c);
     mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
@@ -844,16 +841,34 @@ function renderContr() {
         const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Outros })).filter(k => k.tot > 0 && ALLOWED_G_GER.includes(k.c)).sort((a, b) => b.tot - a.tot);
         return { g, cid: 'c_ger_' + gi, carKeys };
     }).filter(x => x.carKeys.length);
+
+    // Painel "A (raiz)" — mesma estimativa fracionada por G do gráfico principal (byGCarA acima),
+    // mas com o Contrato/Spot já conhecido de cada RC (não é estimado, só a carteira G é que é
+    // estimada) — entra no mesmo grid das outras Gerências, em amarelo, pra não competir visualmente
+    // com o gráfico confirmado por carteira G.
+    const ARAIZ_COLORS = { Contrato: '#9C7A00', Spot: '#F2D479', Outros: '#7A8C97' };
+    const gCarAArr = Object.entries(byGCarA).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
+    const araizPanel = gCarAArr.length ? { cid: 'c_ccd_tipo_araiz', carArr: gCarAArr } : null;
+
     document.getElementById('gerfinal-charts').innerHTML = gerCharts.map(x => `<div class="panel" style="margin-bottom:0">
 <h3>% Contrato × Spot por carteira — ${x.g}</h3>
 <div class="cv"><canvas id="${x.cid}"></canvas></div>
-</div>`).join('');
+</div>`).join('') + (araizPanel ? `<div class="panel" style="margin-bottom:0">
+<h3>% Contrato × Spot — A (raiz), estimado</h3>
+<div class="ph">Carteira G estimada pelo histórico da Gestão à Vista para RCs ainda em Grupo Comprador "A..." (não resolvidas) — Contrato × Spot vem direto do Spend, só a coluna G é que é estimativa.</div>
+<div class="cv"><canvas id="${araizPanel.cid}"></canvas></div>
+</div>` : '');
     upgradeHeaders();
     gerCharts.forEach(x => {
         const hasOutros = x.carKeys.some(k => k.o.Outros > 0);
         const types = hasOutros ? ['Contrato', 'Spot', 'Outros'] : ['Contrato', 'Spot'];
         mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
     });
+    if (araizPanel) {
+        const hasOutros = araizPanel.carArr.some(x => x.o.Outros > 0);
+        const types = hasOutros ? ['Contrato', 'Spot', 'Outros'] : ['Contrato', 'Spot'];
+        mkChart(araizPanel.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: araizPanel.carArr.map(x => x.c), datasets: types.map(t => ({ label: t, data: araizPanel.carArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: ARAIZ_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    }
 
     // Carteira/Categoria por RC — só o código (G35, S12...); RC ambígua ganha rótulo próprio (não
     // se confunde com "N/D", que é falta de preenchimento) — mantido para a tabela detalhada e o
