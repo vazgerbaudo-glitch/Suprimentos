@@ -597,20 +597,21 @@ function renderContr() {
 
     // % Contrato × Spot por carteira, uma coluna de gráficos por Gerência Final (c_ger_N, dinâmico).
     // Rollup por RC direto do Spend (Car + Contrato/Spot do próprio RC — RC com item de Contrato E
-    // Spot vira Mista), sem cruzar com a Gestão à Vista — só Compras Ágeis tem essa base para
-    // resolver códigos "A..."; as demais Gerências usam a carteira do Spend como está.
+    // Spot cai em Outros, sem categoria "Mista" própria neste gráfico), sem cruzar com a Gestão à
+    // Vista — só Compras Ágeis tem essa base para resolver códigos "A..."; as demais Gerências usam
+    // a carteira do Spend como está.
     const byRCAll = {};
     carBase.forEach(ln => { if (!ln.rcNorm) return; (byRCAll[ln.rcNorm] = byRCAll[ln.rcNorm] || []).push(ln); });
     const gerCarStats = {};
     Object.values(byRCAll).forEach(lines => {
         const hasCon = lines.some(l => l.td === 'Contrato'), hasSpo = lines.some(l => l.td === 'Spot');
-        const td = hasCon && hasSpo ? 'Mista' : hasCon ? 'Contrato' : hasSpo ? 'Spot' : 'Outros';
+        const td = hasCon && hasSpo ? 'Outros' : hasCon ? 'Contrato' : hasSpo ? 'Spot' : 'Outros';
         const g = mode(lines.map(l => l.gerFinal)) || 'N/D', car = mode(lines.map(l => l.car)) || 'N/D';
         const gg = gerCarStats[g] = gerCarStats[g] || {};
-        const o = gg[car] = gg[car] || { Contrato: 0, Spot: 0, Mista: 0, Outros: 0 };
+        const o = gg[car] = gg[car] || { Contrato: 0, Spot: 0, Outros: 0 };
         o[td]++;
     });
-    const GER_TYPE_COLORS = { Contrato: CCON, Spot: C.steel, Mista: C.amber, Outros: '#7A8C97' };
+    const GER_TYPE_COLORS = { Contrato: CCON, Spot: C.steel, Outros: '#7A8C97' };
     // Renderizado mais abaixo, depois de gCarKeys (a lista de carteiras G confirmadas/estimadas de
     // Compras Ágeis) estar pronta — as demais Gerências só mostram carteira G que bate com essa lista.
 
@@ -847,16 +848,17 @@ function renderContr() {
 
     // % Contrato × Spot por carteira, uma coluna de gráficos por Gerência Final (c_ger_N, dinâmico).
     // Compras Ágeis fica de fora — já tem os gráficos "por carteira G" dedicados abaixo. As demais
-    // Gerências (Corporativo e Especializado, Infraestrutura, Rodantes, Terminais, NCOD etc.) usam
-    // 100% da base Spend dessa Gerência — TODAS as carteiras (qualquer raiz: G/S/R/A/N/D), sem
-    // cruzar com a Gestão à Vista (que só cobre Compras Ágeis). Carteiras de raiz G que também
-    // aparecem em gCarKeys (a mesma lista G confirmada/estimada do gráfico "% Contrato × Spot por
-    // carteira G" acima) ganham rótulo em destaque (verde-petróleo #1E9F7F, mesma cor da raiz "G"
-    // no gráfico "RCs por Código de Carteira"); todas as demais ficam na cor de texto padrão.
+    // Gerências (Corporativo e Especializado, Infraestrutura, Rodantes, Terminais, NCOD etc.) só
+    // mostram carteira de raiz G — filtro aplicado direto sobre o código da carteira do próprio
+    // Spend (rootLetter), sem depender de gCarKeys (lista G confirmada/estimada de Compras Ágeis,
+    // que cruza com a Gestão à Vista) — aqui só importa o G que aparece no Spend dessa Gerência.
+    // gCarKeys entra só para destacar em verde-petróleo (#1E9F7F, mesma cor da raiz "G" no gráfico
+    // "RCs por Código de Carteira") as carteiras G que também aparecem no gráfico principal "%
+    // Contrato × Spot por carteira G" acima — não filtra quais colunas aparecem.
     const GCAR_HILITE = '#1E9F7F';
     const gerCharts = gerArr.filter(([g]) => g !== 'Compras Ágeis').map(([g], gi) => {
         const cars = gerCarStats[g] || {};
-        const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Mista + o.Outros })).filter(k => k.tot > 0).sort((a, b) => b.tot - a.tot);
+        const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Outros })).filter(k => k.tot > 0 && rootLetter(k.c) === 'G').sort((a, b) => b.tot - a.tot);
         return { g, cid: 'c_ger_' + gi, carKeys, hasMatch: carKeys.some(k => gCarKeys.includes(k.c)) };
     }).filter(x => x.carKeys.length);
     document.getElementById('gerfinal-charts').innerHTML = gerCharts.map(x => `<div class="panel" style="margin-bottom:0">
@@ -867,7 +869,7 @@ ${x.hasMatch ? `<div class="ph">Carteiras G em <b style="color:${GCAR_HILITE}">v
     upgradeHeaders();
     gerCharts.forEach(x => {
         const hasOutros = x.carKeys.some(k => k.o.Outros > 0);
-        const types = hasOutros ? ['Contrato', 'Spot', 'Mista', 'Outros'] : ['Contrato', 'Spot', 'Mista'];
+        const types = hasOutros ? ['Contrato', 'Spot', 'Outros'] : ['Contrato', 'Spot'];
         mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { maxRotation: 45, minRotation: 35, color: ctx => gCarKeys.includes(x.carKeys[ctx.index].c) ? GCAR_HILITE : C.ink, font: ctx => ({ size: 9, weight: gCarKeys.includes(x.carKeys[ctx.index].c) ? '700' : '400' }) } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
     });
 
@@ -885,7 +887,11 @@ ${x.hasMatch ? `<div class="ph">Carteiras G em <b style="color:${GCAR_HILITE}">v
     });
     const gCarSpendArr = Object.entries(byGCarSpend).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
     const gCarSpendKeys = gCarSpendArr.map(x => x.c);
-    mkChart('c_ccd_tipo_spend', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarSpendKeys, datasets: typeList.map(t => ({ label: t, data: gCarSpendArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMap[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    // Sem categoria "Mista" própria neste gráfico — RCs com Contrato e Spot na mesma RC entram em "Outros"
+    const typeListSpend = typeList.filter(t => t !== 'Mista');
+    if (!typeListSpend.includes('Outros')) typeListSpend.push('Outros');
+    const spendVal = (x, t) => t === 'Outros' ? (x.o['Outros'] || 0) + (x.o['Mista'] || 0) : (x.o[t] || 0);
+    mkChart('c_ccd_tipo_spend', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarSpendKeys, datasets: typeListSpend.map(t => ({ label: t, data: gCarSpendArr.map(x => x.tot ? Math.round(spendVal(x, t) / x.tot * 100) : 0), backgroundColor: colorMap[t] || '#7A8C97', stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
     // Carteira/Categoria por RC — só o código (G35, S12...); RC ambígua ganha rótulo próprio (não
     // se confunde com "N/D", que é falta de preenchimento) — mantido para a tabela detalhada e o
@@ -896,10 +902,10 @@ ${x.hasMatch ? `<div class="ph">Carteiras G em <b style="color:${GCAR_HILITE}">v
     const cats = Object.entries(byCat).map(([c, o]) => ({ c, o, tot: typeList.reduce((a, t) => a + (o[t] || 0), 0) })).sort((a, b) => b.tot - a.tot).slice(0, 15);
     const top8 = cats.slice(0, 8);
 
-    // Evolução semanal — Contrato, Spot e Mista com série própria; demais tipos agregados em
-    // "Outros" (c_contrevol) — por semana da Data do Pedido
+    // Evolução semanal — Contrato e Spot com série própria; Mista e demais tipos agregados em
+    // "Outros tipos" (c_contrevol) — por semana da Data do Pedido
     const bw = {};
-    base.forEach(r => { const w = isoWeek(r.dt); const o = bw[w] = bw[w] || { Contrato: 0, Spot: 0, Mista: 0, Outros: 0 }; const t = typeOf(r); if (t === 'Contrato') o.Contrato++; else if (t === 'Spot') o.Spot++; else if (t === 'Mista') o.Mista++; else o.Outros++; });
+    base.forEach(r => { const w = isoWeek(r.dt); const o = bw[w] = bw[w] || { Contrato: 0, Spot: 0, Outros: 0 }; const t = typeOf(r); if (t === 'Contrato') o.Contrato++; else if (t === 'Spot') o.Spot++; else o.Outros++; });
     const wks = Object.keys(bw).sort();
     mkChart('c_contrevol', {
         type: 'line', plugins: [crosshair], data: {
@@ -907,7 +913,6 @@ ${x.hasMatch ? `<div class="ph">Carteiras G em <b style="color:${GCAR_HILITE}">v
                 [
                     { label: 'Contrato', data: wks.map(w => bw[w].Contrato), borderColor: CCON, backgroundColor: 'rgba(0,56,101,.10)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: CCON },
                     { label: 'Spot', data: wks.map(w => bw[w].Spot), borderColor: C.steel, backgroundColor: 'rgba(90,140,174,.14)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.steel },
-                    { label: 'Mista', data: wks.map(w => bw[w].Mista), borderColor: C.amber, backgroundColor: 'rgba(217,164,0,.14)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.amber, borderDash: [2, 2] },
                     { label: 'Outros tipos', data: wks.map(w => bw[w].Outros), borderColor: '#7A8C97', backgroundColor: 'rgba(122,140,151,.10)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#7A8C97', borderDash: [4, 3] }
                 ]
         }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: c => 'Semana de ' + c[0].label, label: c => c.dataset.label + ': ' + c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 13, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } }
