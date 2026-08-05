@@ -829,13 +829,17 @@ function renderContr() {
     // fracionadas nas colunas G desse grupo, proporcional ao histórico de carteiras G da Gestão
     // à Vista (renormalizado só entre as G's do grupo, ignorando a fatia R/S) — assim a leitura
     // por carteira G cobre 100% das RCs mesmo quando o Spend só traz o Grupo Comprador.
+    // A fatia "A (raiz)" isola essa estimativa (não é Contrato/Spot/Outros confirmado no Spend,
+    // e sim resolvido pela raiz da carteira via histórico) — RCs diretas do tipo "Mista" entram
+    // em "Outros", já que aqui o Mista deixa de ser categoria própria.
     const byGCar = {};
     base.forEach(r => {
         const code = carOf(r);
-        const t = typeOf(r);
         if (rootLetter(code) === 'G') {
+            const t = typeOf(r);
+            const bucket = t === 'Contrato' ? 'Contrato' : t === 'Spot' ? 'Spot' : 'Outros';
             const o = byGCar[code] = byGCar[code] || {};
-            o[t] = (o[t] || 0) + 1;
+            o[bucket] = (o[bucket] || 0) + 1;
             return;
         }
         const dist = gcsDist[code];
@@ -845,12 +849,14 @@ function renderContr() {
         if (!gTotal) return;
         gEntries.forEach(([c, n]) => {
             const o = byGCar[c] = byGCar[c] || {};
-            o[t] = (o[t] || 0) + n / gTotal;
+            o['A (raiz)'] = (o['A (raiz)'] || 0) + n / gTotal;
         });
     });
+    const typeListG = ['Contrato', 'Spot', 'A (raiz)', 'Outros'];
+    const colorMapG = { Contrato: CCON, Spot: C.steel, 'A (raiz)': C.amber, Outros: '#7A8C97' };
     const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
     const gCarKeys = gCarArr.map(x => x.c);
-    mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeList.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMap[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
     // % Contrato × Spot por carteira G — Visão Spend (c_ccd_tipo_spend): mesma leitura acima, mas só
     // com carteiras G já identificadas diretamente no Spend (originais ou resolvidas por Pedido/RC
