@@ -811,6 +811,10 @@ function renderContr() {
     const colorMapG = { Contrato: CCON, Spot: C.steel, Outros: '#7A8C97' };
     const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
     const gCarKeys = gCarArr.map(x => x.c);
+    // largura mínima por coluna pra caber o rótulo "100%" sem sobrepor a coluna vizinha — com 40+
+    // carteiras G, coluna fixa vira ilegível, então aqui vira scroll horizontal (ver .cv-scroll)
+    const ccdTipoCv = document.getElementById('c_ccd_tipo_cv');
+    if (ccdTipoCv) ccdTipoCv.style.minWidth = Math.max(gCarKeys.length * 34, 1) + 'px';
     mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
     // % Contrato × Spot por carteira, uma coluna de gráficos por Gerência Final (c_ger_N, dinâmico).
@@ -852,13 +856,16 @@ function renderContr() {
 
     document.getElementById('gerfinal-charts').innerHTML = gerCharts.map(x => `<div class="panel" style="margin-bottom:0">
 <h3>% Contrato × Spot por carteira — ${x.g}</h3>
-<div class="cv"><canvas id="${x.cid}"></canvas></div>
+<div class="cv-scroll"><div class="cv" id="${x.cid}_cv"><canvas id="${x.cid}"></canvas></div></div>
 </div>`).join('') + (araizPanel ? `<div class="panel" style="margin-bottom:0">
 <h3>% Contrato × Spot — A (raiz), estimado</h3>
 <div class="ph">Carteira G estimada pelo histórico da Gestão à Vista para RCs ainda em Grupo Comprador "A..." (não resolvidas) — Contrato × Spot vem direto do Spend, só a coluna G é que é estimativa.</div>
-<div class="cv"><canvas id="${araizPanel.cid}"></canvas></div>
+<div class="cv-scroll"><div class="cv" id="${araizPanel.cid}_cv"><canvas id="${araizPanel.cid}"></canvas></div></div>
 </div>` : '');
     upgradeHeaders();
+    const setMinBarWidth = (cvId, nBars) => { const el = document.getElementById(cvId); if (el) el.style.minWidth = Math.max(nBars * 34, 1) + 'px'; };
+    gerCharts.forEach(x => setMinBarWidth(x.cid + '_cv', x.carKeys.length));
+    if (araizPanel) setMinBarWidth(araizPanel.cid + '_cv', araizPanel.carArr.length);
     gerCharts.forEach(x => {
         const hasOutros = x.carKeys.some(k => k.o.Outros > 0);
         const types = hasOutros ? ['Contrato', 'Spot', 'Outros'] : ['Contrato', 'Spot'];

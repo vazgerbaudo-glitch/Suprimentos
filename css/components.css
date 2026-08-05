@@ -401,6 +401,14 @@
     position: relative;
     height: 260px
 }
+.cv-scroll {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--steel) var(--card)
+}
+.cv-scroll .cv {
+    width: auto
+}
 .cv.tall {
     height: 300px
 }
