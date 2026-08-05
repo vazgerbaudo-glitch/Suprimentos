@@ -847,23 +847,28 @@ function renderContr() {
 
     // % Contrato × Spot por carteira, uma coluna de gráficos por Gerência Final (c_ger_N, dinâmico).
     // Compras Ágeis fica de fora — já tem os gráficos "por carteira G" dedicados abaixo. As demais
-    // Gerências (Rodantes, Corporativo, Terminais etc.) só mostram carteira de raiz G que também
-    // aparece em gCarKeys — a mesma lista G confirmada/estimada do gráfico "% Contrato × Spot por
-    // carteira G" acima — assim os dois gráficos ficam comparáveis.
+    // Gerências (Corporativo e Especializado, Infraestrutura, Rodantes, Terminais, NCOD etc.) usam
+    // 100% da base Spend dessa Gerência — TODAS as carteiras (qualquer raiz: G/S/R/A/N/D), sem
+    // cruzar com a Gestão à Vista (que só cobre Compras Ágeis). Carteiras de raiz G que também
+    // aparecem em gCarKeys (a mesma lista G confirmada/estimada do gráfico "% Contrato × Spot por
+    // carteira G" acima) ganham rótulo em destaque (verde-petróleo #1E9F7F, mesma cor da raiz "G"
+    // no gráfico "RCs por Código de Carteira"); todas as demais ficam na cor de texto padrão.
+    const GCAR_HILITE = '#1E9F7F';
     const gerCharts = gerArr.filter(([g]) => g !== 'Compras Ágeis').map(([g], gi) => {
         const cars = gerCarStats[g] || {};
-        const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Mista + o.Outros })).filter(k => k.tot > 0 && rootLetter(k.c) === 'G' && gCarKeys.includes(k.c)).sort((a, b) => b.tot - a.tot);
-        return { g, cid: 'c_ger_' + gi, carKeys };
+        const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Mista + o.Outros })).filter(k => k.tot > 0).sort((a, b) => b.tot - a.tot);
+        return { g, cid: 'c_ger_' + gi, carKeys, hasMatch: carKeys.some(k => gCarKeys.includes(k.c)) };
     }).filter(x => x.carKeys.length);
     document.getElementById('gerfinal-charts').innerHTML = gerCharts.map(x => `<div class="panel" style="margin-bottom:0">
 <h3>% Contrato × Spot por carteira — ${x.g}</h3>
+${x.hasMatch ? `<div class="ph">Carteiras G em <b style="color:${GCAR_HILITE}">verde-petróleo</b> também aparecem no gráfico "% Contrato × Spot por carteira G" acima; as demais são exclusivas desta Gerência.</div>` : ''}
 <div class="cv"><canvas id="${x.cid}"></canvas></div>
 </div>`).join('');
     upgradeHeaders();
     gerCharts.forEach(x => {
         const hasOutros = x.carKeys.some(k => k.o.Outros > 0);
         const types = hasOutros ? ['Contrato', 'Spot', 'Mista', 'Outros'] : ['Contrato', 'Spot', 'Mista'];
-        mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+        mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { maxRotation: 45, minRotation: 35, color: ctx => gCarKeys.includes(x.carKeys[ctx.index].c) ? GCAR_HILITE : C.ink, font: ctx => ({ size: 9, weight: gCarKeys.includes(x.carKeys[ctx.index].c) ? '700' : '400' }) } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
     });
 
     // % Contrato × Spot por carteira G — Visão Spend (c_ccd_tipo_spend): mesma leitura acima, mas só
