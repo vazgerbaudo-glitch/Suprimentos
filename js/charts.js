@@ -202,13 +202,14 @@ const refLines = vals => ({
 });
 
 // ---- rótulo % centralizado dentro de cada segmento de coluna empilhada ----
+// fonte encolhe por coluna até um piso (7px); se nem assim o texto couber na largura da barra,
+// o rótulo não é desenhado — evita vazar/sobrepor o rótulo da coluna vizinha em gráficos com muitas colunas
 const stackPctLabels = {
     id: 'stackPctLabels',
     afterDatasetsDraw(chart) {
         if (chart.options.indexAxis === 'y') return;
         const ctx = chart.ctx;
         ctx.save();
-        ctx.font = "700 11px Verdana,sans-serif";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#FFFFFF';
@@ -221,8 +222,17 @@ const stackPctLabels = {
                 if (typeof v !== 'number' || v < 8) return;
                 const el = meta.data[i];
                 if (!el) return;
+                const label = Math.round(v) + '%';
+                const maxW = (el.width || 0) - 4;
+                let fontSize = 11;
+                ctx.font = "700 " + fontSize + "px Verdana,sans-serif";
+                while (ctx.measureText(label).width > maxW && fontSize > 7) {
+                    fontSize--;
+                    ctx.font = "700 " + fontSize + "px Verdana,sans-serif";
+                }
+                if (ctx.measureText(label).width > maxW) return;
                 const cy = (el.y + el.base) / 2;
-                ctx.fillText(Math.round(v) + '%', el.x, cy);
+                ctx.fillText(label, el.x, cy);
             });
         });
         ctx.restore();
