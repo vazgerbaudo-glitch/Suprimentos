@@ -816,6 +816,45 @@ function renderContr() {
     const gCarKeys = gCarArr.map(x => x.c);
     mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
+    // % Contrato × Spot por carteira, uma coluna de gráficos por Gerência Final (c_ger_N, dinâmico).
+    // Rollup por RC direto do Spend (Car + Contrato/Spot do próprio RC — RC com item de Contrato E
+    // Spot cai em Outros, sem categoria "Mista" própria neste gráfico), sem cruzar com a Gestão à
+    // Vista — só Compras Ágeis tem essa base para resolver códigos "A..."; as demais Gerências usam
+    // a carteira do Spend como está. Só mostra as carteiras G da lista pedida pelo time (ALLOWED_G_GER)
+    // — provisório, cor/leiaute ainda a ajustar.
+    const carBase = CARTEIRAS.filter(ln => ln.dt && ln.dt >= DATA_INI_AGING && periodHit(ln.dt) && tpHit(ln));
+    const gerSet = {};
+    carBase.forEach(ln => { (gerSet[ln.gerFinal] = gerSet[ln.gerFinal] || new Set()).add(ln.rcNorm); });
+    const gerList = Object.entries(gerSet).filter(([g]) => g !== 'Compras Ágeis').map(([g, set]) => [g, set.size]).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+    const byRCAll = {};
+    carBase.forEach(ln => { if (!ln.rcNorm) return; (byRCAll[ln.rcNorm] = byRCAll[ln.rcNorm] || []).push(ln); });
+    const gerCarStats = {};
+    Object.values(byRCAll).forEach(lines => {
+        const hasCon = lines.some(l => l.td === 'Contrato'), hasSpo = lines.some(l => l.td === 'Spot');
+        const td = hasCon && hasSpo ? 'Outros' : hasCon ? 'Contrato' : hasSpo ? 'Spot' : 'Outros';
+        const g = mode(lines.map(l => l.gerFinal)) || 'N/D', car = mode(lines.map(l => l.car)) || 'N/D';
+        const gg = gerCarStats[g] = gerCarStats[g] || {};
+        const o = gg[car] = gg[car] || { Contrato: 0, Spot: 0, Outros: 0 };
+        o[td]++;
+    });
+    const ALLOWED_G_GER = ['G01', 'G02', 'G03', 'G04', 'G05', 'G06', 'G07', 'G08', 'G11', 'G12', 'G13', 'G15', 'G16', 'G17', 'G18', 'G19', 'G20', 'G21', 'G22', 'G23', 'G24', 'G25', 'G26', 'G27', 'G28', 'G29', 'G30', 'G31', 'G32', 'G33', 'G34', 'G35', 'G36', 'G37', 'G40', 'G41', 'G57', 'G66', 'G85', 'G86', 'G88', 'G89', 'G91', 'G92', 'G94'];
+    const GER_TYPE_COLORS = { Contrato: '#0F6B4C', Spot: '#8FD9BE', Outros: '#7A8C97' };
+    const gerCharts = gerList.map((g, gi) => {
+        const cars = gerCarStats[g] || {};
+        const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Outros })).filter(k => k.tot > 0 && ALLOWED_G_GER.includes(k.c)).sort((a, b) => b.tot - a.tot);
+        return { g, cid: 'c_ger_' + gi, carKeys };
+    }).filter(x => x.carKeys.length);
+    document.getElementById('gerfinal-charts').innerHTML = gerCharts.map(x => `<div class="panel" style="margin-bottom:0">
+<h3>% Contrato × Spot por carteira — ${x.g}</h3>
+<div class="cv"><canvas id="${x.cid}"></canvas></div>
+</div>`).join('');
+    upgradeHeaders();
+    gerCharts.forEach(x => {
+        const hasOutros = x.carKeys.some(k => k.o.Outros > 0);
+        const types = hasOutros ? ['Contrato', 'Spot', 'Outros'] : ['Contrato', 'Spot'];
+        mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    });
+
     // Carteira/Categoria por RC — só o código (G35, S12...); RC ambígua ganha rótulo próprio (não
     // se confunde com "N/D", que é falta de preenchimento) — mantido para a tabela detalhada e o
     // resumo usado na apresentação (os gráficos por carteira específica foram removidos)
