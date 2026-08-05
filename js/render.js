@@ -585,36 +585,6 @@ function renderContr() {
         return;
     }
 
-    // RCs por Gerência Final (Compras Ágeis, Rodantes, Corporativo, Terminais etc.) — c_gerfinal.
-    // Usa a base bruta do Spend (todas as gerências, sem cruzar com a Gestão à Vista, que só cobre
-    // Compras Ágeis) — só volume de RCs por gerência, respeitando Período/Tipo do painel lateral
-    // (mesmo recorte de data usado pelo resto da aba: Data do Pedido, desde jan/2026).
-    const carBase = CARTEIRAS.filter(ln => ln.dt && ln.dt >= DATA_INI_AGING && periodHit(ln.dt) && tpHit(ln));
-    const gerRCs = {};
-    carBase.forEach(ln => { (gerRCs[ln.gerFinal] = gerRCs[ln.gerFinal] || new Set()).add(ln.rcNorm); });
-    const gerArr = Object.entries(gerRCs).map(([g, set]) => [g, set.size]).sort((a, b) => b[1] - a[1]);
-    mkChart('c_gerfinal', { type: 'bar', data: { labels: gerArr.map(x => x[0]), datasets: [{ data: gerArr.map(x => x[1]), backgroundColor: gerArr.map(x => x[0] === 'Compras Ágeis' ? CCON : C.steel), borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: { ...noG, ticks: { font: { size: 9 } } }, y: { ...soG, beginAtZero: true } } } });
-
-    // % Contrato × Spot por carteira, uma coluna de gráficos por Gerência Final (c_ger_N, dinâmico).
-    // Rollup por RC direto do Spend (Car + Contrato/Spot do próprio RC — RC com item de Contrato E
-    // Spot cai em Outros, sem categoria "Mista" própria neste gráfico), sem cruzar com a Gestão à
-    // Vista — só Compras Ágeis tem essa base para resolver códigos "A..."; as demais Gerências usam
-    // a carteira do Spend como está.
-    const byRCAll = {};
-    carBase.forEach(ln => { if (!ln.rcNorm) return; (byRCAll[ln.rcNorm] = byRCAll[ln.rcNorm] || []).push(ln); });
-    const gerCarStats = {};
-    Object.values(byRCAll).forEach(lines => {
-        const hasCon = lines.some(l => l.td === 'Contrato'), hasSpo = lines.some(l => l.td === 'Spot');
-        const td = hasCon && hasSpo ? 'Outros' : hasCon ? 'Contrato' : hasSpo ? 'Spot' : 'Outros';
-        const g = mode(lines.map(l => l.gerFinal)) || 'N/D', car = mode(lines.map(l => l.car)) || 'N/D';
-        const gg = gerCarStats[g] = gerCarStats[g] || {};
-        const o = gg[car] = gg[car] || { Contrato: 0, Spot: 0, Outros: 0 };
-        o[td]++;
-    });
-    const GER_TYPE_COLORS = { Contrato: CCON, Spot: C.steel, Outros: '#7A8C97' };
-    // Renderizado mais abaixo, depois de gCarKeys (a lista de carteiras G confirmadas/estimadas de
-    // Compras Ágeis) estar pronta — as demais Gerências só mostram carteira G que bate com essa lista.
-
     // A partir daqui, só Compras Ágeis — é a única Gerência com Gestão à Vista para cruzar/validar carteira
     const cartAgeis = CARTEIRAS.filter(ln => ln.gerFinalNorm === GERENCIA_ALVO);
 
@@ -845,33 +815,6 @@ function renderContr() {
     const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
     const gCarKeys = gCarArr.map(x => x.c);
     mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
-
-    // % Contrato × Spot por carteira, uma coluna de gráficos por Gerência Final (c_ger_N, dinâmico).
-    // Compras Ágeis fica de fora — já tem os gráficos "por carteira G" dedicados abaixo. As demais
-    // Gerências (Corporativo e Especializado, Infraestrutura, Rodantes, Terminais, NCOD etc.) só
-    // mostram carteira de raiz G — filtro aplicado direto sobre o código da carteira do próprio
-    // Spend (rootLetter), sem depender de gCarKeys (lista G confirmada/estimada de Compras Ágeis,
-    // que cruza com a Gestão à Vista) — aqui só importa o G que aparece no Spend dessa Gerência.
-    // gCarKeys entra só para destacar em verde-petróleo (#1E9F7F, mesma cor da raiz "G" no gráfico
-    // "RCs por Código de Carteira") as carteiras G que também aparecem no gráfico principal "%
-    // Contrato × Spot por carteira G" acima — não filtra quais colunas aparecem.
-    const GCAR_HILITE = '#1E9F7F';
-    const gerCharts = gerArr.filter(([g]) => g !== 'Compras Ágeis').map(([g], gi) => {
-        const cars = gerCarStats[g] || {};
-        const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Outros })).filter(k => k.tot > 0 && rootLetter(k.c) === 'G').sort((a, b) => b.tot - a.tot);
-        return { g, cid: 'c_ger_' + gi, carKeys, hasMatch: carKeys.some(k => gCarKeys.includes(k.c)) };
-    }).filter(x => x.carKeys.length);
-    document.getElementById('gerfinal-charts').innerHTML = gerCharts.map(x => `<div class="panel" style="margin-bottom:0">
-<h3>% Contrato × Spot por carteira — ${x.g}</h3>
-${x.hasMatch ? `<div class="ph">Carteiras G em <b style="color:${GCAR_HILITE}">verde-petróleo</b> também aparecem no gráfico "% Contrato × Spot por carteira G" acima; as demais são exclusivas desta Gerência.</div>` : ''}
-<div class="cv"><canvas id="${x.cid}"></canvas></div>
-</div>`).join('');
-    upgradeHeaders();
-    gerCharts.forEach(x => {
-        const hasOutros = x.carKeys.some(k => k.o.Outros > 0);
-        const types = hasOutros ? ['Contrato', 'Spot', 'Outros'] : ['Contrato', 'Spot'];
-        mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { maxRotation: 45, minRotation: 35, color: ctx => gCarKeys.includes(x.carKeys[ctx.index].c) ? GCAR_HILITE : C.ink, font: ctx => ({ size: 9, weight: gCarKeys.includes(x.carKeys[ctx.index].c) ? '700' : '400' }) } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
-    });
 
     // % Contrato × Spot por carteira G — Visão Spend (c_ccd_tipo_spend): mesma leitura acima, mas só
     // com carteiras G já identificadas diretamente no Spend (originais ou resolvidas por Pedido/RC
