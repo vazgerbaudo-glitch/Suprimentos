@@ -816,26 +816,6 @@ function renderContr() {
     const gCarKeys = gCarArr.map(x => x.c);
     mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
-    // % Contrato × Spot por carteira G — Visão Spend (c_ccd_tipo_spend): mesma leitura acima, mas só
-    // com carteiras G já identificadas diretamente no Spend (originais ou resolvidas por Pedido/RC
-    // única) — sem a fração estimada a partir do histórico da Gestão à Vista para códigos "A..." ainda
-    // não resolvidos, então aqui só entram RCs com carteira G confirmada.
-    const byGCarSpend = {};
-    base.forEach(r => {
-        const code = carOf(r);
-        if (rootLetter(code) !== 'G') return;
-        const t = typeOf(r);
-        const o = byGCarSpend[code] = byGCarSpend[code] || {};
-        o[t] = (o[t] || 0) + 1;
-    });
-    const gCarSpendArr = Object.entries(byGCarSpend).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
-    const gCarSpendKeys = gCarSpendArr.map(x => x.c);
-    // Sem categoria "Mista" própria neste gráfico — RCs com Contrato e Spot na mesma RC entram em "Outros"
-    const typeListSpend = typeList.filter(t => t !== 'Mista');
-    if (!typeListSpend.includes('Outros')) typeListSpend.push('Outros');
-    const spendVal = (x, t) => t === 'Outros' ? (x.o['Outros'] || 0) + (x.o['Mista'] || 0) : (x.o[t] || 0);
-    mkChart('c_ccd_tipo_spend', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarSpendKeys, datasets: typeListSpend.map(t => ({ label: t, data: gCarSpendArr.map(x => x.tot ? Math.round(spendVal(x, t) / x.tot * 100) : 0), backgroundColor: colorMap[t] || '#7A8C97', stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
-
     // Carteira/Categoria por RC — só o código (G35, S12...); RC ambígua ganha rótulo próprio (não
     // se confunde com "N/D", que é falta de preenchimento) — mantido para a tabela detalhada e o
     // resumo usado na apresentação (os gráficos por carteira específica foram removidos)
