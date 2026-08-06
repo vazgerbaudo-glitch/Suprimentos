@@ -215,12 +215,14 @@ function fromCSV(txt) {
 
 // ===== Base de Carteiras / Spend (CSV auxiliar) — fonte principal da aba Contratualização =====
 // Uma linha por linha do Spend. O campo "Item" aqui é o ITEM DO PEDIDO — nunca o "Item RC" da
-// Gestão à Vista; por isso a aba nunca casa as duas bases por RC+Item, só por Pedido ou por RC
+// Gestão à Vista; por isso a aba nunca casa as duas bases por RC+Item, só por Pedido, Contrato
+// básico ou RC — os dois primeiros contra a mesma coluna "Contrato SAP/ Pedido" da Gestão à Vista
 // (ver normPed/normRC/splitPedidos e a resolução em renderContr, js/render.js).
 const MAP_CART = {
     'requisicaodecompra': 'rc', 'rc': 'rc',
     'item': 'it',
     'pedido': 'pedido',
+    'contratobasico': 'cb',
     'car': 'car',
     'carteiranome': 'nome',
     'materialxservico': 'ms', 'materialservico': 'ms',
@@ -252,6 +254,7 @@ function fromCarteirasCSV(txt) {
         const car = ('' + (o.car || '')).trim().toUpperCase();
         const nome = ('' + (o.nome || '')).trim();
         const pedido = ('' + (o.pedido || '')).trim();
+        const cb = ('' + (o.cb || '')).trim();
         const msRaw = ('' + (o.ms || '')).trim().toLowerCase();
         const ms = msRaw.indexOf('mat') > -1 ? 'Material' : msRaw.indexOf('serv') > -1 ? 'Serviço' : '';
         const tdRaw = ('' + (o.td || '')).trim(), tdLow = tdRaw.toLowerCase();
@@ -259,6 +262,7 @@ function fromCarteirasCSV(txt) {
         const gerFinal = hasGerCol ? (('' + (o.gerFinal || '')).trim() || 'N/D') : 'Compras Ágeis';
         rows.push({
             rc, rcNorm: normRC(rc), it, car, nome, pedido, pedidoNorm: normPed(pedido),
+            cb, cbNorm: normPed(cb),
             ms, td, tdRaw, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim(),
             gerFinal, gerFinalNorm: nrm(gerFinal)
         });

@@ -612,13 +612,17 @@ function renderContr() {
         return { unique: ccds.length === 1, ccd: ccds.length === 1 ? ccds[0] : null, tp: mode(arr.map(x => x.tp)), cp: mode(arr.map(x => x.cp)) };
     };
     // Ordem de resolução: 1) Pedido — só aceito quando TODAS as ocorrências apontam para a mesma
-    // Carteira/Categoria; 2) RC — só entra quando o Pedido não resolveu com segurança, e só é
-    // aceito quando TODAS as linhas dessa RC na Gestão à Vista apontam para a mesma carteira.
-    // Nunca escolhe a primeira ocorrência num conflito.
-    function resolveCarteira(pedidoNorm, rcNorm) {
+    // Carteira/Categoria; 2) Contrato básico — mesma regra, casado contra a mesma coluna "Contrato
+    // SAP/ Pedido" da Gestão à Vista (gvByPed), usado quando o Pedido não resolveu sozinho; 3) RC —
+    // só entra quando nem Pedido nem Contrato básico resolveram com segurança, e só é aceito quando
+    // TODAS as linhas dessa RC na Gestão à Vista apontam para a mesma carteira. Nunca escolhe a
+    // primeira ocorrência num conflito.
+    function resolveCarteira(pedidoNorm, cbNorm, rcNorm) {
         const pedSum = summarize(gvByPed.get(pedidoNorm));
-        if (pedSum) {
-            if (pedSum.unique) return { ...pedSum, method: 'Pedido', outcome: 'pedido_unique' };
+        if (pedSum && pedSum.unique) return { ...pedSum, method: 'Pedido', outcome: 'pedido_unique' };
+        const cbSum = cbNorm && cbNorm !== pedidoNorm ? summarize(gvByPed.get(cbNorm)) : null;
+        if (cbSum && cbSum.unique) return { ...cbSum, method: 'Contrato básico', outcome: 'pedido_unique' };
+        if (pedSum || cbSum) {
             const rcSum = summarize(gvByRC.get(rcNorm));
             if (rcSum && rcSum.unique) return { ...rcSum, method: 'RC única', outcome: 'rc_unique' };
             return { ccd: null, tp: null, cp: null, method: 'Original', outcome: 'pedido_conflict' };
@@ -642,12 +646,12 @@ function renderContr() {
     };
 
     // ===== Reclassificação de Car por linha do Spend =====
-    // "A..." (Grupo Comprador, não classificado): tenta resolver por Pedido, depois por RC única;
-    // sem resolução seguro mantém o código "A..." original. "G/S/R": nunca reclassifica — a
-    // Gestão à Vista só valida (marca "Divergente" quando os códigos não batem).
+    // "A..." (Grupo Comprador, não classificado): tenta resolver por Pedido, depois por Contrato
+    // básico, depois por RC única; sem resolução segura mantém o código "A..." original. "G/S/R":
+    // nunca reclassifica — a Gestão à Vista só valida (marca "Divergente" quando os códigos não batem).
     const resolvedLines = cartAgeis.map(ln => {
         const root = rootLetter(ln.car);
-        const res = resolveCarteira(ln.pedidoNorm, ln.rcNorm);
+        const res = resolveCarteira(ln.pedidoNorm, ln.cbNorm, ln.rcNorm);
         let carFinal, statusCarteira;
         if (root === 'A') {
             if (res.outcome === 'pedido_unique') { carFinal = res.ccd; statusCarteira = 'Resolvido por Pedido'; }
