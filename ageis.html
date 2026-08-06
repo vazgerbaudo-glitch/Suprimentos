@@ -532,9 +532,9 @@
                 <table id="t_contr"><thead></thead><tbody></tbody></table>
             </div>
             <div class="panel">
-                <h3>Carteiras prováveis por Grupo Comprador (Sistema)</h3>
-                <div class="ph">Só informativo — para códigos "A..." (Grupo Comprador, sem Carteira/Categoria resolvida), mostra quais carteiras G/R/S esse grupo mais usa no histórico da Gestão à Vista, para apontar onde focar a contratualização. Não altera a classificação nos gráficos/KPIs.</div>
-                <table id="t_gcs"><thead><tr><th>Grupo Comprador</th><th class="num">RCs pendentes</th><th>Carteiras prováveis (histórico Gestão à Vista)</th></tr></thead><tbody></tbody></table>
+                <h3>RCs pendentes por Grupo Comprador (Sistema)</h3>
+                <div class="ph">Só informativo — RCs cujo código do Spend ainda é "A..." (não resolvido por Pedido, Contrato básico nem RC única), uma linha por RC, para conferência manual. Comprador Responsável (Real) vem da Gestão à Vista quando encontrado. Não altera a classificação nos gráficos/KPIs.</div>
+                <table id="t_gcs"><thead><tr><th>A</th><th>Comprador Responsável (Real)</th><th>RC</th><th>Pedido</th><th>Contrato</th></tr></thead><tbody></tbody></table>
             </div>
             <div class="insight" id="ins-contr"></div>
         </section>
@@ -547,7 +547,7 @@
     <script src="js/state.js?v=20260803"></script>
     <script src="js/data.js?v=20260806"></script>
     <script src="js/charts.js?v=20260724b"></script>
-    <script src="js/render.js?v=20260806c"></script>
+    <script src="js/render.js?v=20260806d"></script>
     <script src="js/filters.js?v=20260730"></script>
     <script src="js/slides.js?v=20260730"></script>
     <script src="js/pendencias.js?v=20260729d"></script>

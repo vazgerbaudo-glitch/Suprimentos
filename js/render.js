@@ -672,6 +672,14 @@ function renderContr() {
         return { ...ln, root, carFinal, statusCarteira, statusTipo: tipoStatus(ln.td, res), carEncontrado: res.ccd || '', compradorEncontrado: res.cp || '', metodoConexao: res.method };
     });
 
+    // Comprador Responsável (Real) na Gestão à Vista para uma linha do Spend — mesma prioridade de
+    // busca da carteira (Pedido > Contrato básico > RC), mas não exige carteira única: o comprador
+    // é só uma referência p/ conferência manual das RCs ainda "A..." (ver tabela de pendências abaixo).
+    const compradorFor = ln => {
+        const arr = gvByPed.get(ln.pedidoNorm) || (ln.cbNorm && ln.cbNorm !== ln.pedidoNorm && gvByPed.get(ln.cbNorm)) || gvByRC.get(ln.rcNorm);
+        return arr ? mode(arr.map(x => x.cp)) : null;
+    };
+
     // ===== Rollup por RC — consolida as linhas do Spend sem duplicar contagens/valores =====
     const byRC = {};
     resolvedLines.forEach(ln => { if (!ln.rcNorm) return; (byRC[ln.rcNorm] = byRC[ln.rcNorm] || []).push(ln); });
@@ -687,8 +695,11 @@ function renderContr() {
         const td = hasCon && hasSpo ? 'Mista' : hasCon ? 'Contrato' : hasSpo ? 'Spot' : (mode(lines.map(l => l.td)) || 'N/D');
         let dt = null;
         lines.forEach(l => { if (l.dt && (!dt || l.dt < dt)) dt = l.dt; });
+        const pedido = [...new Set(lines.map(l => l.pedido).filter(Boolean))].join(', ');
+        const cb = [...new Set(lines.map(l => l.cb).filter(Boolean))].join(', ');
+        const comprador = mode(lines.map(compradorFor).filter(Boolean)) || '';
         return {
-            rc: lines[0].rc, rcNorm, car, rcAmbigua, td, dt, it: lines.length,
+            rc: lines[0].rc, rcNorm, car, rcAmbigua, td, dt, it: lines.length, pedido, cb, comprador,
             matN: lines.reduce((a, l) => a + (l.ms === 'Material' ? 1 : 0), 0),
             servN: lines.reduce((a, l) => a + (l.ms === 'Serviço' ? 1 : 0), 0),
             semCarteira: !rcAmbigua && !car,
@@ -919,22 +930,15 @@ function renderContr() {
     document.querySelector('#t_contr thead').innerHTML = `<tr><th>Carteira/Categoria</th>${typeList.map(t => `<th class="num">${t}</th>`).join('')}<th class="num">Total</th><th class="num">% Contrato</th></tr>`;
     document.querySelector('#t_contr tbody').innerHTML = catsBySpot.map(x => `<tr><td>${x.c}</td>${typeList.map(t => `<td class="num">${x.o[t] || 0}</td>`).join('')}<td class="num">${x.tot}</td><td class="num">${x.tot ? Math.round((x.o['Contrato'] || 0) / x.tot * 100) : 0}%</td></tr>`).join('') || `<tr><td colspan="${typeList.length + 3}" style="color:#46606F">Nenhuma RC no recorte.</td></tr>`;
 
-    // Carteiras prováveis por Grupo Comprador (Sistema) — só informativo, não reclassifica nada.
-    // Quando o código do Spend ainda é "A..." (Grupo Comprador não resolvido por Pedido nem por RC
-    // única), mostra quais carteiras G/R/S esse mesmo Grupo Comprador mais usa em todo o histórico
-    // da Gestão à Vista, pra apontar onde focar a contratualização. Estimativa apenas analítica —
-    // nunca é apresentada como classificação confirmada. (gcsDist já calculado no topo da função.)
-    const gcsRows = Object.entries(byCat)
-        .filter(([c]) => c !== 'Ambígua' && rootLetter(c) !== 'G' && rootLetter(c) !== 'S' && rootLetter(c) !== 'R' && gcsDist[c])
-        .map(([c, o]) => {
-            const tot = typeList.reduce((a, t) => a + (o[t] || 0), 0);
-            const dist = Object.entries(gcsDist[c]).sort((a, b) => b[1] - a[1]);
-            const distTot = dist.reduce((a, [, n]) => a + n, 0);
-            return { c, tot, dist: dist.map(([car, n]) => ({ car, pct: Math.round(n / distTot * 100) })) };
-        })
-        .sort((a, b) => b.tot - a.tot);
+    // RCs pendentes de resolução (código do Spend ainda "A...", não resolvido por Pedido, Contrato
+    // básico nem RC única) — listagem individual pra conferência manual: Grupo Comprador (Sistema),
+    // Comprador Responsável (Real) na Gestão à Vista (quando encontrado), RC, Pedido, Contrato básico.
+    const pendA = base
+        .filter(r => rootLetter(carOf(r)) === 'A')
+        .map(r => ({ a: carOf(r), comprador: r.comprador || '', rc: r.rc, pedido: r.pedido || '', cb: r.cb || '' }))
+        .sort((a, b) => a.a.localeCompare(b.a) || ('' + a.rc).localeCompare('' + b.rc));
     const t_gcs = document.querySelector('#t_gcs tbody');
-    if (t_gcs) t_gcs.innerHTML = gcsRows.map(x => `<tr><td>${x.c}</td><td class="num">${x.tot}</td><td>${x.dist.map(d => `${d.car} (${d.pct}% histórico — estimativa)`).join(', ')}</td></tr>`).join('') || `<tr><td colspan="3" style="color:#46606F">Nenhum Grupo Comprador pendente com histórico de carteira na Gestão à Vista.</td></tr>`;
+    if (t_gcs) t_gcs.innerHTML = pendA.map(x => `<tr><td>${x.a}</td><td>${x.comprador}</td><td>${x.rc}</td><td>${x.pedido}</td><td>${x.cb}</td></tr>`).join('') || `<tr><td colspan="5" style="color:#46606F">Nenhuma RC pendente de resolução no recorte.</td></tr>`;
 
     // Leitura (texto de insight) — alerta sobre os pontos de qualidade de dado exigidos: código "A"
     // não resolvido, carteira divergente, Pedido conflitante, RC ambígua e registros N/D
