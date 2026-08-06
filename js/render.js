@@ -672,14 +672,6 @@ function renderContr() {
         return { ...ln, root, carFinal, statusCarteira, statusTipo: tipoStatus(ln.td, res), carEncontrado: res.ccd || '', compradorEncontrado: res.cp || '', metodoConexao: res.method };
     });
 
-    // Comprador Responsável (Real) na Gestão à Vista para uma linha do Spend — mesma prioridade de
-    // busca da carteira (Pedido > Contrato básico > RC), mas não exige carteira única: o comprador
-    // é só uma referência p/ conferência manual das RCs ainda "A..." (ver tabela de pendências abaixo).
-    const compradorFor = ln => {
-        const arr = gvByPed.get(ln.pedidoNorm) || (ln.cbNorm && ln.cbNorm !== ln.pedidoNorm && gvByPed.get(ln.cbNorm)) || gvByRC.get(ln.rcNorm);
-        return arr ? mode(arr.map(x => x.cp)) : null;
-    };
-
     // ===== Rollup por RC — consolida as linhas do Spend sem duplicar contagens/valores =====
     const byRC = {};
     resolvedLines.forEach(ln => { if (!ln.rcNorm) return; (byRC[ln.rcNorm] = byRC[ln.rcNorm] || []).push(ln); });
@@ -697,9 +689,8 @@ function renderContr() {
         lines.forEach(l => { if (l.dt && (!dt || l.dt < dt)) dt = l.dt; });
         const pedido = [...new Set(lines.map(l => l.pedido).filter(Boolean))].join(', ');
         const cb = [...new Set(lines.map(l => l.cb).filter(Boolean))].join(', ');
-        const comprador = mode(lines.map(compradorFor).filter(Boolean)) || '';
         return {
-            rc: lines[0].rc, rcNorm, car, rcAmbigua, td, dt, it: lines.length, pedido, cb, comprador,
+            rc: lines[0].rc, rcNorm, car, rcAmbigua, td, dt, it: lines.length, pedido, cb,
             matN: lines.reduce((a, l) => a + (l.ms === 'Material' ? 1 : 0), 0),
             servN: lines.reduce((a, l) => a + (l.ms === 'Serviço' ? 1 : 0), 0),
             semCarteira: !rcAmbigua && !car,
@@ -932,13 +923,13 @@ function renderContr() {
 
     // RCs pendentes de resolução (código do Spend ainda "A...", não resolvido por Pedido, Contrato
     // básico nem RC única) — listagem individual pra conferência manual: Grupo Comprador (Sistema),
-    // Comprador Responsável (Real) na Gestão à Vista (quando encontrado), RC, Pedido, Contrato básico.
+    // RC, Pedido, Contrato básico.
     const pendA = base
         .filter(r => rootLetter(carOf(r)) === 'A')
-        .map(r => ({ a: carOf(r), comprador: r.comprador || '', rc: r.rc, pedido: r.pedido || '', cb: r.cb || '' }))
+        .map(r => ({ a: carOf(r), rc: r.rc, pedido: r.pedido || '', cb: r.cb || '' }))
         .sort((a, b) => a.a.localeCompare(b.a) || ('' + a.rc).localeCompare('' + b.rc));
     const t_gcs = document.querySelector('#t_gcs tbody');
-    if (t_gcs) t_gcs.innerHTML = pendA.map(x => `<tr><td>${x.a}</td><td>${x.comprador}</td><td>${x.rc}</td><td>${x.pedido}</td><td>${x.cb}</td></tr>`).join('') || `<tr><td colspan="5" style="color:#46606F">Nenhuma RC pendente de resolução no recorte.</td></tr>`;
+    if (t_gcs) t_gcs.innerHTML = pendA.map(x => `<tr><td>${x.a}</td><td>${x.rc}</td><td>${x.pedido}</td><td>${x.cb}</td></tr>`).join('') || `<tr><td colspan="4" style="color:#46606F">Nenhuma RC pendente de resolução no recorte.</td></tr>`;
 
     // Leitura (texto de insight) — alerta sobre os pontos de qualidade de dado exigidos: código "A"
     // não resolvido, carteira divergente, Pedido conflitante, RC ambígua e registros N/D
