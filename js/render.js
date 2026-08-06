@@ -813,7 +813,11 @@ function renderContr() {
     });
     const typeListG = ['Contrato', 'Spot', 'Outros'];
     const colorMapG = { Contrato: CCON, Spot: C.steel, Outros: '#7A8C97' };
-    const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
+    const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => {
+        const na = parseInt(a.c.slice(1), 10), nb = parseInt(b.c.slice(1), 10);
+        if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+        return a.c.localeCompare(b.c);
+    });
     const gCarKeys = gCarArr.map(x => x.c);
     // largura mínima por coluna pra caber o rótulo "100%" sem sobrepor a coluna vizinha — com 40+
     // carteiras G, coluna fixa vira ilegível, então aqui vira scroll horizontal (ver .cv-scroll)
