@@ -724,7 +724,6 @@ function renderContr() {
     const pctCon = base.length ? nCon / base.length * 100 : 0, pctSpo = base.length ? nSpo / base.length * 100 : 0;
 
     const matSum = base.reduce((a, r) => a + r.matN, 0), servSum = base.reduce((a, r) => a + r.servN, 0), totMS = matSum + servSum;
-    const semCarCount = base.filter(r => r.semCarteira).length;
     const divergCount = base.filter(r => r.anyDivergente).length;
     const aResolvidoCount = base.filter(r => r.anyAResolved).length;
     const aNaoResolvidoCount = base.filter(r => r.anyANaoResolvido).length;
@@ -736,13 +735,8 @@ function renderContr() {
         { l: 'RCs Spot', v: nSpo.toLocaleString('pt-BR'), n: pctSpo.toFixed(0) + '% do recorte' },
         { l: 'Material', v: totMS ? Math.round(matSum / totMS * 100) + '%' : '—', n: matSum.toLocaleString('pt-BR') + ' itens' },
         { l: 'Serviço', v: totMS ? Math.round(servSum / totMS * 100) + '%' : '—', n: servSum.toLocaleString('pt-BR') + ' itens' },
-        { l: 'RCs Mista (Contrato + Spot)', v: nMista.toLocaleString('pt-BR'), c: nMista > 0 ? 'warn' : 'good', n: 'Itens de Contrato e de Spot na mesma RC' },
-        { l: 'Sem carteira preenchida', v: semCarCount.toLocaleString('pt-BR') + ' RCs', c: semCarCount > 0 ? 'warn' : 'good', n: base.length ? Math.round(semCarCount / base.length * 100) + '% do recorte' : '—' },
-        { l: 'Carteira divergente (Spend × Gestão à Vista)', v: divergCount.toLocaleString('pt-BR') + ' RCs', c: divergCount > 0 ? 'warn' : 'good', n: 'G/S/R original ≠ carteira encontrada' },
         { l: 'Códigos "A" resolvidos', v: aResolvidoCount.toLocaleString('pt-BR') + ' RCs', c: 'good', n: 'Por Pedido ou por RC única' },
-        { l: 'Códigos "A" não resolvidos', v: aNaoResolvidoCount.toLocaleString('pt-BR') + ' RCs', c: aNaoResolvidoCount > 0 ? 'warn' : 'good', n: 'Sem correspondência segura na Gestão à Vista' },
-        { l: 'Pedidos conflitantes', v: pedidoConflitanteCount.toLocaleString('pt-BR') + ' RCs', c: pedidoConflitanteCount > 0 ? 'warn' : 'good', n: 'Mesmo Pedido aponta para carteiras diferentes' },
-        { l: 'RCs ambíguas', v: rcAmbiguaCount.toLocaleString('pt-BR'), c: rcAmbiguaCount > 0 ? 'warn' : 'good', n: 'Itens da própria RC apontam para carteiras diferentes' }
+        { l: 'Códigos "A" não resolvidos', v: aNaoResolvidoCount.toLocaleString('pt-BR') + ' RCs', c: aNaoResolvidoCount > 0 ? 'warn' : 'good', n: 'Sem correspondência segura na Gestão à Vista' }
     ];
 
     document.getElementById('kpi-contr').classList.remove('k3');
