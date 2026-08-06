@@ -786,17 +786,19 @@ function renderContr() {
     const cdCOL = k => k === 'G' ? '#1E9F7F' : k === 'S' ? '#0E538C' : k === 'R' ? '#D9A400' : k === 'A' ? C.red : k === 'AMB' ? '#8C1419' : k === 'N/D' ? '#9AACB5' : C.red;
     mkChart('c_ccd', { type: 'bar', data: { labels: cdKeys.map(cdLabel), datasets: [{ data: cdKeys.map(k => byCd[k]), backgroundColor: cdKeys.map(cdCOL), borderRadius: 18 }] }, options: { maintainAspectRatio: false, layout: { padding: { top: 16 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
-    // % Contrato × Spot por carteira G — 100% empilhado, uma coluna por carteira G específica (c_ccd_tipo)
-    // Só RCs com carteira G já confirmada no Spend — os "A..." (Grupo Comprador, sem Carteira/Categoria
-    // resolvida) saíram daqui e viraram o gráfico separado "A (raiz)" (c_ccd_tipo_araiz, amarelo),
-    // fracionados por G via histórico da Gestão à Vista.
+    // % Contrato × Spot por carteira G/R/S — 100% empilhado, uma coluna por carteira específica
+    // (c_ccd_tipo), ordem G > R > S e numérica dentro de cada letra (ver sort de gCarArr abaixo).
+    // Só RCs com carteira G/R/S já confirmada no Spend — os "A..." (Grupo Comprador, sem
+    // Carteira/Categoria resolvida) saíram daqui e viraram o gráfico separado "A (raiz)"
+    // (c_ccd_tipo_araiz, amarelo), fracionados por G via histórico da Gestão à Vista.
+    const ROOT_PRIO = { G: 0, R: 1, S: 2 };
     const byGCar = {};
     const byGCarA = {};
     base.forEach(r => {
         const code = carOf(r);
         const t = typeOf(r);
         const bucket = t === 'Contrato' ? 'Contrato' : t === 'Spot' ? 'Spot' : 'Outros';
-        if (rootLetter(code) === 'G') {
+        if (ROOT_PRIO[rootLetter(code)] !== undefined) {
             const o = byGCar[code] = byGCar[code] || {};
             o[bucket] = (o[bucket] || 0) + 1;
             return;
@@ -814,6 +816,8 @@ function renderContr() {
     const typeListG = ['Contrato', 'Spot', 'Outros'];
     const colorMapG = { Contrato: CCON, Spot: C.steel, Outros: '#7A8C97' };
     const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => {
+        const ra = ROOT_PRIO[rootLetter(a.c)], rb = ROOT_PRIO[rootLetter(b.c)];
+        if (ra !== rb) return ra - rb;
         const na = parseInt(a.c.slice(1), 10), nb = parseInt(b.c.slice(1), 10);
         if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
         return a.c.localeCompare(b.c);
