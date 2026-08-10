@@ -96,8 +96,8 @@ function renderProd() {
     const byW = {};
     base.forEach(r => {
         const w = isoWeek(r.dc);
-        const o = (byW[w] = byW[w] || { ipd: 0, ipc: 0, bs: new Set(), cap: 0, duM: new Map(), faM: new Map() });
-        o.ipd += r.ipd; o.ipc += r.ipc; o.bs.add(r.cp);
+        const o = (byW[w] = byW[w] || { n: 0, ipd: 0, ipc: 0, ipcN: 0, bs: new Set(), cap: 0, duM: new Map(), faM: new Map() });
+        o.n++; o.ipd += r.ipd; o.ipc += r.ipc; if (r.ipc > 0) o.ipcN++; o.bs.add(r.cp);
         const capMeta = CAP[r.cl];
         if (capMeta > 0) o.cap += 1 / capMeta;
         if (r.du > 0) o.duM.set(r.du, (o.duM.get(r.du) || 0) + 1);
@@ -108,7 +108,12 @@ function renderProd() {
     const wv = weeks.map(w => {
         const o = byW[w];
         if (!ger) return o.ipd;
-        if (o.ipc > 0) return o.ipc;
+        // "Item/dia/comprador" só é confiável quando preenchida na maioria dos itens da semana — nas
+        // semanas com a coluna corretamente preenchida, TODO item concluído a traz. Uma semana com só
+        // 1 ou 2 valores perdidos no meio de dezenas em branco (ex.: resíduo de fórmula não recalculada)
+        // não é "a coluna preenchida", e usar a soma inteira nesse caso derruba o indicador para perto
+        // de zero — cai no fallback (Item/dia ÷ compradores ativos) como se a coluna estivesse vazia.
+        if (o.ipc > 0 && o.ipcN >= o.n / 2) return o.ipc;
         if (o.ipd > 0 && o.bs.size) { _fb = true; return o.ipd / o.bs.size; }
         return 0;
     });
