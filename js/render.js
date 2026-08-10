@@ -1,5 +1,5 @@
 function kpiCardHTML(k) {
-    return `<div class="kpi ${k.c || ''}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div>${k.p ? `<span class="pill ${k.pc}">${k.p}</span>` : ''}${k.n ? `<div class="note">${k.n}</div>` : ''}</div>`;
+    return `<div class="kpi ${k.c || ''}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div>${k.p ? `<span class="pill ${k.pc}">${k.p}</span>` : ''}</div>`;
 }
 function kpi(el, a) {
     document.getElementById(el).innerHTML = a.map(kpiCardHTML).join('');
@@ -15,12 +15,11 @@ function gaugeSVG(pct) {
     const np = pt(cl);
     return `<svg viewBox="0 0 180 95" style="width:100%;height:72px;overflow:visible">${arcs}<line x1="${cx}" y1="${cy}" x2="${np.x.toFixed(1)}" y2="${np.y.toFixed(1)}" stroke="#13303F" stroke-width="3" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="5" fill="#13303F"/></svg>`;
 }
-function gaugeCardHTML(label, val, unit, pct, cor, note) {
+function gaugeCardHTML(label, val, unit, pct, cor) {
     return `<div class="kpi ${cor}">
         <div class="lbl">${label}</div>
         ${gaugeSVG(pct)}
         <div style="text-align:center;margin-top:-4px"><span style="font-size:20px;font-weight:700;letter-spacing:-.5px;font-variant-numeric:tabular-nums">${val}</span><span style="font-size:11px;color:var(--muted)"> ${unit}</span></div>
-        ${note ? `<div class="note" style="text-align:center">${note}</div>` : ''}
     </div>`;
 }
 function initials(name) {
@@ -137,7 +136,7 @@ function renderProd() {
     }, 0);
     const ating = totDenom > 0 ? totCap / totDenom * 100 : 0;
     const cor = ating >= 100 ? 'good' : ating >= 80 ? 'warn' : 'bad';
-    document.getElementById('kpi-prod').innerHTML = gaugeCardHTML(ger ? 'Itens/dia/comprador' : 'Itens/dia', val.toFixed(2), ger ? 'itens/dia/comp' : 'itens/dia', ating, cor, ating.toFixed(0) + '% da meta ponderada') + [
+    document.getElementById('kpi-prod').innerHTML = gaugeCardHTML(ger ? 'Itens/dia/comprador' : 'Itens/dia', val.toFixed(2), ger ? 'itens/dia/comp' : 'itens/dia', ating, cor) + [
         { l: 'Atingimento da meta', v: ating.toFixed(0) + '%', c: cor, p: ating >= 100 ? 'meta' : ating >= 80 ? '80%' : '<80%', pc: ating >= 100 ? 'p-good' : ating >= 80 ? 'p-warn' : 'p-bad', n: 'meta ponderada: Material ' + STATE.metaMat + ' · Serviço ' + STATE.metaServ + ' (itens/dia)' },
         { l: 'Itens concluídos', v: base.length.toLocaleString('pt-BR'), n: 'no recorte' },
         { l: 'Semanas no recorte', v: weeks.length, n: STATE.comp === 'GERAL' ? 'todos compradores' : STATE.comp }].map(kpiCardHTML).join('');
