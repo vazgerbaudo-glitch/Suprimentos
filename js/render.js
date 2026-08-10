@@ -142,14 +142,26 @@ function renderProd() {
         { l: 'Semanas no recorte', v: weeks.length, n: STATE.comp === 'GERAL' ? 'todos compradores' : STATE.comp }].map(kpiCardHTML).join('');
     mkChart('c_gauge', { type: 'bar', data: { labels: ['Atingimento'], datasets: [{ data: [Math.min(ating, 200)], backgroundColor: ating >= 100 ? C.teal : ating >= 80 ? C.amber : C.red, borderRadius: 18, barThickness: 34 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: () => ating.toFixed(0) + '%' } } }, scales: { x: { min: 0, max: 200, grid: { color: '#E5EBEE' }, border: { display: false }, ticks: { callback: v => v + '%' }, afterBuildTicks: a => { a.ticks = [{ value: 80 }, { value: 100 }, { value: 150 }]; } }, y: noG } } });
 
-    // Itens concluídos por semana (c_psem) — Entrada x Concluídos
+    // Itens concluídos por semana (c_psem) — Entrada x Concluídos. Recorte próprio (desde abr/2026, não
+    // jan/2026 como o resto da aba) só para este gráfico: menos semanas = colunas mais largas, o que dá
+    // espaço para o valLabels (js/charts.js) desenhar o número em cima de cada barra — com o ano inteiro
+    // (~31 semanas × 2 barras) as colunas ficavam abaixo de 14px e o próprio plugin as omitia.
+    const cwPsem = {};
+    ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && inY(r.dc) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { const w = isoWeek(r.dc); cwPsem[w] = (cwPsem[w] || 0) + 1; });
+    const ewPsem = {};
+    ALL.filter(r => r.dl && r.dl >= DATA_INI && inY(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { const w = isoWeek(r.dl); ewPsem[w] = (ewPsem[w] || 0) + 1; });
+    const cwkPsem = [...new Set([...Object.keys(cwPsem), ...Object.keys(ewPsem)])].sort();
+    mkChart('c_psem', { type: 'bar', data: { labels: cwkPsem.map(w => wkLabel(w)), datasets: [{ label: 'Entrada', data: cwkPsem.map(w => ewPsem[w] || 0), backgroundColor: C.steel, borderRadius: 18 }, { label: 'Concluídos', data: cwkPsem.map(w => cwPsem[w] || 0), backgroundColor: C.teal, borderRadius: 18 }] }, options: { maintainAspectRatio: false, layout: { padding: { top: 16 } }, plugins: { legend: { display: false } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 18, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
+
+    // Itens concluídos por semana — visão do ano inteiro (jan/2026 em diante), usada pelos gráficos
+    // abaixo (c_ipdsem, c_tipo, c_escomp) e pelo card "Itens concluídos por semana" da Visão Geral
+    // (SUM.prod) — mantém o recorte largo que já tinham antes desta mudança.
     const ctx = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_VOL && inY(r.dc) && compHit(r) && tpHit(r) && stHit(r));
     const cw = {};
     ctx.forEach(r => { const w = isoWeek(r.dc); cw[w] = (cw[w] || 0) + 1; });
     const ew = {};
     ALL.filter(r => r.dl && r.dl >= DATA_INI_VOL && inY(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { const w = isoWeek(r.dl); ew[w] = (ew[w] || 0) + 1; });
     const cwk = [...new Set([...Object.keys(cw), ...Object.keys(ew)])].sort();
-    mkChart('c_psem', { type: 'bar', data: { labels: cwk.map(w => wkLabel(w)), datasets: [{ label: 'Entrada', data: cwk.map(w => ew[w] || 0), backgroundColor: C.steel, borderRadius: 18 }, { label: 'Concluídos', data: cwk.map(w => cw[w] || 0), backgroundColor: C.teal, borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 13, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
 
     // Evolução de itens/dia/comprador por semana (c_ipdsem) — visão do ano
     const byWY = {};
@@ -311,7 +323,13 @@ function renderAging() {
         });
         return { rows, divergent };
     };
-    const filtRow = r => r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r) && stHit(r);
+    // No recorte de Mês, a meta acumula desde jan/2026 até o fim do mês selecionado (não só aquele mês
+    // isolado) — soma bruta de dias e RCs, com UM % vs meta calculado sobre o total acumulado. Mês
+    // isolado oscila demais com poucas RCs; o acumulado mostra a tendência do ano até ali, igual a como
+    // a meta é lida na prática (progresso acumulado, não reinício a cada mês). Geral/Semana não mudam —
+    // o acumulado só faz sentido quando o corte é por mês.
+    const mesAcumulado = STATE.modo === 'mes' && !!STATE.mes;
+    const filtRow = r => r.dl && (mesAcumulado ? r.dl.getFullYear() === 2026 && ymKey(r.dl) <= STATE.mes : periodHitAging(r.dl)) && compHit(r) && tpHit(r) && stHit(r);
     const geralAg = consolidateAging(false), tipoAg = consolidateAging(true);
     const gRows = geralAg.rows.filter(filtRow);
     const cRows = tipoAg.rows.filter(r => r.td === 'Contrato').filter(filtRow);
@@ -399,14 +417,21 @@ function renderAging() {
     svg += '</svg>';
     document.getElementById('box_aging').innerHTML = boxComps.length ? svg : '<div style="color:#46606F;font-size:12px">Dados insuficientes para boxplot no recorte.</div>';
 
-    // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo · Contrato e Spot em séries próprias
-    const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r) && stHit(r)).map(r => ({ w: isoWeek(r.dc), td: r.td, cyc: bizDaysDiff(r.dl, r.dc) })).filter(r => r.cyc >= 0);
+    // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo · Contrato e Spot em séries próprias.
+    // Usa "tp" (classTipo: Cenário SLA + Tipo, mesma régua dos cartões de meta logo acima) — não a coluna
+    // "Tipo" crua (td), que só bate "Contrato"/"Spot" literalmente e deixava a maioria dos Spot (cadastrados
+    // como Urgente/MRP/Determinada/Regularização) de fora, esparsando ainda mais as semanas.
+    const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r) && stHit(r)).map(r => ({ w: isoWeek(r.dc), td: r.tp, cyc: bizDaysDiff(r.dl, r.dc) })).filter(r => r.cyc >= 0);
     const byW = {};
     concl.forEach(r => { (byW[r.w] = byW[r.w] || []).push(r.cyc); });
     const wk = Object.keys(byW).sort();
     const byWTD = { Contrato: {}, Spot: {} };
     concl.forEach(r => { if (byWTD[r.td]) (byWTD[r.td][r.w] = byWTD[r.td][r.w] || []).push(r.cyc); });
-    const avgCyc = (td, w) => { const a = byWTD[td][w]; return a && a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null; };
+    // Semana com 1 única RC concluída faz a "média" virar o valor exato daquela RC — inclusive 0d quando
+    // é uma conclusão no mesmo dia da liberação (comum em Spot, raro mas real em Contrato). Isso lê como
+    // um mergulho real na tendência sem ser um. Exige pelo menos 2 RCs para plotar o ponto; spanGaps
+    // (já ligado nos dois datasets) interpola por cima das semanas sem dado suficiente.
+    const avgCyc = (td, w) => { const a = byWTD[td][w]; return a && a.length >= 2 ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null; };
     mkChart('c_agevol', { type: 'line', plugins: [crosshair], data: { labels: wk.map(wkLabel), datasets: [
         { label: 'Contrato', data: wk.map(w => avgCyc('Contrato', w)), borderColor: C.purple, backgroundColor: 'rgba(0,56,101,.10)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.purple, spanGaps: true },
         { label: 'Spot', data: wk.map(w => avgCyc('Spot', w)), borderColor: C.steel, backgroundColor: 'rgba(90,140,174,.14)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.steel, spanGaps: true }
@@ -432,7 +457,7 @@ function renderAging() {
 
     // Leitura (texto de insight)
     const critSem = ag.filter(r => sevAg(r)[1] === 'Crítico').length;
-    document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> das <b>${ag.length} RCs em aberto</b> — que são a base de todos os gráficos desta aba — mediana <b>${med}d</b> vs média <b>${avg}d</b>: a maioria flui, mas <b>${crit} passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Os cartões de meta no topo têm outra régua: entram também as <b>${gSt.n - gSt.open} RCs já concluídas</b> com o tempo de ciclo delas, por isso o "Aging médio — Geral" (${gSt.avg}d) fica abaixo do aging só das abertas (${gSt.avgOpen}d). Use o funil e o backlog por mês para priorizar a limpeza da carteira.${agDivergentes ? ` <b style="color:#8A6D00">⚠ ${agDivergentes} RC(s) com aging divergente entre itens</b> no cálculo de meta Geral/Contrato/Spot — usado o maior aging de cada uma, para controle de qualidade.` : ''}`;
+    document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> das <b>${ag.length} RCs em aberto</b> — que são a base de todos os gráficos desta aba — mediana <b>${med}d</b> vs média <b>${avg}d</b>: a maioria flui, mas <b>${crit} passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Os cartões de meta no topo têm outra régua: entram também as <b>${gSt.n - gSt.open} RCs já concluídas</b> com o tempo de ciclo delas, por isso o "Aging médio — Geral" (${gSt.avg}d) fica abaixo do aging só das abertas (${gSt.avgOpen}d). Use o funil e o backlog por mês para priorizar a limpeza da carteira.${mesAcumulado ? ` <b>Acumulado:</b> os cartões de meta somam desde jan/2026 até ${mLabel(STATE.mes)} (não só o mês selecionado) — reflete a tendência do ano até ali.` : ''}${agDivergentes ? ` <b style="color:#8A6D00">⚠ ${agDivergentes} RC(s) com aging divergente entre itens</b> no cálculo de meta Geral/Contrato/Spot — usado o maior aging de cada uma, para controle de qualidade.` : ''}`;
     SUM.aging = { open: gSt.open, openTotal: openItemsTotal, avg: gSt.avg, meta: STATE.metaAgG, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, con: { open: cSt.open, avg: cSt.avg, meta: STATE.metaAgC, pct: cPct }, spo: { open: sSt.open, avg: sSt.avg, meta: STATE.metaAgS, pct: sPct }, gpct: gPct, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
 }
 function renderSLA() {
