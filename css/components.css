@@ -773,6 +773,17 @@ th.num {
 .brick-enter.alt2:hover {
     filter: drop-shadow(0 0 18px rgba(63,169,245,.8))
 }
+/* Roxo é a única exceção à paleta institucional Rumo (proibida no resto do site por lembrar a marca
+   da Raízen) — pedido explícito do usuário só para este vagão, 2026-08-10. Texto branco (em vez de
+   var(--brand), navy, usado nos demais vagões) porque o roxo escolhido é escuro demais para navy sobre ele. */
+.brick-enter.alt3 {
+    background: #6B3FA0;
+    color: #FFFFFF;
+    animation: none
+}
+.brick-enter.alt3:hover {
+    filter: drop-shadow(0 0 18px rgba(107,63,160,.8))
+}
 @keyframes wagonPulse {
     0%,100% {
         filter: drop-shadow(0 0 5px rgba(251,211,0,.35));

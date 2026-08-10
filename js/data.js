@@ -138,7 +138,8 @@ const MAP = {
     'diasem10': 'd10', 'diasem11': 'd11', 'removerdecomprasageis': 'rm',
     'areacliente': 'ac', 'datainicio2analisedeescopo': 'di2',
     'contratosappedido': 'ped',
-    'datadadevolucaoparaat': 'dev', 'dataretornosupri': 'ret'
+    'datadadevolucaoparaat': 'dev', 'dataretornosupri': 'ret',
+    'chavercitem': 'chv'
 };
 
 function computeGar(o) {
@@ -166,7 +167,7 @@ function fromEmbedded() {
             gar: g('gar') || '', cl: g('cl') || '', td: g('td') || '',
             fa: +g('fa') || 0, du: +g('du') || 0,
             ac: g('ac') || '', di2: parseDate(g('di2')), rm: false, ped: g('ped') || '',
-            dev: parseDate(g('dev')), ret: parseDate(g('ret'))
+            dev: parseDate(g('dev')), ret: parseDate(g('ret')), stRaw: g('st')
         };
     });
 }
@@ -179,7 +180,12 @@ function fromCSV(txt) {
         const o = {};
         head.forEach((f, k) => { if (f) o[f] = r[k]; });
         let st = ST(o.st);
+        const stRaw = st; // Status RC como veio da planilha, antes da regra de "Remover de Compras Ágeis"
         const rm = ('' + (o.rm || '')).trim().toLowerCase() === 'sim';
+        // "Remover de Compras Ágeis = Sim" só reclassifica o que está EM ABERTO. Item já concluído com a
+        // marca continua contando em Produtividade, SLA e Saving — de propósito: é assim que o BI "Gestão à
+        // Vista" apura, e estendê-la aos concluídos tirava 51 itens da base, afastando os KPIs do BI.
+        // A consolidação de Aging é a única que descarta rm nos dois estados (ver consolidateAging).
         if (rm && st === 'A') st = 'X';
         const sa = parseNum(o.sa), sr = parseNum(o.sr);
         let ss = SS(o.ss);
@@ -197,18 +203,28 @@ function fromCSV(txt) {
         const ci = catRaw.indexOf(' - ');
         const ccd = ci > -1 ? catRaw.slice(0, ci).trim().toUpperCase() : '';
         const catd = ci > -1 ? catRaw.slice(ci + 3).trim() : catRaw;
+        // RCs Canceladas chegam do SAP com as colunas "RC" e "Item RC" preenchidas com o texto do
+        // status em vez do número (mesma anomalia documentada e corrigida só para o Corporativo em
+        // js/data_corp.js). Sem isso, rollupRC agrupa todas as canceladas da base numa única RC falsa
+        // "Cancelada" — hoje inofensivo (toda métrica filtra por Status ≠ Cancelada), mas incorreto.
+        // Reconstrói a partir de "Chave (RC+Item)" (RC + Item concatenados, últimos 2 dígitos = item).
+        let rc = ('' + (o.rc || '')).trim(), it = ('' + (o.it || '')).trim();
+        if (!/^\d+$/.test(rc)) {
+            const digits = ('' + (o.chv || '')).replace(/\D+/g, '');
+            if (digits.length > 2) { rc = digits.slice(0, -2); it = digits.slice(-2); }
+        }
         return {
             st: st, ss: ss, sa: sa, sr: sr,
             cp: (o.cp || 'N/D').trim() || 'N/D', pf: (o.pf || '').trim(), et: (o.et || '').trim(),
             dc: parseDate(o.dc), dl: parseDate(o.dl),
-            rc: o.rc, it: o.it,
+            rc: rc, it: it,
             vl: parseNum(o.vl), vp: parseNum(o.vp), vn: parseNum(o.vn),
             ipd: parseNum(o.ipd), ipc: parseNum(o.ipc),
             cat: catd, ccd: ccd, gcs: (o.gcs || '').trim().toUpperCase(), tp: classTipo(o.cen, o.tpc), cen: (o.cen || '').trim(),
             gar: computeGar(o), cl: (o.cl || '').trim(), td: (o.tpc || '').trim(),
             fa: parseNum(o.fa), du: parseNum(o.du), rm: rm,
             ac: (o.ac || '').trim(), di2: parseDate(o.di2), ped: (o.ped || '').trim(),
-            dev: parseDate(o.dev), ret: parseDate(o.ret), ssDerived
+            dev: parseDate(o.dev), ret: parseDate(o.ret), ssDerived, stRaw
         };
     });
 }

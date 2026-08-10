@@ -25,7 +25,7 @@ function buildSlidesPrompt() {
     const wCur = isoWeek(HOJE), wPrev = isoWeek(new Date(HOJE.getTime() - 7 * 86400000));
     const bwC = {};
     ALL.forEach(r => {
-        if (r.st !== 'C' || !r.dc || r.dc < DATA_INI || !tpHit(r)) return;
+        if (r.st !== 'C' || !r.dc || r.dc < DATA_INI_VOL || !tpHit(r)) return;
         const w = isoWeek(r.dc);
         if (w !== wCur && w !== wPrev) return;
         const o = bwC[r.cp] = bwC[r.cp] || { p: 0, c: 0 };
@@ -35,7 +35,7 @@ function buildSlidesPrompt() {
     const wkRows = Object.entries(bwC).map(([cp, o]) => ({ cp, p: o.p, c: o.c })).sort((a, b) => (b.p + b.c) - (a.p + a.c));
     const wkTable = wkRows.length ? wkRows.map(r => r.cp + ': ' + r.p + ' → ' + r.c).join(' · ') : 'sem conclusões nas duas semanas';
     // Concluídos por comprador no recorte (top 10)
-    const pcb = ALL.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r));
+    const pcb = ALL.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI_VOL && periodHit(r.dc) && tpHit(r));
     const pc = {};
     pcb.forEach(r => { pc[r.cp] = (pc[r.cp] || 0) + 1; });
     const topComp = Object.entries(pc).sort((a, b) => b[1] - a[1]).slice(0, 10).map(x => x[0] + ': ' + x[1] + ' itens').join(' · ') || '—';

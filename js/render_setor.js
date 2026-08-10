@@ -515,7 +515,9 @@ function renderAging() {
 
     const critSem = ag.filter(r => sevAg(r)[1] === 'Crítico').length;
     document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> mediana <b>${med}d</b> vs média <b>${avg}d</b> — a maioria flui, mas <b>${crit} RCs passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo da própria RC. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Use o funil e o backlog por mês para priorizar a limpeza da carteira.`;
-    SUM.aging = { open: ag.length, openTotal: ALL.filter(r => r.st === 'A').length, avg, meta: STATE.metaAgG, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
+    // openTotal = itens (linhas) com Status RC = Em Aberto, sem filtro; openRCs = RCs distintas por trás
+    // desses itens (via ALLRC, já consolidado por RC em render()) — o card do Overview mostra RCs, não itens.
+    SUM.aging = { open: ag.length, openTotal: ALL.filter(r => r.st === 'A').length, openRCs: ALLRC.filter(r => r.st === 'A').length, avg, meta: STATE.metaAgG, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
 }
 
 function renderSLA() {
@@ -734,7 +736,7 @@ function renderOverview() {
 
     kpi('kpi-overview', [
         { l: 'Entrada de itens', v: P.entradas.toLocaleString('pt-BR'), n: 'itens liberados no recorte' },
-        { l: 'Itens em aberto', v: A.openTotal.toLocaleString('pt-BR'), n: 'total bruto · aging médio ' + A.avg + 'd' },
+        { l: 'RCs em aberto', v: A.openRCs.toLocaleString('pt-BR'), n: 'total bruto · ' + A.openTotal.toLocaleString('pt-BR') + ' itens · aging médio ' + A.avg + 'd' },
         { l: '% dentro do SLA', v: S.pct.toFixed(1) + '%', n: S.tot ? S.fora + ' de ' + S.tot + ' fora do prazo' : 'sem base avaliada' },
         { l: 'Saving capturado', v: Kf(V.total), n: BRL(V.total) + ' · ' + V.taxa.toFixed(1) + '% de taxa' },
         { l: 'Itens concluídos', v: P.concluidos.toLocaleString('pt-BR'), n: 'no recorte' },
@@ -770,5 +772,5 @@ function renderOverview() {
         rowFn('saving', 'Saving', 'Economia capturada', Kf(V.total) + ' (' + V.taxa.toFixed(1) + '%)', V.taxa.toFixed(1) + '% de taxa', vCor, vCor === 'good' ? 'Positivo' : 'Negativo')
     ].join('');
 
-    document.getElementById('ins-overview').innerHTML = `<b>Leitura:</b> produtividade de <b>${P.val.toFixed(2)} itens/dia${P.ger ? '/comprador' : ''}</b>, aging médio de <b>${A.avg} dias</b> (${A.openTotal} itens em aberto no total, ${A.crit} RCs críticas), SLA em <b>${S.pct.toFixed(1)}%</b> e saving de <b>${Kf(V.total)}</b> no recorte. Mix de entrada: <b>${K.pctCon.toFixed(0)}% Contrato</b> e <b>${K.pctSpo.toFixed(0)}% Spot</b>. Abra a aba correspondente para detalhar cada indicador.`;
+    document.getElementById('ins-overview').innerHTML = `<b>Leitura:</b> produtividade de <b>${P.val.toFixed(2)} itens/dia${P.ger ? '/comprador' : ''}</b>, aging médio de <b>${A.avg} dias</b> (${A.openRCs} RCs em aberto no total · ${A.openTotal} itens, ${A.crit} críticas), SLA em <b>${S.pct.toFixed(1)}%</b> e saving de <b>${Kf(V.total)}</b> no recorte. Mix de entrada: <b>${K.pctCon.toFixed(0)}% Contrato</b> e <b>${K.pctSpo.toFixed(0)}% Spot</b>. Abra a aba correspondente para detalhar cada indicador.`;
 }
