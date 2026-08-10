@@ -4,7 +4,7 @@
 // Abas mantidas: Visão Geral, Compradores, Aging, SLA, Saving, Produtividade (Contratualização não entra aqui).
 
 function kpiCardHTML(k) {
-    return `<div class="kpi ${k.c || ''}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div>${k.p ? `<span class="pill ${k.pc}">${k.p}</span>` : ''}${k.n ? `<div class="note">${k.n}</div>` : ''}</div>`;
+    return `<div class="kpi ${k.c || ''}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div>${k.p ? `<span class="pill ${k.pc}">${k.p}</span>` : ''}</div>`;
 }
 function kpi(el, a) {
     document.getElementById(el).innerHTML = a.map(kpiCardHTML).join('');
