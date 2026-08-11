@@ -1,7 +1,8 @@
 // Auditoria de pendências de preenchimento — considera toda a base carregada (ALL),
 // independente dos filtros de Período/Tipo/Comprador do painel, mas exclui itens marcados
 // como "Remover de Compras Ágeis", RCs Canceladas/Devolvidas e itens liberados antes de
-// DATA_INI (abril/2026). Compartilhado entre os painéis Ágeis e Terminais.
+// DATA_INI (abril/2026) — salvo nas regras com `floor` próprio, que usam outro corte.
+// Compartilhado entre os painéis Ágeis, Corporativo, Rodantes e Terminais.
 const isBlankOrCancelada = v => {
     const s = ('' + (v || '')).trim();
     return !s || s.toLowerCase() === 'cancelada';
@@ -18,10 +19,17 @@ const PEND_RULES = [
         desc: 'RCs marcadas como Concluída mas sem a data de conclusão preenchida.',
         hit: r => r.st === 'C' && !r.dc
     },
+    // A pendência real é o Cenário SLA, não o SLA Alvo: o SLA Alvo é derivado do cenário por PROCV, e
+    // "#N/D" ali é só o sintoma do cenário em branco (a correspondência é exata em todas as bases —
+    // Cenário vazio nunca convive com SLA Alvo numérico). Já "Não se aplica" no SLA Alvo corresponde a
+    // Cenário "Projeto(s) Complexo(s)"/"Não se Aplica", que é preenchimento correto e não pendência —
+    // era o que a regra antiga (r.ss === 'S', que só enxerga "sem alvo numérico") acusava por engano.
+    // Corte em jan/2026 (e não abr/2026): itens liberados no início do ano seguem sendo concluídos agora.
     {
-        label: 'SLA Alvo não preenchido',
-        desc: 'Itens concluídos sem SLA Alvo definido (em branco, "#N/D" ou "Não se aplica") — exclui Status RC, Tipo e Classificação vazios ou "Cancelada", e RCs sem Data de Conclusão.',
-        hit: r => r.st !== '?' && !isBlankOrCancelada(r.td) && !isBlankOrCancelada(r.cl) && !!r.dc && r.ss === 'S'
+        label: 'Cenário SLA não preenchido',
+        desc: 'Itens concluídos sem Cenário SLA definido — sem ele o SLA Alvo não é calculado e chega como "#N/D". Não conta "Projeto Complexo"/"Não se Aplica", que são cenários válidos sem alvo numérico. Exclui Status RC, Tipo e Classificação vazios ou "Cancelada", e RCs sem Data de Conclusão. Considera desde janeiro/2026, diferente das demais regras (abril/2026).',
+        hit: r => r.st !== '?' && !isBlankOrCancelada(r.td) && !isBlankOrCancelada(r.cl) && !!r.dc && !('' + (r.cen || '')).trim(),
+        floor: DATA_INI_AGING
     },
     {
         label: 'Falta "Área Cliente"',
@@ -160,7 +168,7 @@ function exportPendImage() {
     ov.id = 'pend-ov';
     ov.innerHTML = `<div class="modal wide">
     <h3>🔍 Pendências de preenchimento</h3>
-    <div class="ph">Considera toda a base carregada a partir de abril/2026, independente dos filtros de Período/Tipo/Comprador · exclui Canceladas, Devolvidas e itens marcados como "Remover de Compras Ágeis".</div>
+    <div class="ph">Considera toda a base carregada a partir de abril/2026 — exceto "Cenário SLA" e "Carteira/Categoria", que contam desde janeiro/2026 — independente dos filtros de Período/Tipo/Comprador · exclui Canceladas, Devolvidas e itens marcados como "Remover de Compras Ágeis" · passe o mouse no título de cada cartão para ver o critério exato.</div>
     <div id="pend-body" style="overflow-y:auto;flex:1;margin:10px 0"></div>
     <div class="modal-actions"><button class="btn ghost" id="pend-export">📷 Baixar imagem</button><button class="btn ghost" id="pend-close">Fechar</button></div>
  </div>`;
