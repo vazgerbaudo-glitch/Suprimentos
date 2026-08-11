@@ -90,7 +90,7 @@ function render() {
 }
 function renderProd() {
     // KPI + velocímetro — atingimento da meta ponderada (Material/Serviço)
-    const base = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_VOL && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r));
+    const base = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_PROD && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r));
     const CAP = { 'Material': STATE.metaMat, 'Serviço': STATE.metaServ };
     const byW = {};
     base.forEach(r => {
@@ -142,14 +142,16 @@ function renderProd() {
         { l: 'Semanas no recorte', v: weeks.length, n: STATE.comp === 'GERAL' ? 'todos compradores' : STATE.comp }].map(kpiCardHTML).join('');
     mkChart('c_gauge', { type: 'bar', data: { labels: ['Atingimento'], datasets: [{ data: [Math.min(ating, 200)], backgroundColor: ating >= 100 ? C.teal : ating >= 80 ? C.amber : C.red, borderRadius: 18, barThickness: 34 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: () => ating.toFixed(0) + '%' } } }, scales: { x: { min: 0, max: 200, grid: { color: '#E5EBEE' }, border: { display: false }, ticks: { callback: v => v + '%' }, afterBuildTicks: a => { a.ticks = [{ value: 80 }, { value: 100 }, { value: 150 }]; } }, y: noG } } });
 
-    // Itens concluídos por semana (c_psem) — Entrada x Concluídos
-    const ctx = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_VOL && inY(r.dc) && compHit(r) && tpHit(r) && stHit(r));
+    // Itens concluídos por semana — desde abr/2026 (DATA_INI_PROD), usada pelo gráfico c_psem, pelos
+    // gráficos abaixo (c_ipdsem, c_tipo, c_escomp) e pelo card "Itens concluídos por semana" da Visão
+    // Geral (SUM.prod).
+    const ctx = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_PROD && inY(r.dc) && compHit(r) && tpHit(r) && stHit(r));
     const cw = {};
     ctx.forEach(r => { const w = isoWeek(r.dc); cw[w] = (cw[w] || 0) + 1; });
     const ew = {};
-    ALL.filter(r => r.dl && r.dl >= DATA_INI_VOL && inY(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { const w = isoWeek(r.dl); ew[w] = (ew[w] || 0) + 1; });
+    ALL.filter(r => r.dl && r.dl >= DATA_INI_PROD && inY(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { const w = isoWeek(r.dl); ew[w] = (ew[w] || 0) + 1; });
     const cwk = [...new Set([...Object.keys(cw), ...Object.keys(ew)])].sort();
-    mkChart('c_psem', { type: 'bar', data: { labels: cwk.map(w => wkLabel(w)), datasets: [{ label: 'Entrada', data: cwk.map(w => ew[w] || 0), backgroundColor: C.steel, borderRadius: 18 }, { label: 'Concluídos', data: cwk.map(w => cw[w] || 0), backgroundColor: C.teal, borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 13, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
+    mkChart('c_psem', { type: 'bar', data: { labels: cwk.map(w => wkLabel(w)), datasets: [{ label: 'Entrada', data: cwk.map(w => ew[w] || 0), backgroundColor: C.steel, borderRadius: 18 }, { label: 'Concluídos', data: cwk.map(w => cw[w] || 0), backgroundColor: C.teal, borderRadius: 18 }] }, options: { maintainAspectRatio: false, layout: { padding: { top: 16 } }, plugins: { legend: { display: false } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 18, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
 
     // Evolução de itens/dia/comprador por semana (c_ipdsem) — visão do ano
     const byWY = {};
@@ -160,7 +162,7 @@ function renderProd() {
     mkChart('c_ipdsem', { type: 'line', plugins: [crosshair], data: { labels: wkY.map(wkLabel), datasets: [{ label: ger ? 'Itens/dia/comprador' : 'Itens/dia', data: ipdW, borderColor: C.blue, backgroundColor: 'rgba(14,83,140,.08)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue }, { label: 'Média do período', data: wkY.map(() => +avgY.toFixed(2)), borderColor: C.mist, borderDash: [6, 4], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.mist, fill: false }] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { tooltip: { mode: 'index', intersect: false, callbacks: { title: c => 'Semana de ' + c[0].label, label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + ' itens/dia' } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 13, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
 
     // Concluídos por comprador (c_pcomp)
-    const pcb = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_VOL && periodHit(r.dc) && tpHit(r) && stHit(r));
+    const pcb = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_PROD && periodHit(r.dc) && tpHit(r) && stHit(r));
     const pc = {};
     pcb.forEach(r => { pc[r.cp] = (pc[r.cp] || 0) + 1; });
     const pca = Object.entries(pc).sort((a, b) => b[1] - a[1]).slice(0, 12);
@@ -171,7 +173,7 @@ function renderProd() {
 
     // ===== visuais adicionais: tipo de demanda, entrada x saída, meta, heatmap dia =====
     // Produtividade por tipo de demanda (c_tipo)
-    const ctxL = ALL.filter(r => r.dl && r.dl >= DATA_INI_VOL && inY(r.dl) && compHit(r) && tpHit(r) && stHit(r));
+    const ctxL = ALL.filter(r => r.dl && r.dl >= DATA_INI_PROD && inY(r.dl) && compHit(r) && tpHit(r) && stHit(r));
     const TIPOS = ['Spot', 'Urgente', 'MRP', 'Determinada', 'Contrato', 'Regularização'];
     const TCOL = { Spot: '#5A8CAE', Urgente: '#D2373C', MRP: '#1E9F7F', Determinada: '#D9A400', Contrato: '#003865', 'Regularização': '#7A8C97', Outros: '#CAD6DD' };
     const wkset = [...new Set(ctx.map(r => isoWeek(r.dc)))].sort();
@@ -187,9 +189,9 @@ function renderProd() {
     const wksES = [...new Set([...Object.keys(ent), ...Object.keys(sai)])].sort();
     const eV = wksES.map(w => ent[w] || 0), sV = wksES.map(w => sai[w] || 0), labES = wksES.map(w => wkLabel(w));
     const entC = {}, saiC = {}, devC = {};
-    ALL.filter(r => r.dl && r.dl >= DATA_INI_VOL && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { entC[r.cp] = (entC[r.cp] || 0) + 1; });
-    ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_VOL && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { saiC[r.cp] = (saiC[r.cp] || 0) + 1; });
-    ALL.filter(r => r.st === 'D' && r.dl && r.dl >= DATA_INI_VOL && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { devC[r.cp] = (devC[r.cp] || 0) + 1; });
+    ALL.filter(r => r.dl && r.dl >= DATA_INI_PROD && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { entC[r.cp] = (entC[r.cp] || 0) + 1; });
+    ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_PROD && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { saiC[r.cp] = (saiC[r.cp] || 0) + 1; });
+    ALL.filter(r => r.st === 'D' && r.dl && r.dl >= DATA_INI_PROD && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { devC[r.cp] = (devC[r.cp] || 0) + 1; });
     const compsES = [...new Set([...Object.keys(entC), ...Object.keys(saiC), ...Object.keys(devC)])].sort((a, b) => (saiC[b] || 0) - (saiC[a] || 0)).slice(0, 12);
     mkChart('c_escomp', { type: 'bar', data: { labels: compsES, datasets: [{ label: 'Entrada', data: compsES.map(c => entC[c] || 0), backgroundColor: C.steel, borderRadius: 18 }, { label: 'Saída', data: compsES.map(c => saiC[c] || 0), backgroundColor: C.teal, borderRadius: 18 }, { label: 'Devolvida', data: compsES.map(c => devC[c] || 0), backgroundColor: C.red, borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } } }, scales: { x: { ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { ...soG, beginAtZero: true } } } });
 
@@ -211,7 +213,7 @@ function renderProd() {
     mkChart('c_esmeta', { type: 'line', plugins: [crosshair], data: { labels: wksES.map(wkLabelFull), datasets: [{ label: 'Entrada', data: eV, borderColor: C.steel, backgroundColor: 'rgba(90,140,174,.16)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.steel }, { label: 'Saída', data: sV, borderColor: C.teal, backgroundColor: 'rgba(30,159,127,.14)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.teal }, { label: 'Meta', data: metaV, borderColor: '#003865', borderDash: [6, 4], borderWidth: 1.6, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#003865', tension: .2, fill: false }] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 9 } } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: c => 'Semana de ' + c[0].label } } }, scales: { x: { ...soG, ticks: { maxTicksLimit: 13, font: { size: 8 }, callback: function (v) { return labES[v]; } } }, y: { ...soG, beginAtZero: true } } } });
 
     // Itens por faixa de valor de entrada (c_valfaixa)
-    const valB = ALL.filter(r => r.dl && r.dl >= DATA_INI_VOL && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r));
+    const valB = ALL.filter(r => r.dl && r.dl >= DATA_INI_PROD && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r));
     const VF = [['≤ 200k', C.steel], ['200k – 300k', C.blue], ['> 300k', '#003865']];
     const vfIdx = v => v <= 200000 ? 0 : v <= 300000 ? 1 : 2;
     const vfCnt = [0, 0, 0];
@@ -219,7 +221,7 @@ function renderProd() {
     mkChart('c_valfaixa', { type: 'bar', data: { labels: VF.map(x => x[0]), datasets: [{ data: vfCnt, backgroundColor: VF.map(x => x[1]), borderRadius: 18 }] }, options: { maintainAspectRatio: false, layout: { padding: { top: 14 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' itens' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
     // Mapa de calor — produtividade por dia da semana (heat_prod)
-    const ctxH = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_VOL && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r));
+    const ctxH = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_PROD && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r));
     const DOW = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
     const hp = {};
     ctxH.forEach(r => { const wd = r.dc.getDay(); if (wd < 1 || wd > 5) return; (hp[r.cp] = hp[r.cp] || [0, 0, 0, 0, 0])[wd - 1]++; });
@@ -229,7 +231,7 @@ function renderProd() {
     document.getElementById('heat_prod').innerHTML = `<table><thead><tr><th class="rl"></th>${DOW.map(d => `<th>${d}</th>`).join('')}<th>Total</th></tr></thead><tbody>${rowsP.map(r => `<tr><td class="rl">${r[0]}</td>${r[1].map(cellP).join('')}<td class="cell" style="background:#FBD300;color:#1F2933">${r[2]}</td></tr>`).join('') || '<tr><td class="rl" colspan=7 style="color:#46606F">Sem conclusões no recorte.</td></tr>'}</tbody></table>`;
 
     // Itens/dia por comprador — taxa individual (c_ipdcomp)
-    const ipdBase = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_VOL && periodHit(r.dc) && tpHit(r) && stHit(r));
+    const ipdBase = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_PROD && periodHit(r.dc) && tpHit(r) && stHit(r));
     const ipdMap = {};
     ipdBase.forEach(r => { const m = ipdMap[r.cp] = ipdMap[r.cp] || {}; const w = isoWeek(r.dc); m[w] = (m[w] || 0) + r.ipd; });
     const ipdAvg = {};
@@ -241,7 +243,7 @@ function renderProd() {
     mkChart('c_ipdcomp', { type: 'bar', plugins: [refLines([{ v: STATE.metaMat, color: C.steel, label: 'Meta Material ' + STATE.metaMat }, { v: STATE.metaServ, color: C.amber, label: 'Meta Serviço ' + STATE.metaServ }])], data: { labels: ipdArr.map(x => x[0]), datasets: [{ data: ipdArr.map(x => +x[1].toFixed(2)), backgroundColor: ipdArr.map(x => x[0] === STATE.comp ? C.accent : classColorI(x[0])), borderRadius: 18, barPercentage: 1, categoryPercentage: .85 }] }, options: { legendChips: [['Material', C.steel], ['Serviço', C.blue], ['Selecionado', C.accent]], indexAxis: 'y', maintainAspectRatio: false, layout: { padding: { top: 14 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x.toFixed(2) + ' itens/dia' } } }, scales: { x: { ...soG, beginAtZero: true, suggestedMax: Math.max(STATE.metaMat, STATE.metaServ) }, y: { ...noG, ticks: { font: { size: 10 } } } } } });
 
     // Material x Serviço — quantidade e % (c_mat_qtd, c_mat_pct)
-    const msB = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_VOL && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r));
+    const msB = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI_PROD && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r));
     const MSc = ['Material', 'Serviço'];
     const msQ = MSc.map(c => msB.filter(r => r.cl === c).length);
     const totMS = msQ[0] + msQ[1];
@@ -249,7 +251,7 @@ function renderProd() {
     mkChart('c_mat_pct', { type: 'doughnut', data: { labels: MSc, datasets: [{ data: msQ, backgroundColor: [C.steel, C.blue], borderWidth: 2, borderColor: '#FFFFFF' }] }, options: { maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, usePointStyle: true } }, centerText: { label: 'Itens' }, tooltip: { callbacks: { label: c => c.parsed.toLocaleString('pt-BR') + ' (' + (totMS ? Math.round(c.parsed / totMS * 100) : 0) + '%)' } } } } });
 
     // Entrada x Saída total no recorte (c_esgeral)
-    const entG = ALL.filter(r => r.dl && r.dl >= DATA_INI_VOL && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
+    const entG = ALL.filter(r => r.dl && r.dl >= DATA_INI_PROD && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
     mkChart('c_esgeral', { type: 'bar', data: { labels: ['Entrada', 'Saída'], datasets: [{ data: [entG, msB.length], backgroundColor: [C.steel, C.teal], borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
     // Leitura (texto de insight)
@@ -311,7 +313,13 @@ function renderAging() {
         });
         return { rows, divergent };
     };
-    const filtRow = r => r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r) && stHit(r);
+    // No recorte de Mês, a meta acumula desde jan/2026 até o fim do mês selecionado (não só aquele mês
+    // isolado) — soma bruta de dias e RCs, com UM % vs meta calculado sobre o total acumulado. Mês
+    // isolado oscila demais com poucas RCs; o acumulado mostra a tendência do ano até ali, igual a como
+    // a meta é lida na prática (progresso acumulado, não reinício a cada mês). Geral/Semana não mudam —
+    // o acumulado só faz sentido quando o corte é por mês.
+    const mesAcumulado = STATE.modo === 'mes' && !!STATE.mes;
+    const filtRow = r => r.dl && (mesAcumulado ? r.dl.getFullYear() === 2026 && ymKey(r.dl) <= STATE.mes : periodHitAging(r.dl)) && compHit(r) && tpHit(r) && stHit(r);
     const geralAg = consolidateAging(false), tipoAg = consolidateAging(true);
     const gRows = geralAg.rows.filter(filtRow);
     const cRows = tipoAg.rows.filter(r => r.td === 'Contrato').filter(filtRow);
@@ -399,14 +407,21 @@ function renderAging() {
     svg += '</svg>';
     document.getElementById('box_aging').innerHTML = boxComps.length ? svg : '<div style="color:#46606F;font-size:12px">Dados insuficientes para boxplot no recorte.</div>';
 
-    // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo · Contrato e Spot em séries próprias
-    const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r) && stHit(r)).map(r => ({ w: isoWeek(r.dc), td: r.td, cyc: bizDaysDiff(r.dl, r.dc) })).filter(r => r.cyc >= 0);
+    // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo · Contrato e Spot em séries próprias.
+    // Usa "tp" (classTipo: Cenário SLA + Tipo, mesma régua dos cartões de meta logo acima) — não a coluna
+    // "Tipo" crua (td), que só bate "Contrato"/"Spot" literalmente e deixava a maioria dos Spot (cadastrados
+    // como Urgente/MRP/Determinada/Regularização) de fora, esparsando ainda mais as semanas.
+    const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r) && stHit(r)).map(r => ({ w: isoWeek(r.dc), td: r.tp, cyc: bizDaysDiff(r.dl, r.dc) })).filter(r => r.cyc >= 0);
     const byW = {};
     concl.forEach(r => { (byW[r.w] = byW[r.w] || []).push(r.cyc); });
     const wk = Object.keys(byW).sort();
     const byWTD = { Contrato: {}, Spot: {} };
     concl.forEach(r => { if (byWTD[r.td]) (byWTD[r.td][r.w] = byWTD[r.td][r.w] || []).push(r.cyc); });
-    const avgCyc = (td, w) => { const a = byWTD[td][w]; return a && a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null; };
+    // Semana com 1 única RC concluída faz a "média" virar o valor exato daquela RC — inclusive 0d quando
+    // é uma conclusão no mesmo dia da liberação (comum em Spot, raro mas real em Contrato). Isso lê como
+    // um mergulho real na tendência sem ser um. Exige pelo menos 2 RCs para plotar o ponto; spanGaps
+    // (já ligado nos dois datasets) interpola por cima das semanas sem dado suficiente.
+    const avgCyc = (td, w) => { const a = byWTD[td][w]; return a && a.length >= 2 ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null; };
     mkChart('c_agevol', { type: 'line', plugins: [crosshair], data: { labels: wk.map(wkLabel), datasets: [
         { label: 'Contrato', data: wk.map(w => avgCyc('Contrato', w)), borderColor: C.purple, backgroundColor: 'rgba(0,56,101,.10)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.purple, spanGaps: true },
         { label: 'Spot', data: wk.map(w => avgCyc('Spot', w)), borderColor: C.steel, backgroundColor: 'rgba(90,140,174,.14)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.steel, spanGaps: true }
@@ -432,7 +447,7 @@ function renderAging() {
 
     // Leitura (texto de insight)
     const critSem = ag.filter(r => sevAg(r)[1] === 'Crítico').length;
-    document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> das <b>${ag.length} RCs em aberto</b> — que são a base de todos os gráficos desta aba — mediana <b>${med}d</b> vs média <b>${avg}d</b>: a maioria flui, mas <b>${crit} passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Os cartões de meta no topo têm outra régua: entram também as <b>${gSt.n - gSt.open} RCs já concluídas</b> com o tempo de ciclo delas, por isso o "Aging médio — Geral" (${gSt.avg}d) fica abaixo do aging só das abertas (${gSt.avgOpen}d). Use o funil e o backlog por mês para priorizar a limpeza da carteira.${agDivergentes ? ` <b style="color:#8A6D00">⚠ ${agDivergentes} RC(s) com aging divergente entre itens</b> no cálculo de meta Geral/Contrato/Spot — usado o maior aging de cada uma, para controle de qualidade.` : ''}`;
+    document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> das <b>${ag.length} RCs em aberto</b> — que são a base de todos os gráficos desta aba — mediana <b>${med}d</b> vs média <b>${avg}d</b>: a maioria flui, mas <b>${crit} passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Os cartões de meta no topo têm outra régua: entram também as <b>${gSt.n - gSt.open} RCs já concluídas</b> com o tempo de ciclo delas, por isso o "Aging médio — Geral" (${gSt.avg}d) fica abaixo do aging só das abertas (${gSt.avgOpen}d). Use o funil e o backlog por mês para priorizar a limpeza da carteira.${mesAcumulado ? ` <b>Acumulado:</b> os cartões de meta somam desde jan/2026 até ${mLabel(STATE.mes)} (não só o mês selecionado) — reflete a tendência do ano até ali.` : ''}${agDivergentes ? ` <b style="color:#8A6D00">⚠ ${agDivergentes} RC(s) com aging divergente entre itens</b> no cálculo de meta Geral/Contrato/Spot — usado o maior aging de cada uma, para controle de qualidade.` : ''}`;
     SUM.aging = { open: gSt.open, openTotal: openItemsTotal, avg: gSt.avg, meta: STATE.metaAgG, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, con: { open: cSt.open, avg: cSt.avg, meta: STATE.metaAgC, pct: cPct }, spo: { open: sSt.open, avg: sSt.avg, meta: STATE.metaAgS, pct: sPct }, gpct: gPct, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
 }
 function renderSLA() {
