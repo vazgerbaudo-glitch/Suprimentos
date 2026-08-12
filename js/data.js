@@ -242,6 +242,7 @@ const MAP_CART = {
     'car': 'car',
     'carteiranome': 'nome',
     'materialxservico': 'ms', 'materialservico': 'ms',
+    'nomefornecedor': 'forn',
     'contratoxspot': 'td',
     'dtpedido': 'dt', 'statusdeliberacao': 'status',
     'gerenciafinal': 'gerFinal'
@@ -278,6 +279,7 @@ function fromCarteirasCSV(txt) {
         const gerFinal = hasGerCol ? (('' + (o.gerFinal || '')).trim() || 'N/D') : 'Compras Ágeis';
         rows.push({
             rc, rcNorm: normRC(rc), it, car, nome, pedido, pedidoNorm: normPed(pedido),
+            forn: ('' + (o.forn || '')).trim(),
             cb, cbNorm: normPed(cb),
             ms, td, tdRaw, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim(),
             gerFinal, gerFinalNorm: nrm(gerFinal)

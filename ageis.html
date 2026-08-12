@@ -528,6 +528,21 @@
                 <div class="cv tall"><canvas id="c_contrevol"></canvas></div>
             </div>
             <div class="panel">
+                <h3>Consulta por carteira — Fornecedor, RC, Pedido e Contrato</h3>
+                <div class="ph">Selecione uma carteira para ver as RCs dela no recorte, direto do Spend (todas as Gerências Finais) · uma linha por combinação de RC, fornecedor, pedido e contrato básico</div>
+                <div class="metabar" style="margin-top:0">
+                    <div class="fg"><label for="f_cart_tbl">Carteira</label><select id="f_cart_tbl" style="max-width:230px"></select></div>
+                    <div class="fg"><label for="f_cart_ord">Ordenar por</label><select id="f_cart_ord">
+                        <option value="forn_asc">Fornecedor (A → Z)</option>
+                        <option value="forn_desc">Fornecedor (Z → A)</option>
+                        <option value="rc_asc">RC (crescente)</option>
+                        <option value="rc_desc">RC (decrescente)</option>
+                    </select></div>
+                    <span class="ph" id="cart_tbl_status" style="margin:0"></span>
+                </div>
+                <table id="t_cart_forn"><thead><tr><th>Fornecedor</th><th>RC</th><th>Pedido</th><th>Contrato</th></tr></thead><tbody></tbody></table>
+            </div>
+            <div class="panel">
                 <h3>Base detalhada — Carteira × Tipo</h3>
                 <div class="ph">Quantidade de RCs por carteira, separadas por tipo · ordenado por volume total</div>
                 <table id="t_contr"><thead></thead><tbody></tbody></table>
@@ -546,9 +561,9 @@
     </div>
     <script src="js/config.js?v=20260810b"></script>
     <script src="js/state.js?v=20260803"></script>
-    <script src="js/data.js?v=20260810c"></script>
-    <script src="js/charts.js?v=20260724b"></script>
-    <script src="js/render.js?v=20260810g"></script>
+    <script src="js/data.js?v=20260812a"></script>
+    <script src="js/charts.js?v=20260812a"></script>
+    <script src="js/render.js?v=20260812a"></script>
     <script src="js/filters.js?v=20260730"></script>
     <script src="js/slides.js?v=20260810b"></script>
     <script src="js/pendencias.js?v=20260811a"></script>
