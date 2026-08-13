@@ -17,12 +17,46 @@ function agingOf(dl, to, devHold) {
     const raw = bizDaysDiff(dl, to);
     return raw == null ? null : Math.max(0, raw - (devHold || 0));
 }
+// Régua de farol por % do SLA Alvo consumido (SLA Real ÷ SLA Alvo): 0–30% Baixo risco, 31–50% Médio
+// risco, 51–99,9% Alto risco, acima do alvo Fora do SLA. Sem SLA Alvo não há denominador — o item sai
+// como "Sem SLA alvo", em cinza, fora das quatro faixas. O limiar de "Fora do SLA" é SLA Real > SLA Alvo
+// (e não >= 100%) para bater com o próprio Status SLA da base, que trata sr == sa como Dentro.
+// Retorna [classe da tag, rótulo, classe da bolinha, % consumido ou null].
+function sevPct(dias, alvo) {
+    if (!(alvo > 0) || dias == null) return ['s-nd', 'Sem SLA alvo', 'f-nd', null];
+    const p = dias / alvo * 100;
+    if (dias > alvo) return ['s-rd', 'Fora do SLA', 'f-rd', p];
+    if (p > 50) return ['s-or', 'Alto risco', 'f-or', p];
+    if (p > 30) return ['s-am', 'Médio risco', 'f-am', p];
+    return ['s-gn', 'Baixo risco', 'f-gn', p];
+}
+// FAROL_PCT é declarado inline no HTML (mesmo padrão do OPERACAO_EXCLUIR) e hoje só o Rodantes liga.
+// Terminais e Coorporativo continuam na régua antiga de dias, por isso o typeof em vez de constante.
+function farolPorPct() {
+    return typeof FAROL_PCT !== 'undefined' && FAROL_PCT;
+}
+// Rótulos da régua ativa, na ordem "melhor → pior", para as legendas e contagens não ficarem fixas em 3 faixas
+function sevLabels() {
+    return farolPorPct() ? ['Baixo risco', 'Médio risco', 'Alto risco', 'Fora do SLA', 'Sem SLA alvo'] : ['Dentro do prazo', 'Atenção', 'Crítico'];
+}
+function sevTagClass(label) {
+    return { 'Baixo risco': 's-gn', 'Médio risco': 's-am', 'Alto risco': 's-or', 'Fora do SLA': 's-rd', 'Sem SLA alvo': 's-nd', 'Dentro do prazo': 's-am', 'Atenção': 's-or', 'Crítico': 's-rd' }[label];
+}
+// Marcação pronta do farol (bolinha + tag + % consumido quando a régua é percentual)
+function farolHTML(s) {
+    return `<span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span>${s[3] == null ? '' : `<span class="pct-sla">${s[3].toFixed(0)}%</span>`}`;
+}
 // Semáforo de RC aberta vs. SLA Alvo da própria RC — conta é SLA Alvo × SLA Real (dado da base, não é meta configurável)
 function sevOpen(r) {
+    if (farolPorPct()) return sevPct(r.sr, r.sa);
     const lim = r.sa > 0 ? r.sa : 15;
-    if (r.sr > lim) return ['s-rd', 'Crítico', 'f-rd'];
-    if (lim - r.sr <= 2) return ['s-or', 'Atenção', 'f-or'];
-    return ['s-am', 'Dentro do prazo', 'f-am'];
+    if (r.sr > lim) return ['s-rd', 'Crítico', 'f-rd', null];
+    if (lim - r.sr <= 2) return ['s-or', 'Atenção', 'f-or', null];
+    return ['s-am', 'Dentro do prazo', 'f-am', null];
+}
+// "Estourou o alvo" nas duas réguas — usado nas contagens/insights, que não podem depender do rótulo
+function isFora(s) {
+    return s[0] === 's-rd';
 }
 
 function initials(name) {
@@ -45,10 +79,13 @@ function openRCsFor(cp) {
         .sort((a, b) => b.age - a.age);
 }
 function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true, sortable = false) {
-    const cnt = { 'Dentro do prazo': 0, 'Atenção': 0, 'Crítico': 0 };
+    const cnt = {};
+    sevLabels().forEach(l => cnt[l] = 0);
     rcs.forEach(r => cnt[sevOpen(r)[1]]++);
+    // Faixa vazia só some quando é a "Sem SLA alvo" — as faixas da régua aparecem sempre, inclusive zeradas
+    const chips = sevLabels().filter(l => cnt[l] || l !== 'Sem SLA alvo').map(l => `<span class="tag-sev ${sevTagClass(l)}">${l}: ${cnt[l]}</span>`).join(' ');
     const avg = rcs.length ? Math.round(rcs.reduce((a, r) => a + r.age, 0) / rcs.length) : 0;
-    document.getElementById(sumId).innerHTML = rcs.length ? `<b>${rcs.length}</b> RC${rcs.length > 1 ? 's' : ''} em aberto no recorte · aging médio <b>${avg}d</b> · <span class="tag-sev s-am">Dentro do prazo: ${cnt['Dentro do prazo']}</span> <span class="tag-sev s-or">Atenção: ${cnt['Atenção']}</span> <span class="tag-sev s-rd">Crítico: ${cnt['Crítico']}</span>` : 'Nenhuma RC em aberto no recorte.';
+    document.getElementById(sumId).innerHTML = rcs.length ? `<b>${rcs.length}</b> RC${rcs.length > 1 ? 's' : ''} em aberto no recorte · aging médio <b>${avg}d</b> · ${chips}` : 'Nenhuma RC em aberto no recorte.';
     if (sortable) {
         const dir = rcOpenSort.dir, key = rcOpenSort.key;
         rcs = rcs.map(r => ({ ...r, saldo: r.sa > 0 ? r.sa - r.sr : null })).sort((a, b) => {
@@ -65,7 +102,7 @@ function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true, sortab
         const saldo = r.sa > 0 ? r.sa - r.sr : null;
         const saldoTxt = saldo == null ? '—' : (saldo >= 0 ? '+' : '') + saldo + 'd';
         const saldoCol = saldo == null ? 'color:var(--muted)' : saldo >= 0 ? 'color:#14705A' : 'color:#C0272D';
-        return `<tr${showComp ? ` class="jump" data-cp="${r.cp}" style="cursor:pointer"` : ''}>${showComp ? `<td>${r.cp}</td>` : ''}<td>${r.rc || '-'}</td><td class="num">${r.it}</td>${showExtra ? `<td>${(r.td || '').trim() || '-'}</td><td>${(r.et || '').replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${fmtDia(r.dl)}</td>` : ''}<td class="num">${r.sa || '—'}</td><td class="num">${r.age}</td><td class="num" style="${saldoCol}">${saldoTxt}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`;
+        return `<tr${showComp ? ` class="jump" data-cp="${r.cp}" style="cursor:pointer"` : ''}>${showComp ? `<td>${r.cp}</td>` : ''}<td>${r.rc || '-'}</td><td class="num">${r.it}</td>${showExtra ? `<td>${(r.td || '').trim() || '-'}</td><td>${(r.et || '').replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${fmtDia(r.dl)}</td>` : ''}<td class="num">${r.sa || '—'}</td><td class="num">${r.age}</td><td class="num" style="${saldoCol}">${saldoTxt}</td><td>${farolHTML(s)}</td></tr>`;
     }).join('') || `<tr><td colspan="${(showComp ? 1 : 0) + (showExtra ? 3 : 0) + 6}" style="color:#46606F">Nenhuma RC em aberto no recorte.</td></tr>`;
     if (showComp) document.querySelectorAll('#' + tblId + ' tbody tr.jump').forEach(tr => tr.onclick = () => { STATE.comp = tr.dataset.cp; render(); });
     if (sortable) document.querySelectorAll('#' + tblId + ' thead th[data-key]').forEach(th => th.onclick = () => { const k = th.dataset.key; if (rcOpenSort.key === k) rcOpenSort.dir *= -1; else { rcOpenSort.key = k; rcOpenSort.dir = (k === 'cp' || k === 'rc') ? 1 : -1; } renderCompradores(); });
@@ -511,9 +548,9 @@ function renderAging() {
     const sevAg = r => sevOpen(r);
     const tabAll = ALLRC.filter(r => (r.st === 'A' || r.st === 'C') && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r) && stHit(r)).map(r => { const isOpen = r.st === 'A'; const age = isOpen ? agingOf(r.dl, HOJE, r.devHold) : (r.dc ? agingOf(r.dl, r.dc, r.devHold) : null); return { ...r, age, isOpen }; }).filter(r => r.age != null && r.age >= 0);
     const tab = tabAll.slice().sort((a, b) => b.age - a.age).slice(0, 40);
-    document.querySelector('#t_aging tbody').innerHTML = tab.map(r => { const s = sevAg(r); const stBadge = `<span class="tag-sev" style="background:${r.isOpen ? '#E1EDF5' : '#DFF2EA'};color:${r.isOpen ? '#0E538C' : '#14705A'}">${r.isOpen ? 'Em Aberto' : 'Concluída'}</span>`; return `<tr><td>${r.rc || '-'}</td><td>${r.it || '-'}</td><td>${r.cp}</td><td>${stBadge}</td><td>${r.et.replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${r.sa || '-'}</td><td class="num">${r.age}</td><td><span class="farol ${s[2]}"></span><span class="tag-sev ${s[0]}">${s[1]}</span></td></tr>`; }).join('') || '<tr><td colspan=8 style="color:#46606F">Nenhuma RC no recorte.</td></tr>';
+    document.querySelector('#t_aging tbody').innerHTML = tab.map(r => { const s = sevAg(r); const stBadge = `<span class="tag-sev" style="background:${r.isOpen ? '#E1EDF5' : '#DFF2EA'};color:${r.isOpen ? '#0E538C' : '#14705A'}">${r.isOpen ? 'Em Aberto' : 'Concluída'}</span>`; return `<tr><td>${r.rc || '-'}</td><td>${r.it || '-'}</td><td>${r.cp}</td><td>${stBadge}</td><td>${r.et.replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${r.sa || '-'}</td><td class="num">${r.age}</td><td>${farolHTML(s)}</td></tr>`; }).join('') || '<tr><td colspan=8 style="color:#46606F">Nenhuma RC no recorte.</td></tr>';
 
-    const critSem = ag.filter(r => sevAg(r)[1] === 'Crítico').length;
+    const critSem = ag.filter(r => isFora(sevAg(r))).length;
     document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> mediana <b>${med}d</b> vs média <b>${avg}d</b> — a maioria flui, mas <b>${crit} RCs passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo da própria RC. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Use o funil e o backlog por mês para priorizar a limpeza da carteira.`;
     // openTotal = itens (linhas) com Status RC = Em Aberto, sem filtro; openRCs = RCs distintas por trás
     // desses itens (via ALLRC, já consolidado por RC em render()) — o card do Overview mostra RCs, não itens.
@@ -542,11 +579,11 @@ function renderSLA() {
         const openSla = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r))
             .map(r => ({ ...r, age: agingOf(r.dl, HOJE, r.devHold), sev: sevOpen(r) }))
             .filter(r => r.age >= 0);
-        const critN = openSla.filter(r => r.sev[1] === 'Crítico').length, insOpen = openSla.length - critN;
+        const critN = openSla.filter(r => isFora(r.sev)).length, insOpen = openSla.length - critN;
         const pctOpen = openSla.length ? insOpen / openSla.length * 100 : 0;
         const totComb = totConcl + openSla.length, pctComb = totComb ? (insConcl + insOpen) / totComb * 100 : 0;
         const delta = pctComb - pctConcl;
-        const atrasosOpen = openSla.filter(r => r.sev[1] === 'Crítico').map(r => r.sr - (r.sa > 0 ? r.sa : 15));
+        const atrasosOpen = openSla.filter(r => isFora(r.sev)).map(r => r.sr - (r.sa > 0 ? r.sa : 15));
         const atrMedOpen = atrasosOpen.length ? Math.round(atrasosOpen.reduce((a, b) => a + b, 0) / atrasosOpen.length) : 0;
 
         kpi('kpi-sla', [
@@ -636,10 +673,26 @@ function renderSLA() {
     const ca = Object.entries(bc).filter(x => x[1].t >= 5).map(x => [x[0], x[1].i / x[1].t * 100, x[1].t]).sort((a, b) => a[1] - b[1]);
     mkChart('c_slacomp', { type: 'bar', data: { labels: ca.map(x => x[0]), datasets: [{ data: ca.map(x => Math.round(x[1])), backgroundColor: ca.map(x => x[1] >= 90 ? C.teal : x[1] >= 80 ? '#FBD300' : x[1] >= 75 ? '#C79100' : C.red), borderRadius: 18, barPercentage: 1, categoryPercentage: .85 }] }, options: { legendChips: [['≥90%', C.teal], ['80–90%', '#FBD300'], ['75–80%', '#C79100'], ['<75%', C.red]], indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x + '% (' + ca[c.dataIndex][2] + ' itens)' } } }, scales: { x: { ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } }, y: { ...noG, ticks: { font: { size: 10 } } } } } });
 
-    // Tabela detalhada — RCs críticas por farol (t_crit)
-    const sev = d => d > 15 ? ['f-rd', 's-rd', 'Crítico'] : d > 7 ? ['f-or', 's-or', 'Além do normal'] : ['f-am', 's-am', 'Fora do prazo'];
-    const crit = foraR.map(r => ({ ...r, atr: r.sr - r.sa })).filter(r => r.atr > 0).sort((a, b) => b.atr - a.atr).slice(0, 40);
-    document.querySelector('#t_crit tbody').innerHTML = crit.map(r => { const s = sev(r.atr); return `<tr><td>${r.rc || '-'}</td><td>${r.cp}</td><td>Concluída</td><td class="num">${r.atr}</td><td><span class="farol ${s[0]}"></span><span class="tag-sev ${s[1]}">${s[2]}</span></td></tr>`; }).join('') || '<tr><td colspan=5 style="color:#46606F">Sem RCs fora do SLA no recorte.</td></tr>';
+    // Tabela detalhada por farol (t_crit). Na régua de % do SLA consumido a tabela deixa de ser só das RCs
+    // já estouradas e passa a listar todo o recorte ordenado por % — senão as faixas Baixo/Médio/Alto nunca
+    // apareceriam, já que quem estourou é 100% "Fora do SLA". Entram concluídas (SLA Real fechado) e abertas
+    // (SLA Real corrido até hoje); o filtro de Status continua mandando, via stHit em cada base.
+    if (farolPorPct()) {
+        const abertas = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r));
+        const critAll = [...base.map(r => ({ ...r, aberta: false })), ...abertas.map(r => ({ ...r, aberta: true }))]
+            .map(r => ({ ...r, sev: sevPct(r.sr, r.sa) }))
+            // Sem SLA Alvo não tem % para ordenar: vai para o fim da lista, não para o topo
+            .sort((a, b) => (b.sev[3] == null ? -1 : b.sev[3]) - (a.sev[3] == null ? -1 : a.sev[3]))
+            .slice(0, 40);
+        document.querySelector('#t_crit tbody').innerHTML = critAll.map(r => {
+            const stBadge = `<span class="tag-sev" style="background:${r.aberta ? '#E1EDF5' : '#DFF2EA'};color:${r.aberta ? '#0E538C' : '#14705A'}">${r.aberta ? 'Em Aberto' : 'Concluída'}</span>`;
+            return `<tr><td>${r.rc || '-'}</td><td>${r.cp}</td><td>${stBadge}</td><td class="num">${r.sa || '—'}</td><td class="num">${r.sr}</td><td>${farolHTML(r.sev)}</td></tr>`;
+        }).join('') || '<tr><td colspan=6 style="color:#46606F">Sem RCs no recorte.</td></tr>';
+    } else {
+        const sev = d => d > 15 ? ['f-rd', 's-rd', 'Crítico'] : d > 7 ? ['f-or', 's-or', 'Além do normal'] : ['f-am', 's-am', 'Fora do prazo'];
+        const crit = foraR.map(r => ({ ...r, atr: r.sr - r.sa })).filter(r => r.atr > 0).sort((a, b) => b.atr - a.atr).slice(0, 40);
+        document.querySelector('#t_crit tbody').innerHTML = crit.map(r => { const s = sev(r.atr); return `<tr><td>${r.rc || '-'}</td><td>${r.cp}</td><td>Concluída</td><td class="num">${r.atr}</td><td><span class="farol ${s[0]}"></span><span class="tag-sev ${s[1]}">${s[2]}</span></td></tr>`; }).join('') || '<tr><td colspan=5 style="color:#46606F">Sem RCs fora do SLA no recorte.</td></tr>';
+    }
 
     const pior = ca[0], melhor = ca[ca.length - 1], topcause = par[0];
     document.getElementById('ins-sla').innerHTML = tot ? `<b>Leitura:</b> aderência de <b>${pct.toFixed(1)}%</b>, atraso médio de <b>${atrMed} dias</b> quando fura. ${topcause ? `A maior causa de atraso é <b>${topcause[0]}</b> (${Math.round(topcause[1] / tt * 100)}% dos casos). ` : ''}${ca.length > 1 ? `Dispersão: ${melhor[0]} em ${melhor[1].toFixed(0)}% contra ${pior[0]} em ${pior[1].toFixed(0)}%. ` : ''}Use a tabela-farol para agir nas críticas.` : '<b>Sem RCs concluídas no recorte (desde abr/2026).</b>';
