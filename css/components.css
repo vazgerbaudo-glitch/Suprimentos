@@ -502,6 +502,10 @@ th.num {
     margin-right: 6px;
     vertical-align: middle
 }
+/* f-gn/f-nd entram com a régua de % do SLA consumido (Baixo risco e Sem SLA alvo) */
+.f-gn {
+    background: #1E9F7F
+}
 .f-am {
     background: #E9C400
 }
@@ -511,11 +515,18 @@ th.num {
 .f-rd {
     background: #D2373C
 }
+.f-nd {
+    background: #9AACB5
+}
 .tag-sev {
     font-size: 10.5px;
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 6px
+}
+.s-gn {
+    background: rgba(30,159,127,.14);
+    color: #14705A
 }
 .s-am {
     background: rgba(251,211,0,.20);
@@ -528,6 +539,16 @@ th.num {
 .s-rd {
     background: rgba(210,55,60,.10);
     color: #B12A2F
+}
+.s-nd {
+    background: #EEF2F4;
+    color: #46606F
+}
+/* % do SLA consumido exibido ao lado do farol */
+.pct-sla {
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-left: 6px
 }
 /* heatmap */
 .hm {

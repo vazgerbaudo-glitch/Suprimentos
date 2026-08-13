@@ -8,7 +8,7 @@
         <link rel="stylesheet" href="css/variables.css?v=20260724"/>
         <link rel="stylesheet" href="css/base.css?v=20260724"/>
         <link rel="stylesheet" href="css/layout.css?v=20260724"/>
-        <link rel="stylesheet" href="css/components.css?v=20260729d"/>
+        <link rel="stylesheet" href="css/components.css?v=20260813a"/>
     </head>
     <body>
         <aside class="filters-side">
@@ -205,7 +205,7 @@
                         <div class="panel" style="margin-top:18px">
                             <h3>RCs em aberto — acompanhamento individual</h3>
                             <div class="ph" id="sum_rcopen_ind"></div>
-                            <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · Aging = dias úteis desde a liberação, descontando o tempo devolvido para AT · Saldo SLA = SLA Alvo − SLA Real (SLA Real já líquido do tempo com AT; negativo = estourou o alvo) · sem corte de data, no recorte de Período/Tipo · ordenadas da mais antiga</div>
+                            <div class="ph"><span class="tag-sev s-gn">Baixo risco</span> 0–30% <span class="tag-sev s-am">Médio risco</span> 31–50% <span class="tag-sev s-or">Alto risco</span> 51–99,9% <span class="tag-sev s-rd">Fora do SLA</span> acima de 100% · faixa = SLA Real ÷ SLA Alvo (<span class="tag-sev s-nd">Sem SLA alvo</span> quando a RC não tem alvo na base) · Aging = dias úteis desde a liberação, descontando o tempo devolvido para AT · Saldo SLA = SLA Alvo − SLA Real (SLA Real já líquido do tempo com AT; negativo = estourou o alvo) · sem corte de data, no recorte de Período/Tipo · ordenadas da mais antiga</div>
                             <div class="tbl-scroll"><table id="t_rcopen_ind"><thead><tr><th>RC</th><th class="num">Itens</th><th>Tipo</th><th>Etapa atual</th><th class="num">Liberada</th><th class="num">SLA Alvo</th><th class="num">Aging (d)</th><th class="num">Saldo SLA</th><th>Semáforo</th></tr></thead><tbody></tbody></table></div>
                         </div>
                         <div class="insight" id="ins-individual"></div>
@@ -275,7 +275,7 @@
             </div>
             <div class="panel">
                 <h3>Base detalhada — semáforo de aging por RC</h3>
-                <div class="ph"><span class="tag-sev s-am">Dentro do prazo</span> <span class="tag-sev s-or">Atenção</span> <span class="tag-sev s-rd">Crítico</span> · Crítico = estourou o SLA Alvo da própria RC · Atenção = a 2 dias ou menos do limite (alvo fixo de 15d quando sem SLA Alvo) · inclui RCs em aberto e concluídas</div>
+                <div class="ph"><span class="tag-sev s-gn">Baixo risco</span> 0–30% <span class="tag-sev s-am">Médio risco</span> 31–50% <span class="tag-sev s-or">Alto risco</span> 51–99,9% <span class="tag-sev s-rd">Fora do SLA</span> acima de 100% · faixa = SLA Real ÷ SLA Alvo da própria RC · <span class="tag-sev s-nd">Sem SLA alvo</span> quando a RC não tem alvo na base · inclui RCs em aberto e concluídas</div>
                 <table id="t_aging"><thead><tr><th>RC</th><th>Item</th><th>Comprador</th><th>Status</th><th>Etapa</th><th class="num">SLA Alvo</th><th class="num">Dias</th><th>Semáforo</th></tr></thead><tbody></tbody></table>
             </div>
             <div class="insight" id="ins-aging"></div>
@@ -344,9 +344,9 @@
                 <div class="cv tall"><canvas id="c_slacomp"></canvas></div>
             </div>
             <div class="panel">
-                <h3>Base detalhada — RCs críticas (farol)</h3>
-                <div class="ph"><span class="tag-sev s-am">Fora do prazo 1–7d</span> <span class="tag-sev s-or">Além do normal 8–15d</span> <span class="tag-sev s-rd">Crítico &gt;15d</span> · ordenado por dias em atraso</div>
-                <table id="t_crit"><thead><tr><th>RC</th><th>Comprador</th><th>Status</th><th class="num">Dias atraso</th><th>Severidade</th></tr></thead><tbody></tbody></table>
+                <h3>Base detalhada — RCs por consumo do SLA (farol)</h3>
+                <div class="ph"><span class="tag-sev s-gn">Baixo risco</span> 0–30% <span class="tag-sev s-am">Médio risco</span> 31–50% <span class="tag-sev s-or">Alto risco</span> 51–99,9% <span class="tag-sev s-rd">Fora do SLA</span> acima de 100% · percentual = SLA Real ÷ SLA Alvo · ordenado do maior consumo para o menor · <span class="tag-sev s-nd">Sem SLA alvo</span> fica no fim da lista</div>
+                <table id="t_crit"><thead><tr><th>RC</th><th>Comprador</th><th>Status</th><th class="num">SLA Alvo</th><th class="num">SLA Real</th><th>Farol</th></tr></thead><tbody></tbody></table>
             </div>
             <div class="insight" id="ins-sla"></div>
         </section>
@@ -472,10 +472,15 @@
         <script src="js/state.js?v=20260803"></script>
         <script src="js/data.js?v=20260813a"></script>
         <script src="js/charts.js?v=20260812a"></script>
-        <script src="js/render_setor.js?v=20260810b"></script>
+        <script src="js/render_setor.js?v=20260813b"></script>
         <script src="js/filters_setor.js?v=20260730"></script>
         <script src="js/pendencias.js?v=20260811a"></script>
-        <script>const OPERACAO_EXCLUIR = ['Operação Sul'];</script>
+        <script>
+            const OPERACAO_EXCLUIR = ['Operação Sul'];
+            // Farol pela régua de % do SLA Alvo consumido (0–30 / 31–50 / 51–99,9 / acima de 100%).
+            // Exclusivo do Rodantes — Terminais e Coorporativo seguem na régua antiga, em dias.
+            const FAROL_PCT = true;
+        </script>
         <script src="js/main_setor.js?v=20260813a"></script>
     </body>
 </html>
