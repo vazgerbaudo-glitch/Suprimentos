@@ -139,7 +139,7 @@ const MAP = {
     'areacliente': 'ac', 'datainicio2analisedeescopo': 'di2',
     'contratosappedido': 'ped',
     'datadadevolucaoparaat': 'dev', 'dataretornosupri': 'ret',
-    'chavercitem': 'chv'
+    'chavercitem': 'chv', 'operacao': 'op'
 };
 
 function computeGar(o) {
@@ -224,7 +224,8 @@ function fromCSV(txt) {
             gar: computeGar(o), cl: (o.cl || '').trim(), td: (o.tpc || '').trim(),
             fa: parseNum(o.fa), du: parseNum(o.du), rm: rm,
             ac: (o.ac || '').trim(), di2: parseDate(o.di2), ped: (o.ped || '').trim(),
-            dev: parseDate(o.dev), ret: parseDate(o.ret), ssDerived, stRaw
+            dev: parseDate(o.dev), ret: parseDate(o.ret), ssDerived, stRaw,
+            op: (o.op || '').trim()
         };
     });
 }
@@ -242,6 +243,7 @@ const MAP_CART = {
     'car': 'car',
     'carteiranome': 'nome',
     'materialxservico': 'ms', 'materialservico': 'ms',
+    'nomefornecedor': 'forn',
     'contratoxspot': 'td',
     'dtpedido': 'dt', 'statusdeliberacao': 'status',
     'gerenciafinal': 'gerFinal'
@@ -278,6 +280,7 @@ function fromCarteirasCSV(txt) {
         const gerFinal = hasGerCol ? (('' + (o.gerFinal || '')).trim() || 'N/D') : 'Compras Ágeis';
         rows.push({
             rc, rcNorm: normRC(rc), it, car, nome, pedido, pedidoNorm: normPed(pedido),
+            forn: ('' + (o.forn || '')).trim(),
             cb, cbNorm: normPed(cb),
             ms, td, tdRaw, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim(),
             gerFinal, gerFinalNorm: nrm(gerFinal)

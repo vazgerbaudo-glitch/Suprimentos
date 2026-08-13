@@ -2,8 +2,15 @@ function setDot(cls) {
     document.getElementById('srcdot').className = 'dot' + (cls ? ' ' + cls : '');
 }
 
+// OPERACAO_EXCLUIR (opcional, definido inline em cada HTML antes deste script) filtra fora
+// linhas cuja coluna "Operação" bata com um dos valores listados — hoje só o Rodantes usa,
+// para não misturar RCs de "Operação Sul" no painel.
+function excluiOperacao(r) {
+    return typeof OPERACAO_EXCLUIR === 'undefined' || OPERACAO_EXCLUIR.indexOf(r.op) === -1;
+}
+
 function loadEmpty() {
-    ALL = fromEmbedded();
+    ALL = fromEmbedded().filter(excluiOperacao);
     setDot('');
     buildFilters();
     render();
@@ -11,7 +18,7 @@ function loadEmpty() {
 
 function loadCSVText(txt, nome) {
     try {
-        const recs = fromCSV(txt).filter(r => r.dc || r.dl || r.st === 'A');
+        const recs = fromCSV(txt).filter(r => (r.dc || r.dl || r.st === 'A') && excluiOperacao(r));
         if (!recs.length) throw new Error('vazio ou cabeçalhos não reconhecidos');
         ALL = recs;
         setDot('live');

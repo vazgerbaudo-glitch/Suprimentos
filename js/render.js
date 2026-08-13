@@ -815,11 +815,28 @@ function renderContr() {
     document.getElementById('kpi-contr').classList.remove('k3');
     kpi('kpi-contr', kpiContr);
 
+    // Volumetria dos gráficos de % Contrato × Spot: o tooltip abre a contagem que originou o
+    // percentual (numerador) e o total da coluna (denominador) — "un" muda porque os gráficos por
+    // RC contam RCs e os de Material/Serviço contam itens do Spend.
+    const volTooltip = (un, totalsFn) => ({
+        callbacks: {
+            label: c => {
+                const n = c.dataset.vol && c.dataset.vol[c.dataIndex];
+                const pct = c.dataset.label + ': ' + c.parsed.y + '%';
+                return typeof n === 'number' ? pct + ' · ' + Math.round(n).toLocaleString('pt-BR') + ' ' + un : pct;
+            },
+            footer: items => {
+                const t = items && items.length ? totalsFn(items[0].dataIndex) : 0;
+                return t ? 'Total: ' + Math.round(t).toLocaleString('pt-BR') + ' ' + un : '';
+            }
+        }
+    });
+
     // Contrato × Spot — Geral: soma de todas as carteiras, uma coluna 100% empilhada (c_contrmix)
     const conSpoTot = nCon + nSpo;
     const mixConPct = conSpoTot ? Math.round(nCon / conSpoTot * 100) : 0;
     const mixSpoPct = conSpoTot ? 100 - mixConPct : 0;
-    mkChart('c_contrmix', { type: 'bar', plugins: [stackPctLabels], data: { labels: ['Geral'], datasets: [{ label: 'Contrato', data: [mixConPct], backgroundColor: CCON, stack: 's' }, { label: 'Spot', data: [mixSpoPct], backgroundColor: C.steel, stack: 's' }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    mkChart('c_contrmix', { type: 'bar', plugins: [stackPctLabels], data: { labels: ['Geral'], volTotals: [conSpoTot], datasets: [{ label: 'Contrato', data: [mixConPct], vol: [nCon], backgroundColor: CCON, stack: 's' }, { label: 'Spot', data: [mixSpoPct], vol: [nSpo], backgroundColor: C.steel, stack: 's' }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip('RCs', () => conSpoTot) }, scales: { x: { stacked: true, ...noG }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
     // Contrato × Spot — Material e Serviço: mesma coluna 100% empilhada, cada uma só com os itens da classe (c_contrmix_mat/serv)
     const msMix = { Material: { Contrato: 0, Spot: 0 }, Serviço: { Contrato: 0, Spot: 0 } };
@@ -830,7 +847,7 @@ function renderContr() {
     });
     const mkMixChart = (id, counts, tot) => {
         const conPct = tot ? Math.round(counts.Contrato / tot * 100) : 0, spoPct = tot ? 100 - conPct : 0;
-        mkChart(id, { type: 'bar', plugins: [stackPctLabels], data: { labels: ['Geral'], datasets: [{ label: 'Contrato', data: [conPct], backgroundColor: CCON, stack: 's' }, { label: 'Spot', data: [spoPct], backgroundColor: C.steel, stack: 's' }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+        mkChart(id, { type: 'bar', plugins: [stackPctLabels], data: { labels: ['Geral'], volTotals: [tot], datasets: [{ label: 'Contrato', data: [conPct], vol: [counts.Contrato], backgroundColor: CCON, stack: 's' }, { label: 'Spot', data: [spoPct], vol: [counts.Spot], backgroundColor: C.steel, stack: 's' }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip('itens', () => tot) }, scales: { x: { stacked: true, ...noG }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
     };
     mkMixChart('c_contrmix_mat', msMix.Material, msMix.Material.Contrato + msMix.Material.Spot);
     mkMixChart('c_contrmix_serv', msMix.Serviço, msMix.Serviço.Contrato + msMix.Serviço.Spot);
@@ -895,8 +912,8 @@ function renderContr() {
     // largura mínima por coluna pra caber o rótulo "100%" sem sobrepor a coluna vizinha — com 40+
     // carteiras G, coluna fixa vira ilegível, então aqui vira scroll horizontal (ver .cv-scroll)
     const ccdTipoCv = document.getElementById('c_ccd_tipo_cv');
-    if (ccdTipoCv) ccdTipoCv.style.minWidth = Math.max(gCarKeys.length * 34, 1) + 'px';
-    mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    if (ccdTipoCv) ccdTipoCv.style.minWidth = Math.max(gCarKeys.length * 42, 1) + 'px';
+    mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, volTotals: gCarArr.map(x => x.tot), datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), vol: gCarArr.map(x => x.o[t] || 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip('RCs', i => gCarArr[i] && gCarArr[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
     // % Contrato × Spot por carteira, uma coluna de gráficos por Gerência Final (c_ger_N, dinâmico).
     // Rollup por RC direto do Spend (Car + Contrato/Spot do próprio RC — RC com item de Contrato E
@@ -907,7 +924,7 @@ function renderContr() {
     const carBase = CARTEIRAS.filter(ln => ln.dt && ln.dt >= DATA_INI_AGING && periodHit(ln.dt) && tpHit(ln));
     const gerSet = {};
     carBase.forEach(ln => { (gerSet[ln.gerFinal] = gerSet[ln.gerFinal] || new Set()).add(ln.rcNorm); });
-    const gerList = Object.entries(gerSet).filter(([g]) => g !== 'Compras Ágeis').map(([g, set]) => [g, set.size]).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+    const gerList = Object.entries(gerSet).filter(([g]) => nrm(g) !== GERENCIA_ALVO).map(([g, set]) => [g, set.size]).sort((a, b) => b[1] - a[1]).map(x => x[0]);
     const byRCAll = {};
     carBase.forEach(ln => { if (!ln.rcNorm) return; (byRCAll[ln.rcNorm] = byRCAll[ln.rcNorm] || []).push(ln); });
     const gerCarStats = {};
@@ -921,9 +938,18 @@ function renderContr() {
     });
     const ALLOWED_G_GER = ['G01', 'G02', 'G03', 'G04', 'G05', 'G06', 'G07', 'G08', 'G11', 'G12', 'G13', 'G15', 'G16', 'G17', 'G18', 'G19', 'G20', 'G21', 'G22', 'G23', 'G24', 'G25', 'G26', 'G27', 'G28', 'G29', 'G30', 'G31', 'G32', 'G33', 'G34', 'G35', 'G36', 'G37', 'G40', 'G41', 'G57', 'G66', 'G85', 'G86', 'G88', 'G89', 'G91', 'G92', 'G94'];
     const GER_TYPE_COLORS = { Contrato: '#0F6B4C', Spot: '#8FD9BE', Outros: '#7A8C97' };
+    // Cada gráfico de Gerência Final soma Compras Ágeis por CÓDIGO de carteira: as RCs de G28 da
+    // Gerência e as de G28 de Ágeis viram uma coluna G28 só. Não afeta o gráfico G/R/S (c_ccd_tipo),
+    // que continua sendo exclusivamente Compras Ágeis.
+    const ageisCarStats = gerCarStats[Object.keys(gerCarStats).find(g => nrm(g) === GERENCIA_ALVO)] || {};
     const gerCharts = gerList.map((g, gi) => {
         const cars = gerCarStats[g] || {};
-        const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Outros })).filter(k => k.tot > 0 && ALLOWED_G_GER.includes(k.c)).sort((a, b) => b.tot - a.tot);
+        const merged = {};
+        [cars, ageisCarStats].forEach(src => Object.entries(src).forEach(([c, o]) => {
+            const m = merged[c] = merged[c] || { Contrato: 0, Spot: 0, Outros: 0 };
+            m.Contrato += o.Contrato; m.Spot += o.Spot; m.Outros += o.Outros;
+        }));
+        const carKeys = Object.entries(merged).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Outros })).filter(k => k.tot > 0 && ALLOWED_G_GER.includes(k.c)).sort((a, b) => b.tot - a.tot);
         return { g, cid: 'c_ger_' + gi, carKeys };
     }).filter(x => x.carKeys.length);
 
@@ -936,26 +962,108 @@ function renderContr() {
     const araizPanel = gCarAArr.length ? { cid: 'c_ccd_tipo_araiz', carArr: gCarAArr } : null;
 
     document.getElementById('gerfinal-charts').innerHTML = gerCharts.map(x => `<div class="panel" style="margin-bottom:0">
-<h3>% Contrato × Spot por carteira — ${x.g}</h3>
+<h3>% Contrato × Spot por carteira — ${x.g} + Compras Ágeis</h3>
+<div class="ph">Soma das RCs desta Gerência com as de Compras Ágeis, consolidadas por código de carteira · número acima da coluna é o total de RCs que gera o %, e o número dentro de cada faixa é a contagem daquela faixa</div>
 <div class="cv-scroll"><div class="cv" id="${x.cid}_cv"><canvas id="${x.cid}"></canvas></div></div>
 </div>`).join('') + (araizPanel ? `<div class="panel" style="margin-bottom:0">
 <h3>% Contrato × Spot — A (raiz), estimado</h3>
-<div class="ph">Carteira G estimada pelo histórico da Gestão à Vista para RCs ainda em Grupo Comprador "A..." (não resolvidas) — Contrato × Spot vem direto do Spend, só a coluna G é que é estimativa.</div>
+<div class="ph">Carteira G estimada pelo histórico da Gestão à Vista para RCs ainda em Grupo Comprador "A..." (não resolvidas) — Contrato × Spot vem direto do Spend, só a coluna G é que é estimativa. Volumetria em RCs, também estimada (fracionada entre as carteiras G), por isso arredondada.</div>
 <div class="cv-scroll"><div class="cv" id="${araizPanel.cid}_cv"><canvas id="${araizPanel.cid}"></canvas></div></div>
 </div>` : '');
     upgradeHeaders();
-    const setMinBarWidth = (cvId, nBars) => { const el = document.getElementById(cvId); if (el) el.style.minWidth = Math.max(nBars * 34, 1) + 'px'; };
+    const setMinBarWidth = (cvId, nBars) => { const el = document.getElementById(cvId); if (el) el.style.minWidth = Math.max(nBars * 42, 1) + 'px'; };
     gerCharts.forEach(x => setMinBarWidth(x.cid + '_cv', x.carKeys.length));
     if (araizPanel) setMinBarWidth(araizPanel.cid + '_cv', araizPanel.carArr.length);
     gerCharts.forEach(x => {
         const hasOutros = x.carKeys.some(k => k.o.Outros > 0);
         const types = hasOutros ? ['Contrato', 'Spot', 'Outros'] : ['Contrato', 'Spot'];
-        mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+        mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), volTotals: x.carKeys.map(k => k.tot), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), vol: x.carKeys.map(k => k.o[t] || 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip('RCs', i => x.carKeys[i] && x.carKeys[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
     });
     if (araizPanel) {
         const hasOutros = araizPanel.carArr.some(x => x.o.Outros > 0);
         const types = hasOutros ? ['Contrato', 'Spot', 'Outros'] : ['Contrato', 'Spot'];
-        mkChart(araizPanel.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: araizPanel.carArr.map(x => x.c), datasets: types.map(t => ({ label: t, data: araizPanel.carArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), backgroundColor: ARAIZ_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y + '%' } } }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+        mkChart(araizPanel.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: araizPanel.carArr.map(x => x.c), volTotals: araizPanel.carArr.map(x => x.tot), datasets: types.map(t => ({ label: t, data: araizPanel.carArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), vol: araizPanel.carArr.map(x => x.o[t] || 0), backgroundColor: ARAIZ_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip('RCs', i => araizPanel.carArr[i] && araizPanel.carArr[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    }
+
+    // ===== Consulta por carteira — Fornecedor / RC / Tipo / Pedido / Contrato (t_cart_forn) =====
+    // Sai direto do Spend (carBase, todas as Gerências Finais, respeitando Período e Tipo de compra),
+    // sem cruzar com a Gestão à Vista: o Spend não tem coluna de responsável, e "Nome Fornecedor" é a
+    // coluna equivalente. Dedupe por RC + fornecedor + pedido + contrato básico — o Spend tem uma
+    // linha por ITEM de pedido, então sem isso o mesmo pedido viraria dezenas de linhas iguais.
+    // Carteiras grandes passam de 7 mil linhas, por isso a tabela mostra as CART_TBL_MAX primeiras
+    // na ordenação escolhida e informa o total no rodapé do filtro.
+    // A coluna Tipo é o Contrato/Spot do próprio Spend (td). Como a linha da tabela agrega vários
+    // itens de pedido, ela pode juntar itens de tipos diferentes: nesse caso vira "Mista", mesmo
+    // critério usado no resto da aba. O filtro Escopo troca entre todas as Gerências Finais e só
+    // Compras Ágeis — a lista de carteiras é remontada junto, para não sobrar carteira vazia.
+    const CART_TBL_MAX = 500;
+    const cartTblSel = document.getElementById('f_cart_tbl'), cartTblOrd = document.getElementById('f_cart_ord'), cartTblBody = document.querySelector('#t_cart_forn tbody');
+    const cartTblGer = document.getElementById('f_cart_ger');
+    if (cartTblSel && cartTblOrd && cartTblBody) {
+        const tipoDaLinha = set => { const t = [...set].filter(x => x && x !== 'N/D'); return !t.length ? 'N/D' : t.length === 1 ? t[0] : 'Mista'; };
+        const TIPO_CLS = { Contrato: 't-con', Spot: 't-spot', Mista: 't-mix' };
+        const byKey = new Map(), carNome = {};
+        carBase.forEach(ln => {
+            const car = (ln.car || '').trim();
+            if (!car) return;
+            if (ln.nome && !carNome[car]) carNome[car] = ln.nome;
+            const k = car + '|' + ln.rcNorm + '|' + ln.forn + '|' + ln.pedido + '|' + ln.cb;
+            let r = byKey.get(k);
+            if (!r) { r = { car, forn: ln.forn || '', rc: ln.rc, rcNorm: ln.rcNorm, pedido: ln.pedido || '', cb: ln.cb || '', ageis: false, tds: new Set() }; byKey.set(k, r); }
+            r.tds.add(ln.td || 'N/D');
+            if (ln.gerFinalNorm === GERENCIA_ALVO) r.ageis = true;
+        });
+        const allRows = [...byKey.values()];
+        allRows.forEach(r => { r.tipo = tipoDaLinha(r.tds); });
+        const byCar = { todas: {}, ageis: {} };
+        allRows.forEach(r => {
+            (byCar.todas[r.car] = byCar.todas[r.car] || []).push(r);
+            if (r.ageis) (byCar.ageis[r.car] = byCar.ageis[r.car] || []).push(r);
+        });
+        if (cartTblGer) cartTblGer.value = STATE.cartTblGer === 'ageis' ? 'ageis' : 'todas';
+        cartTblOrd.value = STATE.cartTblOrd || 'forn_asc';
+        // fornecedor em branco vai sempre para o fim, nas duas direções — em cima só atrapalha a leitura
+        const blankLast = (a, b) => (!a.forn !== !b.forn) ? (a.forn ? -1 : 1) : 0;
+        const cmpRC = (a, b) => ('' + a.rcNorm).localeCompare('' + b.rcNorm, undefined, { numeric: true });
+        const cmpForn = (a, b) => a.forn.localeCompare(b.forn, 'pt-BR') || cmpRC(a, b);
+        const TIPO_PRIO = { Contrato: 0, Spot: 1, Mista: 2 };
+        const prioTipo = t => TIPO_PRIO[t] !== undefined ? TIPO_PRIO[t] : 3;
+        const ORD = {
+            forn_asc: (a, b) => blankLast(a, b) || cmpForn(a, b),
+            forn_desc: (a, b) => blankLast(a, b) || b.forn.localeCompare(a.forn, 'pt-BR') || cmpRC(a, b),
+            rc_asc: cmpRC,
+            rc_desc: (a, b) => cmpRC(b, a),
+            tipo_asc: (a, b) => prioTipo(a.tipo) - prioTipo(b.tipo) || blankLast(a, b) || cmpForn(a, b)
+        };
+        // Lista de carteiras do escopo atual; mantém a carteira escolhida se ela existir nele
+        const fillCarOpts = () => {
+            const map = byCar[STATE.cartTblGer === 'ageis' ? 'ageis' : 'todas'];
+            const carOpts = Object.keys(map).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            const carSel = STATE.cartTbl && map[STATE.cartTbl] ? STATE.cartTbl : (carOpts[0] || '');
+            STATE.cartTbl = carSel;
+            cartTblSel.innerHTML = carOpts.length ? carOpts.map(c => `<option value="${c}"${c === carSel ? ' selected' : ''}>${c}${carNome[c] ? ' — ' + carNome[c] : ''}</option>`).join('') : '<option value="">Sem carteiras no recorte</option>';
+            return map;
+        };
+        const drawCartTbl = () => {
+            STATE.cartTblGer = cartTblGer ? cartTblGer.value : 'todas';
+            STATE.cartTblOrd = cartTblOrd.value;
+            if (cartTblSel.value) STATE.cartTbl = cartTblSel.value;
+            const map = fillCarOpts();
+            const rows = (map[STATE.cartTbl] || []).slice();
+            rows.sort(ORD[STATE.cartTblOrd] || ORD.forn_asc);
+            const shown = rows.slice(0, CART_TBL_MAX);
+            cartTblBody.innerHTML = shown.map(r => `<tr><td>${r.forn || '—'}</td><td>${r.rc}</td><td><span class="tpill ${TIPO_CLS[r.tipo] || 't-nd'}">${r.tipo}</span></td><td>${r.pedido || '—'}</td><td>${r.cb || '—'}</td></tr>`).join('') || '<tr><td colspan="5" style="color:#46606F">Sem linhas para esta carteira no recorte.</td></tr>';
+            const st = document.getElementById('cart_tbl_status');
+            if (st) {
+                const nRC = new Set(rows.map(r => r.rcNorm)).size, nForn = new Set(rows.filter(r => r.forn).map(r => r.forn)).size;
+                const nCon = rows.filter(r => r.tipo === 'Contrato').length, nSpo = rows.filter(r => r.tipo === 'Spot').length;
+                st.textContent = rows.length ? `${rows.length.toLocaleString('pt-BR')} linhas · ${nRC.toLocaleString('pt-BR')} RCs · ${nForn.toLocaleString('pt-BR')} fornecedores · ${nCon.toLocaleString('pt-BR')} Contrato / ${nSpo.toLocaleString('pt-BR')} Spot${rows.length > CART_TBL_MAX ? ` · mostrando as ${CART_TBL_MAX} primeiras nesta ordenação` : ''}` : 'Sem linhas neste escopo.';
+            }
+        };
+        cartTblSel.onchange = drawCartTbl;
+        cartTblOrd.onchange = drawCartTbl;
+        if (cartTblGer) cartTblGer.onchange = drawCartTbl;
+        drawCartTbl();
     }
 
     // Carteira/Categoria por RC — só o código (G35, S12...); RC ambígua ganha rótulo próprio (não

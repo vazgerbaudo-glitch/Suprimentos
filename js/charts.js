@@ -204,6 +204,11 @@ const refLines = vals => ({
 // ---- rótulo % centralizado dentro de cada segmento de coluna empilhada ----
 // fonte encolhe por coluna até um piso (7px); se nem assim o texto couber na largura da barra,
 // o rótulo não é desenhado — evita vazar/sobrepor o rótulo da coluna vizinha em gráficos com muitas colunas
+//
+// Volumetria: quando o dataset traz `vol` (array com a contagem por coluna que ORIGINOU aquele %),
+// a contagem é desenhada numa 2ª linha dentro do segmento, e o total da coluna (`data.volTotals`,
+// o denominador que dá o resultado) sai acima da barra. Ambos são opcionais e só aparecem quando
+// cabem — a legibilidade do % vem primeiro, então nada disso é desenhado por cima da barra vizinha.
 const stackPctLabels = {
     id: 'stackPctLabels',
     afterDatasetsDraw(chart) {
@@ -212,8 +217,8 @@ const stackPctLabels = {
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#FFFFFF';
         const metas = chart.data.datasets.map((_, di) => chart.getDatasetMeta(di));
+        const fmt = n => Math.round(n).toLocaleString('pt-BR');
         chart.data.labels.forEach((_, i) => {
             chart.data.datasets.forEach((ds, di) => {
                 const meta = metas[di];
@@ -232,9 +237,51 @@ const stackPctLabels = {
                 }
                 if (ctx.measureText(label).width > maxW) return;
                 const cy = (el.y + el.base) / 2;
-                ctx.fillText(label, el.x, cy);
+                const segH = Math.abs(el.base - el.y);
+                // 2ª linha com a contagem: só quando o segmento tem altura para as duas linhas
+                // sem encostar nas bordas e a contagem cabe na largura já apertada da barra
+                const n = ds.vol && ds.vol[i];
+                let volTxt = null;
+                if (typeof n === 'number' && n > 0 && segH >= fontSize * 2 + 8) {
+                    const t = fmt(n);
+                    ctx.font = "700 " + (fontSize - 2) + "px Verdana,sans-serif";
+                    if (ctx.measureText(t).width <= maxW) volTxt = t;
+                }
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = "700 " + fontSize + "px Verdana,sans-serif";
+                ctx.fillText(label, el.x, volTxt ? cy - (fontSize - 2) / 2 - 1 : cy);
+                if (volTxt) {
+                    ctx.font = "700 " + (fontSize - 2) + "px Verdana,sans-serif";
+                    ctx.fillStyle = 'rgba(255,255,255,.78)';
+                    ctx.fillText(volTxt, el.x, cy + fontSize / 2 + 1);
+                }
             });
         });
+        // total da coluna acima da barra — o denominador do %
+        const totals = chart.data.volTotals;
+        if (totals) {
+            const first = metas.find(m => !m.hidden && m.data.length);
+            if (first) {
+                ctx.textBaseline = 'bottom';
+                chart.data.labels.forEach((_, i) => {
+                    const n = totals[i];
+                    if (typeof n !== 'number' || n <= 0) return;
+                    const el = first.data[i];
+                    if (!el) return;
+                    const t = fmt(n);
+                    const maxW = (el.width || 0) + 2;
+                    let fs = 10;
+                    ctx.font = "700 " + fs + "px Verdana,sans-serif";
+                    while (ctx.measureText(t).width > maxW && fs > 7) {
+                        fs--;
+                        ctx.font = "700 " + fs + "px Verdana,sans-serif";
+                    }
+                    if (ctx.measureText(t).width > maxW) return;
+                    ctx.fillStyle = '#5A7180';
+                    ctx.fillText(t, el.x, chart.chartArea.top - 2);
+                });
+            }
+        }
         ctx.restore();
     }
 };
