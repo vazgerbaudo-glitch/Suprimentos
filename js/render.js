@@ -985,55 +985,84 @@ function renderContr() {
         mkChart(araizPanel.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: araizPanel.carArr.map(x => x.c), volTotals: araizPanel.carArr.map(x => x.tot), datasets: types.map(t => ({ label: t, data: araizPanel.carArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), vol: araizPanel.carArr.map(x => x.o[t] || 0), backgroundColor: ARAIZ_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip('RCs', i => araizPanel.carArr[i] && araizPanel.carArr[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
     }
 
-    // ===== Consulta por carteira — Fornecedor / RC / Pedido / Contrato (t_cart_forn) =====
+    // ===== Consulta por carteira — Fornecedor / RC / Tipo / Pedido / Contrato (t_cart_forn) =====
     // Sai direto do Spend (carBase, todas as Gerências Finais, respeitando Período e Tipo de compra),
     // sem cruzar com a Gestão à Vista: o Spend não tem coluna de responsável, e "Nome Fornecedor" é a
     // coluna equivalente. Dedupe por RC + fornecedor + pedido + contrato básico — o Spend tem uma
     // linha por ITEM de pedido, então sem isso o mesmo pedido viraria dezenas de linhas iguais.
     // Carteiras grandes passam de 7 mil linhas, por isso a tabela mostra as CART_TBL_MAX primeiras
     // na ordenação escolhida e informa o total no rodapé do filtro.
+    // A coluna Tipo é o Contrato/Spot do próprio Spend (td). Como a linha da tabela agrega vários
+    // itens de pedido, ela pode juntar itens de tipos diferentes: nesse caso vira "Mista", mesmo
+    // critério usado no resto da aba. O filtro Escopo troca entre todas as Gerências Finais e só
+    // Compras Ágeis — a lista de carteiras é remontada junto, para não sobrar carteira vazia.
     const CART_TBL_MAX = 500;
     const cartTblSel = document.getElementById('f_cart_tbl'), cartTblOrd = document.getElementById('f_cart_ord'), cartTblBody = document.querySelector('#t_cart_forn tbody');
+    const cartTblGer = document.getElementById('f_cart_ger');
     if (cartTblSel && cartTblOrd && cartTblBody) {
-        const seen = new Set(), rowsByCar = {}, carNome = {};
+        const tipoDaLinha = set => { const t = [...set].filter(x => x && x !== 'N/D'); return !t.length ? 'N/D' : t.length === 1 ? t[0] : 'Mista'; };
+        const TIPO_CLS = { Contrato: 't-con', Spot: 't-spot', Mista: 't-mix' };
+        const byKey = new Map(), carNome = {};
         carBase.forEach(ln => {
             const car = (ln.car || '').trim();
             if (!car) return;
             if (ln.nome && !carNome[car]) carNome[car] = ln.nome;
             const k = car + '|' + ln.rcNorm + '|' + ln.forn + '|' + ln.pedido + '|' + ln.cb;
-            if (seen.has(k)) return;
-            seen.add(k);
-            (rowsByCar[car] = rowsByCar[car] || []).push({ forn: ln.forn || '', rc: ln.rc, rcNorm: ln.rcNorm, pedido: ln.pedido || '', cb: ln.cb || '' });
+            let r = byKey.get(k);
+            if (!r) { r = { car, forn: ln.forn || '', rc: ln.rc, rcNorm: ln.rcNorm, pedido: ln.pedido || '', cb: ln.cb || '', ageis: false, tds: new Set() }; byKey.set(k, r); }
+            r.tds.add(ln.td || 'N/D');
+            if (ln.gerFinalNorm === GERENCIA_ALVO) r.ageis = true;
         });
-        const carOpts = Object.keys(rowsByCar).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-        const carSel = STATE.cartTbl && rowsByCar[STATE.cartTbl] ? STATE.cartTbl : (carOpts[0] || '');
-        STATE.cartTbl = carSel;
-        cartTblSel.innerHTML = carOpts.length ? carOpts.map(c => `<option value="${c}"${c === carSel ? ' selected' : ''}>${c}${carNome[c] ? ' — ' + carNome[c] : ''}</option>`).join('') : '<option value="">Sem carteiras no recorte</option>';
+        const allRows = [...byKey.values()];
+        allRows.forEach(r => { r.tipo = tipoDaLinha(r.tds); });
+        const byCar = { todas: {}, ageis: {} };
+        allRows.forEach(r => {
+            (byCar.todas[r.car] = byCar.todas[r.car] || []).push(r);
+            if (r.ageis) (byCar.ageis[r.car] = byCar.ageis[r.car] || []).push(r);
+        });
+        if (cartTblGer) cartTblGer.value = STATE.cartTblGer === 'ageis' ? 'ageis' : 'todas';
         cartTblOrd.value = STATE.cartTblOrd || 'forn_asc';
         // fornecedor em branco vai sempre para o fim, nas duas direções — em cima só atrapalha a leitura
         const blankLast = (a, b) => (!a.forn !== !b.forn) ? (a.forn ? -1 : 1) : 0;
         const cmpRC = (a, b) => ('' + a.rcNorm).localeCompare('' + b.rcNorm, undefined, { numeric: true });
+        const cmpForn = (a, b) => a.forn.localeCompare(b.forn, 'pt-BR') || cmpRC(a, b);
+        const TIPO_PRIO = { Contrato: 0, Spot: 1, Mista: 2 };
+        const prioTipo = t => TIPO_PRIO[t] !== undefined ? TIPO_PRIO[t] : 3;
         const ORD = {
-            forn_asc: (a, b) => blankLast(a, b) || a.forn.localeCompare(b.forn, 'pt-BR') || cmpRC(a, b),
+            forn_asc: (a, b) => blankLast(a, b) || cmpForn(a, b),
             forn_desc: (a, b) => blankLast(a, b) || b.forn.localeCompare(a.forn, 'pt-BR') || cmpRC(a, b),
             rc_asc: cmpRC,
-            rc_desc: (a, b) => cmpRC(b, a)
+            rc_desc: (a, b) => cmpRC(b, a),
+            tipo_asc: (a, b) => prioTipo(a.tipo) - prioTipo(b.tipo) || blankLast(a, b) || cmpForn(a, b)
+        };
+        // Lista de carteiras do escopo atual; mantém a carteira escolhida se ela existir nele
+        const fillCarOpts = () => {
+            const map = byCar[STATE.cartTblGer === 'ageis' ? 'ageis' : 'todas'];
+            const carOpts = Object.keys(map).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            const carSel = STATE.cartTbl && map[STATE.cartTbl] ? STATE.cartTbl : (carOpts[0] || '');
+            STATE.cartTbl = carSel;
+            cartTblSel.innerHTML = carOpts.length ? carOpts.map(c => `<option value="${c}"${c === carSel ? ' selected' : ''}>${c}${carNome[c] ? ' — ' + carNome[c] : ''}</option>`).join('') : '<option value="">Sem carteiras no recorte</option>';
+            return map;
         };
         const drawCartTbl = () => {
-            STATE.cartTbl = cartTblSel.value;
+            STATE.cartTblGer = cartTblGer ? cartTblGer.value : 'todas';
             STATE.cartTblOrd = cartTblOrd.value;
-            const rows = (rowsByCar[STATE.cartTbl] || []).slice();
+            if (cartTblSel.value) STATE.cartTbl = cartTblSel.value;
+            const map = fillCarOpts();
+            const rows = (map[STATE.cartTbl] || []).slice();
             rows.sort(ORD[STATE.cartTblOrd] || ORD.forn_asc);
             const shown = rows.slice(0, CART_TBL_MAX);
-            cartTblBody.innerHTML = shown.map(r => `<tr><td>${r.forn || '—'}</td><td>${r.rc}</td><td>${r.pedido || '—'}</td><td>${r.cb || '—'}</td></tr>`).join('') || '<tr><td colspan="4" style="color:#46606F">Sem linhas para esta carteira no recorte.</td></tr>';
+            cartTblBody.innerHTML = shown.map(r => `<tr><td>${r.forn || '—'}</td><td>${r.rc}</td><td><span class="tpill ${TIPO_CLS[r.tipo] || 't-nd'}">${r.tipo}</span></td><td>${r.pedido || '—'}</td><td>${r.cb || '—'}</td></tr>`).join('') || '<tr><td colspan="5" style="color:#46606F">Sem linhas para esta carteira no recorte.</td></tr>';
             const st = document.getElementById('cart_tbl_status');
             if (st) {
                 const nRC = new Set(rows.map(r => r.rcNorm)).size, nForn = new Set(rows.filter(r => r.forn).map(r => r.forn)).size;
-                st.textContent = rows.length ? `${rows.length.toLocaleString('pt-BR')} linhas · ${nRC.toLocaleString('pt-BR')} RCs · ${nForn.toLocaleString('pt-BR')} fornecedores${rows.length > CART_TBL_MAX ? ` · mostrando as ${CART_TBL_MAX} primeiras nesta ordenação` : ''}` : '';
+                const nCon = rows.filter(r => r.tipo === 'Contrato').length, nSpo = rows.filter(r => r.tipo === 'Spot').length;
+                st.textContent = rows.length ? `${rows.length.toLocaleString('pt-BR')} linhas · ${nRC.toLocaleString('pt-BR')} RCs · ${nForn.toLocaleString('pt-BR')} fornecedores · ${nCon.toLocaleString('pt-BR')} Contrato / ${nSpo.toLocaleString('pt-BR')} Spot${rows.length > CART_TBL_MAX ? ` · mostrando as ${CART_TBL_MAX} primeiras nesta ordenação` : ''}` : 'Sem linhas neste escopo.';
             }
         };
         cartTblSel.onchange = drawCartTbl;
         cartTblOrd.onchange = drawCartTbl;
+        if (cartTblGer) cartTblGer.onchange = drawCartTbl;
         drawCartTbl();
     }
 

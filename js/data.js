@@ -139,7 +139,7 @@ const MAP = {
     'areacliente': 'ac', 'datainicio2analisedeescopo': 'di2',
     'contratosappedido': 'ped',
     'datadadevolucaoparaat': 'dev', 'dataretornosupri': 'ret',
-    'chavercitem': 'chv'
+    'chavercitem': 'chv', 'operacao': 'op'
 };
 
 function computeGar(o) {
@@ -224,7 +224,8 @@ function fromCSV(txt) {
             gar: computeGar(o), cl: (o.cl || '').trim(), td: (o.tpc || '').trim(),
             fa: parseNum(o.fa), du: parseNum(o.du), rm: rm,
             ac: (o.ac || '').trim(), di2: parseDate(o.di2), ped: (o.ped || '').trim(),
-            dev: parseDate(o.dev), ret: parseDate(o.ret), ssDerived, stRaw
+            dev: parseDate(o.dev), ret: parseDate(o.ret), ssDerived, stRaw,
+            op: (o.op || '').trim()
         };
     });
 }

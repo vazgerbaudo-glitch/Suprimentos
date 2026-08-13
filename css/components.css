@@ -265,6 +265,32 @@
     background: var(--bad-s);
     color: var(--bad-t)
 }
+/* Etiqueta de tipo (Contrato / Spot) dentro de célula de tabela — mesma leitura de cor dos
+   gráficos Contrato × Spot: azul institucional para Contrato, steel para Spot. */
+.tpill {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    white-space: nowrap
+}
+.t-con {
+    background: rgba(0,56,101,.10);
+    color: var(--brand)
+}
+.t-spot {
+    background: rgba(90,140,174,.16);
+    color: #3B6A8B
+}
+.t-mix {
+    background: var(--warn-s);
+    color: var(--warn-t)
+}
+.t-nd {
+    background: rgba(70,96,111,.10);
+    color: var(--muted)
+}
 .link-tab {
     float: right;
     font-size: 11px;
