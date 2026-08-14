@@ -287,6 +287,7 @@ function projScenarios(vals, opt) {
     // viés a banda nasce estreita justamente nas séries mais inerciais — foi o que o backtest acusou.
     const vBias = Math.min(1, Math.max(.4, 1 - (1 / fit.n) * (1 + phi) / Math.max(.15, 1 - phi)));
     const sigma = sigma0 / Math.sqrt(vBias);
+    const sigE = sigma * Math.sqrt(Math.max(0, 1 - phi * phi));   // σ da inovação nova a cada semana
 
     // ── Projeção ─────────────────────────────────────────────────────────────
     // Variância k passos à frente = inovação acumulada do AR(1) + incerteza dos parâmetros da reta.
@@ -298,27 +299,48 @@ function projScenarios(vals, opt) {
         const xk = x0 + k, esc = useDu ? duF(k) : 1;
         const taxa = base(xk) + mAdj(wkF(k)) + Math.pow(phi, k) * eLast;
         const vr = (1 - Math.pow(phi, 2 * k)) + 1 / fit.n + lev(xk);
-        return { t: taxa * esc, sig: sigma * Math.sqrt(Math.max(vr, 1e-9)) * esc };
+        return { t: taxa * esc, sig: sigma * Math.sqrt(Math.max(vr, 1e-9)) * esc, esc };
     };
 
-    const real = [], otim = [], pess = [], lo = [], hi = [], lo2 = [], hi2 = [];
+    // ── Ondulação visual das três linhas ─────────────────────────────────────
+    // Só para o DESENHO — nunca para o número. Sem isto a linha central achatava assim que φᵏ decaía
+    // (poucas semanas), enquanto as trajetórias simuladas ao fundo continuavam a ondular a cada semana:
+    // a régua e a paisagem contavam histórias diferentes. Aqui entra uma inovação NOVA a cada semana
+    // (mesma semente, reprodutível) — não é a decadência de eLast, que já está em `taxa` dentro de
+    // `passo`; é só o que o processo AR(1) receberia de novo se continuasse. Soma-se por igual às três
+    // linhas, então a distância entre elas (a largura da banda) não muda — balançam juntas, sem nunca
+    // se cruzar. A amplitude é atenuada linearmente até ZERO na última semana do horizonte: é o número
+    // que os cartões, a tabela e o relatório publicam, e o desenho não pode discordar dele ali.
+    const wobRng = projRng(Math.round(Math.abs(soma(ys)) * 613 + fit.n * 17 + 91));
+    let eWob = 0;
+    const wob = [];
     for (let k = 1; k <= o.horiz; k++) {
-        const { t, sig } = passo(k);
-        const c = cl(t);
-        real.push(projRnd(c, o.dec));
+        eWob = phi * eWob + sigE * projNorm(wobRng);
+        wob.push(eWob * (o.horiz - k) / Math.max(1, o.horiz - 1));
+    }
+
+    const real = [], otim = [], pess = [], lo = [], hi = [];
+    const dispReal = [], dispOtim = [], dispPess = [], dispLo = [], dispHi = [];
+    for (let k = 1; k <= o.horiz; k++) {
+        const { t, sig, esc } = passo(k);
+        real.push(projRnd(cl(t), o.dec));
         otim.push(projRnd(cl(t + s * sig), o.dec));
         pess.push(projRnd(cl(t - s * sig), o.dec));
         lo.push(projRnd(cl(t - sig), o.dec));           // lo/hi são a MESMA banda de otim/pess, só que
         hi.push(projRnd(cl(t + sig), o.dec));           // em ordem de valor — é o que o gráfico precisa
-        lo2.push(projRnd(cl(t - 2 * sig), o.dec));
-        hi2.push(projRnd(cl(t + 2 * sig), o.dec));
+
+        const tw = t + wob[k - 1] * esc;                // t com a ondulação visual somada
+        dispReal.push(projRnd(cl(tw), o.dec));
+        dispOtim.push(projRnd(cl(tw + s * sig), o.dec));
+        dispPess.push(projRnd(cl(tw - s * sig), o.dec));
+        dispLo.push(projRnd(cl(tw - sig), o.dec));
+        dispHi.push(projRnd(cl(tw + sig), o.dec));
     }
 
     // ── Trajetórias simuladas ────────────────────────────────────────────────
     // Não são previsões: são exemplos de como uma realização do MESMO modelo se pareceria, com o ruído
     // semanal e a inclinação sorteada dentro do próprio erro-padrão. Servem para o leitor ver que o
     // futuro plausível é acidentado, não liso — a faixa sozinha esconde isso.
-    const sigE = sigma * Math.sqrt(Math.max(0, 1 - phi * phi));
     const rng = projRng(Math.round(Math.abs(soma(ys)) * 997 + fit.n * 31 + o.horiz));
     const paths = [];
     for (let p = 0; p < o.paths; p++) {
@@ -340,7 +362,11 @@ function projScenarios(vals, opt) {
     const worst = up ? Math.min.apply(null, vals0) : Math.max.apply(null, vals0);
 
     return {
-        ok: true, n: pts.length, real, otim, pess, lo, hi, lo2, hi2, paths,
+        ok: true, n: pts.length, real, otim, pess, lo, hi, paths,
+        // dispReal/otim/pess/lo/hi são a MESMA informação, só com a ondulação visual somada — usadas
+        // exclusivamente pelo gráfico (ver projLine). Fila, aging, KPIs, tabela e relatório continuam
+        // lendo real/otim/pess/lo/hi, que nunca levam este ruído.
+        dispReal, dispOtim, dispPess, dispLo, dispHi,
         slope: useDu ? fit.b * DU_SEM : fit.b,      // inclinação por semana, na unidade que o leitor lê
         r2: fit.r2, sigma, tB: fit.tB, tCrit, trendOK,
         phi, mDelta, mPct, mIn, duFut: o.duFut, useDu,
@@ -567,65 +593,79 @@ function projLine(id, labels, hist, sc, opt) {
     const nH = hist.length;
     const lastReal = (() => { for (let i = nH - 1; i >= 0; i--) if (hist[i] != null) return hist[i]; return null; })();
     const emenda = vs => hist.map((_, i) => i === nH - 1 ? lastReal : null).concat(vs);
-    const ds = (label, vs, color) => ({
-        label, data: emenda(vs), borderColor: color, borderDash: [6, 4], borderWidth: 2,
-        pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: color, fill: false, tension: .25, spanGaps: false
+    // As três linhas pontilhadas são a leitura principal e precisam vencer visualmente tudo o que
+    // estiver atrás delas: a realista um pouco mais grossa, porque é o número que as tabelas e o
+    // relatório publicam. `_rank` só ordena a legenda (ver legend.labels.sort) — a ordem de desenho
+    // é a ordem do array, e por isso estas entram por último, por cima da faixa e das simulações.
+    const ds = (label, vs, color, rank, w) => ({
+        label, data: emenda(vs), borderColor: color, borderDash: [6, 4], borderWidth: w,
+        pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: color,
+        fill: false, tension: .25, spanGaps: false, _rank: rank
     });
     const sets = [{
         label: 'Histórico', data: hist.concat(new Array(sc.real.length).fill(null)),
         borderColor: PROJ_C.hist, backgroundColor: 'rgba(0,56,101,.08)', fill: true, tension: .25,
-        borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: PROJ_C.hist, spanGaps: false
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: PROJ_C.hist,
+        spanGaps: false, _rank: 0
     }];
 
-    // ── Leque de incerteza ───────────────────────────────────────────────────
-    // Três camadas, da mais fraca para a mais forte, para o olho ler profundidade em vez de três
-    // linhas soltas: faixa ampla (±2σ), faixa dos cenários (±1σ, exatamente os números que as tabelas
-    // e o relatório publicam — o gráfico não pode mostrar uma banda e a tabela outra) e a central.
-    // As bordas das faixas entram sem rótulo e são filtradas da legenda; `fill: '-1'` pinta até o
-    // dataset anterior, por isso cada faixa vai como par piso→teto, nessa ordem.
-    const banda = (loVs, hiVs, label, alpha) => {
+    // As linhas exibidas usam a variante COM ondulação visual quando ela existe (ver dispReal/otim/pess
+    // em projScenarios) — é só o desenho, os números que alimentam KPI/tabela/relatório continuam
+    // vindo de sc.real/otim/pess/fim/acum, intocados. A faixa acompanha a mesma variante, para o
+    // sombreado sempre hugar as três linhas em vez de ficar "solto" atrás delas.
+    const vReal = sc.dispReal || sc.real, vOtim = sc.dispOtim || sc.otim, vPess = sc.dispPess || sc.pess;
+    const vLo = sc.dispLo || sc.lo, vHi = sc.dispHi || sc.hi;
+
+    // ── Fundo: faixa entre os cenários ───────────────────────────────────────
+    // Uma camada só, e de propósito: a área sombreada é exatamente a região entre a linha pessimista
+    // e a otimista, então ela REFORÇA as três linhas em vez de introduzir um segundo conceito. Duas
+    // faixas empilhadas (±1σ e ±2σ) davam profundidade ao olho treinado e confundiam todo o resto.
+    if (vLo && vHi) {
         sets.push({
-            label: '', data: emenda(loVs), borderColor: 'transparent', borderWidth: 0,
+            label: '', data: emenda(vLo), borderColor: 'transparent', borderWidth: 0,
             pointRadius: 0, pointHoverRadius: 0, fill: false, tension: .25, spanGaps: false, _hide: true
         });
         sets.push({
             // borderWidth 0 não desenha linha no gráfico, mas a legenda ainda pinta o símbolo com
             // backgroundColor — daí o quadrado na cor da própria faixa, que é o que o leitor procura.
-            label, data: emenda(hiVs), borderColor: 'transparent', borderWidth: 0,
-            backgroundColor: colA(PROJ_C.real, alpha), fill: '-1', pointStyle: 'rect',
-            pointRadius: 0, pointHoverRadius: 0, tension: .25, spanGaps: false, _band: true
+            label: 'Faixa entre os cenários', data: emenda(vHi),
+            borderColor: 'transparent', borderWidth: 0, backgroundColor: colA(PROJ_C.real, .10),
+            fill: '-1', pointStyle: 'rect', pointRadius: 0, pointHoverRadius: 0,
+            tension: .25, spanGaps: false, _band: true, _rank: 5
         });
-    };
-    if (sc.lo2 && sc.hi2) banda(sc.lo2, sc.hi2, 'Faixa ampla (±2σ)', .07);
-    if (sc.lo && sc.hi) banda(sc.lo, sc.hi, 'Faixa pessimista–otimista (±1σ)', .14);
+    }
 
-    // Trajetórias simuladas: exemplos de futuro possível, não previsão de qual semana sobe. Ficam
-    // discretas de propósito — precisam sobreviver à exportação em PNG sem competir com a leitura.
-    (sc.paths || []).forEach((p, i) => sets.push({
+    // Trajetórias simuladas: textura de fundo, não leitura. Servem para o olho perceber que o futuro
+    // plausível é acidentado e não liso — quase invisíveis de propósito, para não disputar com as
+    // três linhas nem embolar na imagem exportada do relatório.
+    (sc.paths || []).slice(0, 5).forEach((p, i) => sets.push({
         label: i === 0 ? 'Trajetórias simuladas' : '', data: emenda(p),
-        borderColor: colA(PROJ_C.pess, .30), borderWidth: 1, pointRadius: 0, pointHoverRadius: 0,
-        fill: false, tension: .3, spanGaps: false, _hide: i > 0, _sim: true
+        borderColor: colA(PROJ_C.pess, .13), borderWidth: 1, pointRadius: 0, pointHoverRadius: 0,
+        fill: false, tension: .3, spanGaps: false, _hide: i > 0, _sim: true, _rank: 6
     }));
 
-    sets.push(ds('Otimista', sc.otim, PROJ_C.otim));
-    sets.push(ds('Realista', sc.real, PROJ_C.real));
-    sets.push(ds('Pessimista', sc.pess, PROJ_C.pess));
+    sets.push(ds('Otimista', vOtim, PROJ_C.otim, 1, 2.2));
+    sets.push(ds('Realista', vReal, PROJ_C.real, 2, 2.8));
+    sets.push(ds('Pessimista', vPess, PROJ_C.pess, 3, 2.2));
 
     if (o.meta != null) sets.push({
         label: 'Meta ' + (o.metaTxt || o.meta), data: labels.map(() => o.meta),
-        borderColor: PROJ_C.meta, borderDash: [3, 3], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 4, fill: false
+        borderColor: PROJ_C.meta, borderDash: [3, 3], borderWidth: 1.4,
+        pointRadius: 0, pointHoverRadius: 4, fill: false, _rank: 4
     });
 
     // Linhas extras da faixa projetada (estresse de demanda, aging). Não emendam no último ponto real:
-    // ou não têm histórico plotável, ou vivem em outro eixo — emendar misturaria unidades.
+    // ou não têm histórico plotável, ou vivem em outro eixo — emendar misturaria unidades. Ficam mais
+    // finas que os três cenários: são diagnóstico de apoio, não a leitura principal.
     (o.extra || []).forEach(x => sets.push({
         label: x.label, data: hist.map(() => null).concat(x.vs),
-        borderColor: x.color, borderDash: x.dash || [2, 3], borderWidth: 1.6,
+        borderColor: colA(x.color, .55), borderDash: x.dash || [2, 3], borderWidth: 1.3,
         pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: x.color,
-        fill: false, tension: .25, spanGaps: false, yAxisID: x.axis || 'y', _fmt: x.fmt
+        fill: false, tension: .25, spanGaps: false, yAxisID: x.axis || 'y', _fmt: x.fmt, _rank: 7
     }));
 
     const fmt = o.fmt || (v => v.toLocaleString('pt-BR'));
+    const rank = i => { const d = sets[i]; return d && d._rank != null ? d._rank : 9; };
     mkChart(id, {
         type: 'line', plugins: [crosshair],
         data: { labels, datasets: sets },
@@ -638,7 +678,10 @@ function projLine(id, labels, hist, sc, opt) {
                     position: 'top',
                     labels: {
                         boxWidth: 12, usePointStyle: true, font: { size: 10 },
-                        filter: it => { const d = sets[it.datasetIndex]; return !!it.text && !(d && d._hide); }
+                        filter: it => { const d = sets[it.datasetIndex]; return !!it.text && !(d && d._hide); },
+                        // A ordem de desenho põe as três linhas por último (para ficarem por cima), mas a
+                        // legenda precisa ler na ordem em que a gerência pensa: melhor, meio, pior.
+                        sort: (a, b) => rank(a.datasetIndex) - rank(b.datasetIndex)
                     }
                 },
                 tooltip: {
@@ -705,7 +748,14 @@ function renderProj() {
         // solto no sumário, não.
         const extra = [{ label: 'Demanda +1σ (fila)', vs: P.back.demStress, color: PROJ_C.dem, fmt: v => nf(v, 0) + ' itens' }];
         if (P.aging) extra.push({ label: 'Dias para zerar a fila (implícito)', vs: P.aging.real, color: PROJ_C.aging, dash: [4, 3], axis: 'y1', fmt: v => nf(v, 1) + 'd' });
-        projLine('c_proj_back', labels, histFila, P.back, {
+        // A fila não sai de projScenarios, então não traz lo/hi prontos. Sem eles este seria o único
+        // gráfico dos cinco sem a faixa sombreada, e a aba deixaria de ler igual em todo lugar. Fila
+        // menor é melhor, então o otimista é o piso — mas o min/max por semana evita depender disso.
+        const backSc = Object.assign({}, P.back, {
+            lo: P.back.otim.map((v, i) => Math.min(v, P.back.pess[i])),
+            hi: P.back.otim.map((v, i) => Math.max(v, P.back.pess[i]))
+        });
+        projLine('c_proj_back', labels, histFila, backSc, {
             fmt: v => nf(v, 0) + ' itens', extra,
             y1: P.aging ? { title: 'dias úteis para zerar a fila', fmt: v => nf(v, 0) + 'd' } : null
         });
