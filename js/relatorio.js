@@ -37,6 +37,45 @@ const repB = s => ('' + s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 const repFarol = (v, metaOk, metaMin) => v >= metaOk ? 'good' : v >= metaMin ? 'warn' : 'bad';
 const REP_SEV = { good: 'Na meta', warn: 'Atenção', bad: 'Crítico', '': '—' };
 
+// ── Fila: uma métrica só, usada no sumário e nas recomendações ───────────────
+// O relatório tinha duas leituras da mesma fila convivendo: o sumário publicava o aging implícito da
+// ÚLTIMA semana do horizonte (o ponto mais frágil da série — é lá que a fila zera e o número desaba
+// para 0,0d) e as recomendações calculavam "em quantas semanas a fila zera" pela taxa média. Podiam
+// se contradizer, porque a fila projetada é cumulativa e a taxa média não. Agora é um cálculo só, e é
+// o robusto: quantas semanas de ritmo atual separam a fila de hoje do zero.
+function repFila(PR) {
+    if (!PR || !PR.back || !PR.entr || !PR.entr.ok) return null;
+    const gap = PR.vazaoReal - PR.entradaReal;            // itens/semana de vazão líquida
+    const semZera = gap > 0 && PR.filaHoje > 0 ? PR.filaHoje / gap : null;
+    const iZera = PR.back.real.indexOf(0);                // 1ª semana do horizonte em que a fila zera
+    return {
+        gap, semZera,
+        zerouNoHoriz: iZera >= 0,
+        semanaZera: iZera >= 0 ? iZera + 1 : null,
+        // Sem tendência significativa em conclusões, tudo que deriva da vazão (fila, aging) é patamar
+        // com ruído em volta, não trajetória — e não deve ser publicado como se apontasse para algum lado.
+        trendFraco: !!(PR.concl && PR.concl.ok && !PR.concl.trendOK),
+        // Arredondar para 0 casas engoliria o caso "zera antes de fechar a semana" e o publicaria como
+        // "~0 semanas", que não é frase de relatório.
+        semZeraTxt: semZera == null ? null : semZera < 1 ? 'menos de 1 semana' : '~' + repN(semZera, 0) + ' semanas',
+        txt: gap > 0
+            ? (semZera != null ? `zera em **${semZera < 1 ? 'menos de 1 semana' : '~' + repN(semZera, 0) + ' semanas'}** no ritmo projetado` : 'já vazia')
+            : `**em crescimento** (~${repN(Math.abs(gap), 0)} itens/semana acima da vazão)`
+    };
+}
+
+// Célula de aging implícito com guarda. O zero de um aging calculado por fila÷vazão significa "fila
+// limpa", não "espera zero" — publicá-lo cru no sumário faz o número parecer melhor exatamente quando
+// é menos confiável. Quando a fila zera dentro do horizonte, ou quando não há tendência para sustentar
+// a projeção, a célula diz o que de fato aconteceu em vez de exibir o 0,0d.
+function repAgingCell(PR, F, horiz) {
+    if (!PR || !PR.aging || !F) return '—';
+    if (F.zerouNoHoriz) return 'fila zera ~sem ' + F.semanaZera;
+    if (F.trendFraco) return 'tendência fraca';
+    const v = PR.aging.real[horiz - 1];
+    return v == null ? '—' : repN(v, 1) + 'd';
+}
+
 // ── Doc → HTML / Markdown ────────────────────────────────────────────────────
 function repHTML(doc) {
     return doc.map(b => {
@@ -124,7 +163,7 @@ function repRiscos(P, A, S, V, K, PR) {
 
 // Recomendações: cada uma amarrada a um risco e a um número, para ninguém discutir prioridade no
 // escuro. Ordem = ordem dos riscos (crítico antes de atenção).
-function repRecomendacoes(P, A, S, K, PR) {
+function repRecomendacoes(P, A, S, K, PR, F) {
     const rec = [];
     if (P && P.ating < 100 && PR && PR.concl.ok) {
         // O atingimento é ~proporcional ao volume concluído (mesma capacidade consumida por item da
@@ -134,13 +173,17 @@ function repRecomendacoes(P, A, S, K, PR) {
     }
     if (S && S.pct < 90) rec.push(`Atacar o SLA pela causa e não pelo total: os **${repN(S.fora, 0)}** itens fora do prazo têm atraso médio de **${S.atrMed}d** — revisar as etapas que mais consomem prazo antes de renegociar a meta.`);
     if (A && A.crit > 0) rec.push(`Criar força-tarefa para as **${repN(A.crit, 0)} RCs com mais de 30 dias úteis** em aberto: elas sustentam o aging médio e, quando fecharem, entram no SLA como atraso.`);
-    if (PR && PR.back && PR.entr.ok) {
-        const gap = PR.vazaoReal - PR.entradaReal;
-        if (gap <= 0) rec.push(`A fila só para de crescer quando a vazão superar a entrada: no cenário realista entram ~**${repN(PR.entradaReal, 0)}** e saem ~**${repN(PR.vazaoReal, 0)}** itens por semana. São **${repN(Math.abs(gap) + 1, 0)} itens/semana** de vazão adicional só para estabilizar.`);
-        else rec.push(`No ritmo projetado a fila cai ~**${repN(gap, 0)} itens por semana**; zerar o excedente atual levaria cerca de **${repN(PR.filaHoje / gap, 0)} semanas** sem nenhuma entrada nova acima do previsto.`);
+    // Mesmo `F` do sumário — ver repFila. Se este bloco recalculasse o gap, §1 e §9 voltariam a poder
+    // discordar sobre quando a fila zera.
+    if (F) {
+        if (F.gap <= 0) rec.push(`A fila só para de crescer quando a vazão superar a entrada: no cenário realista entram ~**${repN(PR.entradaReal, 0)}** e saem ~**${repN(PR.vazaoReal, 0)}** itens por semana. São **${repN(Math.abs(F.gap) + 1, 0)} itens/semana** de vazão adicional só para estabilizar.`);
+        else rec.push(`No ritmo projetado a fila cai ~**${repN(F.gap, 0)} itens por semana**; zerar o excedente atual levaria **${F.semZeraTxt || 'menos de 1 semana'}** sem nenhuma entrada nova acima do previsto.`);
+        if (PR.back && PR.back.demStress[PR.horiz - 1] > PR.back.real[PR.horiz - 1])
+            rec.push(`Dimensionar a folga contra a chegada, não só contra a vazão: com a demanda a +1σ a fila termina o horizonte em **${repN(PR.back.demStress[PR.horiz - 1], 0)} itens** em vez de ${repN(PR.back.real[PR.horiz - 1], 0)}. É o cenário que mais estoura prazo e o único que não depende do ritmo do time.`);
     }
     if (K && K.pctSpo > 60) rec.push(`Elevar a contratualização das carteiras de maior volume: cada ponto migrado de Spot para Contrato tira uma cotação completa do fluxo e encurta o SLA na origem.`);
-    if (PR && [PR.ating, PR.sla, PR.concl].filter(s => s.ok && s.r2 < .2).length) rec.push(`Tratar as projeções como faixa, não como número: parte das séries tem R² baixo (variação semanal maior que a tendência). Revisar os cenários a cada fechamento semanal em vez de fixar a meta no realista.`);
+    const semTend = PR ? [PR.ating, PR.sla, PR.concl, PR.entr, PR.sav].filter(s => s && s.ok && !s.trendOK).length : 0;
+    if (PR && ([PR.ating, PR.sla, PR.concl].filter(s => s.ok && s.r2 < .2).length || semTend)) rec.push(`Tratar as projeções como faixa, não como número: parte das séries tem R² baixo (variação semanal maior que a tendência)${semTend ? ` e ${semTend === 1 ? 'uma delas não tem' : semTend + ' delas não têm'} inclinação estatisticamente distinguível de zero — para essas, o realista é o patamar médio e cobrar "a curva subindo" é cobrar ruído` : ''}. Revisar os cenários a cada fechamento semanal em vez de fixar a meta no realista.`);
     if (!rec.length) rec.push('Manter o ritmo atual e revisar os cenários no próximo fechamento semanal — nenhum indicador exige ação corretiva no recorte.');
     return rec;
 }
@@ -151,6 +194,8 @@ function buildRelatorio() {
     const doc = [];
     const baseInfo = (document.getElementById('srcdot').title || 'Base não identificada');
     const horiz = PR ? PR.horiz : PROJ_HORIZ;
+    const F = repFila(PR);                                 // fonte única da leitura de fila (§1, §7 e §9)
+    const agingCell = repAgingCell(PR, F, horiz);
     const fimLbl = PR && PR.futuras ? wkLabelFull(PR.futuras[PR.futuras.length - 1]) : '—';
 
     doc.push({
@@ -177,13 +222,19 @@ function buildRelatorio() {
         linhaSum('Atingimento da meta ponderada', repN(P.ating, 0) + '%', '100%', fProd, PR && PR.ating.ok ? repN(PR.ating.fim.real, 0) + '%' : '—'),
         linhaSum('Itens concluídos por semana', PR && PR.concl.ok ? repN(PR.concl.last, 0) : repN(P.concluidos, 0), '—', '', PR && PR.concl.ok ? repN(PR.concl.fim.real, 0) : '—'),
         linhaSum('% dentro do SLA', repN(S.pct, 1) + '%', '≥ 90%', fSla, PR && PR.sla.ok ? repN(PR.sla.fim.real, 1) + '%' : '—'),
-        linhaSum('Aging médio — Geral', A.avg + 'd', '≤ ' + A.meta + 'd', A.gpct <= 0 ? 'good' : 'bad', PR && PR.aging && PR.aging.real[horiz - 1] != null ? repN(PR.aging.real[horiz - 1], 1) + 'd' : '—'),
-        linhaSum('Aging médio — Contrato', A.con.avg + 'd', '≤ ' + A.con.meta + 'd', A.con.pct <= 0 ? 'good' : 'bad', '—'),
-        linhaSum('Aging médio — Spot', A.spo.avg + 'd', '≤ ' + A.spo.meta + 'd', A.spo.pct <= 0 ? 'good' : 'bad', '—'),
+        // O aging medido (idade real dos itens) e o aging implícito (fila ÷ vazão) são tipos diferentes
+        // na mesma linha: o primeiro é medição, o segundo é artefato de modelo. Daí a coluna rotulada e
+        // a guarda — sem elas um "0,0d" de fila zerada se lê como espera zero, ao lado de um aging real.
+        linhaSum('Aging médio — Geral <span class="muted">(medido)</span>', A.avg + 'd', '≤ ' + A.meta + 'd', A.gpct <= 0 ? 'good' : 'bad', agingCell),
+        linhaSum('Aging médio — Contrato <span class="muted">(medido)</span>', A.con.avg + 'd', '≤ ' + A.con.meta + 'd', A.con.pct <= 0 ? 'good' : 'bad', '—'),
+        linhaSum('Aging médio — Spot <span class="muted">(medido)</span>', A.spo.avg + 'd', '≤ ' + A.spo.meta + 'd', A.spo.pct <= 0 ? 'good' : 'bad', '—'),
         linhaSum('Saving no recorte', BRL(V.total), '—', V.total >= 0 ? 'good' : 'bad', PR && PR.sav.ok ? BRL(PR.sav.acum.real) + ' em ' + horiz + ' sem' : '—')
     ];
+    // A leitura de fila que decide ação é esta, não o aging do último ponto: quantas semanas de ritmo
+    // atual separam a fila de hoje do zero. Mesmo número da §9, calculado uma vez só.
+    if (F) sumRows.push(linhaSum('Fila de itens em aberto (base da projeção)', repN(PR.filaHoje, 0) + ' itens', '—', F.gap > 0 ? 'good' : 'bad', F.txt));
     doc.push({ t: 'tab', head: ['Indicador', 'Valor no recorte', 'Meta', 'Status', 'Projeção realista (' + horiz + ' sem)'], align: ['l', 'r', 'r', 'l', 'r'], rows: sumRows });
-    doc.push({ t: 'note', txt: 'As metas de Aging são **distintas por tipo** — Contrato tem ciclo naturalmente mais longo que Spot, e avaliar um pela régua do outro produz conclusão errada. Já o SLA é indicador **único**: Contrato e Spot são medidos juntos contra 90%.' });
+    doc.push({ t: 'note', txt: 'As metas de Aging são **distintas por tipo** — Contrato tem ciclo naturalmente mais longo que Spot, e avaliar um pela régua do outro produz conclusão errada. Já o SLA é indicador **único**: Contrato e Spot são medidos juntos contra 90%. Na coluna de projeção, o aging é **implícito** (estimado por fila ÷ vazão), não medido: as duas colunas da mesma linha não são o mesmo tipo de número.' });
 
     // ── 2. Produtividade
     doc.push({ t: 'sec', n: 2, title: 'Produtividade e velocidade' });
@@ -251,22 +302,40 @@ function buildRelatorio() {
         doc.push({ t: 'p', txt: 'Histórico insuficiente para projetar cenários neste recorte.' });
     } else {
         doc.push({
-            t: 'p', txt: `O cenário **realista** é a reta de tendência das últimas ${PR.hist} semanas fechadas; **otimista** e **pessimista** são a mesma reta ±1 desvio-padrão dos resíduos, limitados pelo melhor e pelo pior desempenho já observado. ` +
-                `A fila não é extrapolada: ela é recalculada semana a semana como fila anterior + entradas − conclusões, sempre com a entrada realista, porque a demanda da área cliente não é escolha do time. ` +
+            t: 'p', txt: `O cenário **realista** é a reta de tendência das últimas ${PR.hist} semanas fechadas — mas só quando a inclinação passa no teste de significância a 5%; quando não passa, a série é projetada como **patamar médio**, porque extrapolar ruído por ${horiz} semanas produz número, não informação. ` +
+                `**Otimista** e **pessimista** são o realista ±1 desvio-padrão dos resíduos, com a banda **alargando ao longo do horizonte** (prever a ${horiz}ª semana é mais incerto que prever a 1ª). O melhor e o pior desempenho já observados não travam mais a banda: são referência, não limite. ` +
+                `A fila não é extrapolada: ela é recalculada semana a semana como fila anterior + entradas − conclusões, sempre com a entrada realista, porque a demanda da área cliente não é escolha do time — e por isso vai junto a linha de **estresse de demanda**, que é a mesma vazão com a chegada a +1σ. ` +
                 `Estas séries ignoram os filtros de Período e de Status — projeção exige o histórico inteiro —, mas seguem Tipo de compra e Comprador. A semana corrente fica de fora por estar parcial.`
         });
         const projRows = [];
-        const pr = (nome, sc, dec, fmt) => { if (sc && sc.ok) { const f = fmt || (v => repN(v, dec || 0)); projRows.push([nome, f(sc.last), f(sc.fim.pess), '**' + f(sc.fim.real) + '**', f(sc.fim.otim), repN(sc.r2 * 100, 0) + '%']); } };
+        // A marca "n.s." é a informação que decide como ler a linha inteira: sem ela, um realista que é
+        // patamar médio se lê como reta projetada.
+        const pr = (nome, sc, dec, fmt) => { if (sc && sc.ok) { const f = fmt || (v => repN(v, dec || 0)); projRows.push([nome + (sc.trendOK ? '' : ' <span class="muted">(sem tendência — patamar)</span>'), f(sc.last), f(sc.fim.pess), '**' + f(sc.fim.real) + '**', f(sc.fim.otim), repN(sc.r2 * 100, 0) + '%']); } };
         pr('Atingimento da meta (%)', PR.ating, 0);
         pr('Itens concluídos por semana', PR.concl, 0);
         pr('Entradas por semana', PR.entr, 0);
         pr('% dentro do SLA', PR.sla, 1);
         pr('Saving por semana', PR.sav, 0, v => BRL(v));
-        if (PR.back) projRows.push(['Itens em aberto (fila)', repN(PR.filaHoje, 0), repN(PR.back.pess[horiz - 1], 0), '**' + repN(PR.back.real[horiz - 1], 0) + '**', repN(PR.back.otim[horiz - 1], 0), '—']);
-        if (PR.aging) { const a = k => PR.aging[k][horiz - 1]; projRows.push(['Aging médio implícito (dias úteis)', '—', a('pess') == null ? '—' : repN(a('pess'), 1), a('real') == null ? '—' : '**' + repN(a('real'), 1) + '**', a('otim') == null ? '—' : repN(a('otim'), 1), '—']); }
+        if (PR.back) {
+            projRows.push(['Itens em aberto (fila)', repN(PR.filaHoje, 0), repN(PR.back.pess[horiz - 1], 0), '**' + repN(PR.back.real[horiz - 1], 0) + '**', repN(PR.back.otim[horiz - 1], 0), '—']);
+            projRows.push(['Fila com demanda a +1σ <span class="muted">(estresse de chegada)</span>', repN(PR.filaHoje, 0), '—', '**' + repN(PR.back.demStress[horiz - 1], 0) + '**', '—', '—']);
+        }
+        // Aqui a banda dos três cenários fica — é a seção em que o leitor já está com olhar analítico —,
+        // mas o realista passa pela mesma guarda do sumário, para os dois nunca se contradizerem.
+        if (PR.aging) { const a = k => PR.aging[k][horiz - 1]; projRows.push(['Aging médio **implícito** (dias úteis para zerar a fila)', '—', a('pess') == null ? '—' : repN(a('pess'), 1), '**' + agingCell + '**', a('otim') == null ? '—' : repN(a('otim'), 1), '—']); }
         if (PR.sav.ok) projRows.push(['Saving acumulado no horizonte', '—', BRL(PR.sav.acum.pess), '**' + BRL(PR.sav.acum.real) + '**', BRL(PR.sav.acum.otim), '—']);
         doc.push({ t: 'tab', head: ['Indicador', 'Última semana fechada', 'Pessimista', 'Realista', 'Otimista', 'R²'], align: ['l', 'r', 'r', 'r', 'r', 'r'], rows: projRows });
-        doc.push({ t: 'note', txt: `R² é o quanto da variação semanal a tendência explica: **abaixo de 20% a série é errática** e os três números valem como faixa de possibilidades, não como previsão. Base: ${PR.concl.n} semanas fechadas até ${wkLabelFull(PR.ultima)}.` });
+
+        const bt = PR.bt ? ['concl', 'sla', 'ating', 'entr', 'sav'].map(k => PR.bt[k]).filter(b => b && b.cobertura != null) : [];
+        const cobMed = bt.length ? bt.reduce((a, b) => a + b.cobertura, 0) / bt.length : null;
+        doc.push({
+            t: 'note', txt: `R² é o quanto da variação semanal a tendência explica: **abaixo de 20% a série é errática** e os três números valem como faixa de possibilidades, não como previsão. ` +
+                (cobMed != null ? `No backtest de uma semana à frente, a banda cobriu **${repN(cobMed * 100, 0)}%** dos pontos observados — o esperado para ±1σ é ~68%${cobMed < .55 ? ', então a banda ainda subestima a variação semana a semana' : ''}. ` : '') +
+                `O aging desta seção é **implícito**: sai de fila ÷ vazão, não da idade medida dos itens (que está na §3). Quando a fila zera dentro do horizonte, o aging vai a zero por "fila limpa", não por "espera zero" — por isso a célula mostra a semana em que a fila zera. ` +
+                (PR.ageOldestDays != null && PR.aging && PR.aging.real[0] != null
+                    ? `Âncora de regime: a RC em aberto mais antiga tem **${repN(PR.ageOldestDays, 0)} dias corridos**, contra ${repN(PR.aging.real[0], 1)}d de aging implícito na 1ª semana projetada${PR.ageOldestDays > PR.aging.real[0] * 3 ? ' — a diferença indica fila **fora de regime estável**, com itens antigos parados que a média por fluxo dilui; leia o implícito como piso, não como retrato' : ''}. ` : '') +
+                `Base: ${PR.concl.n} semanas fechadas até ${wkLabelFull(PR.ultima)}.`
+        });
     }
 
     // ── 8. Riscos
@@ -276,7 +345,7 @@ function buildRelatorio() {
 
     // ── 9. Recomendações
     doc.push({ t: 'sec', n: 9, title: 'Recomendações' });
-    doc.push({ t: 'list', items: repRecomendacoes(P, A, S, K, PR).map(txt => ({ s: '', txt })) });
+    doc.push({ t: 'list', items: repRecomendacoes(P, A, S, K, PR, F).map(txt => ({ s: '', txt })) });
 
     // ── 10. Qualidade da base
     if (typeof PEND_RULES !== 'undefined' && typeof computePend === 'function') {
