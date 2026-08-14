@@ -1,3 +1,11 @@
+/* Marca discreta dentro de célula de tabela — usada em "n.s." (inclinação não significativa), que é
+   ressalva sobre o número ao lado, não um número por si. */
+.muted {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: .85em
+}
+
 .btn {
     font-family: inherit;
     font-size: 12.5px;
