@@ -454,6 +454,7 @@ function renderAging() {
     const cAvg = avgOf(agCon), sAvg = avgOf(agSpo);
     const cPct = STATE.metaAgC > 0 ? (cAvg - STATE.metaAgC) / STATE.metaAgC * 100 : 0;
     const sPct = STATE.metaAgS > 0 ? (sAvg - STATE.metaAgS) / STATE.metaAgS * 100 : 0;
+    const gPct = STATE.metaAgG > 0 ? (avg - STATE.metaAgG) / STATE.metaAgG * 100 : 0;
     const pf = p => (p > 0 ? '+' : '') + p.toFixed(1) + '%';
 
     kpi('kpi-aging', [
@@ -554,7 +555,7 @@ function renderAging() {
     document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> mediana <b>${med}d</b> vs média <b>${avg}d</b> — a maioria flui, mas <b>${crit} RCs passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo da própria RC. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Use o funil e o backlog por mês para priorizar a limpeza da carteira.`;
     // openTotal = itens (linhas) com Status RC = Em Aberto, sem filtro; openRCs = RCs distintas por trás
     // desses itens (via ALLRC, já consolidado por RC em render()) — o card do Overview mostra RCs, não itens.
-    SUM.aging = { open: ag.length, openTotal: ALL.filter(r => r.st === 'A').length, openRCs: ALLRC.filter(r => r.st === 'A').length, avg, meta: STATE.metaAgG, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
+    SUM.aging = { open: ag.length, openTotal: ALL.filter(r => r.st === 'A').length, openRCs: ALLRC.filter(r => r.st === 'A').length, avg, meta: STATE.metaAgG, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, con: { open: agCon.length, avg: cAvg, meta: STATE.metaAgC, pct: cPct }, spo: { open: agSpo.length, avg: sAvg, meta: STATE.metaAgS, pct: sPct }, gpct: gPct, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
 }
 
 function renderSLA() {

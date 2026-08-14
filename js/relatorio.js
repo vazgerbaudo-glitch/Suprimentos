@@ -1,10 +1,20 @@
-// Relatório executivo — retrato do recorte atual + cenários das próximas semanas.
+﻿// Relatório executivo — retrato do recorte atual + cenários das próximas semanas.
 //
 // O relatório é montado uma vez como uma lista de blocos (o "doc") e depois renderizado em HTML,
 // para a tela e para o PDF exportado.
 //
 // Fonte dos números: SUM (preenchido pelas abas, portanto já no recorte de Período/Tipo/Comprador) e
-// SUM.proj (aba Projeções, que de propósito ignora Período e Status — ver js/proj.js).
+// SUM.proj (aba Projeções, que de propósito ignora Período e Status — ver js/proj.js). Compartilhado
+// entre os 4 painéis (Ágeis, Corporativo, Rodantes, Terminais); só o Ágeis carrega proj.js, então o
+// bloco de Projeções e o mix Contrato × Spot (SUM.contr) degradam para "sem dados" nos demais — ver
+// as guardas em `PR &&` e `if (K)` abaixo.
+
+// Nome do painel para o título do relatório e o nome do arquivo — extraído do <title> da página
+// ("Painel — X") em vez de fixo, porque este módulo agora roda nos 4 painéis.
+function painelLabel() {
+    const partes = (document.title || '').split('—');
+    return (partes[1] || partes[0] || 'Compras Ágeis').trim();
+}
 
 function periodoLabel() {
     if (STATE.modo === 'mes') return 'Mês de ' + mLabel(STATE.mes);
@@ -35,6 +45,10 @@ const repB = s => ('' + s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 // Farol padrão do painel: 'good' na meta, 'warn' na zona de atenção, 'bad' abaixo do mínimo.
 const repFarol = (v, metaOk, metaMin) => v >= metaOk ? 'good' : v >= metaMin ? 'warn' : 'bad';
 const REP_SEV = { good: 'Na meta', warn: 'Atenção', bad: 'Crítico', '': '—' };
+
+// Horizonte padrão de projeção quando proj.js não está carregado nesta página (só o painel Ágeis
+// tem a aba Projeções) — mantém o título da §7 coerente mesmo sem PR.
+const REP_HORIZ_FALLBACK = 8;
 
 // ── Fila: uma métrica só, usada no sumário e nas recomendações ───────────────
 // O relatório tinha duas leituras da mesma fila convivendo: o sumário publicava o aging implícito da
@@ -178,13 +192,13 @@ function buildRelatorio() {
     if (!P || !A || !S || !V) return null;
     const doc = [];
     const baseInfo = (document.getElementById('srcdot').title || 'Base não identificada');
-    const horiz = PR ? PR.horiz : PROJ_HORIZ;
+    const horiz = PR ? PR.horiz : REP_HORIZ_FALLBACK;
     const F = repFila(PR);                                 // fonte única da leitura de fila (§1, §7 e §9)
     const agingCell = repAgingCell(PR, F, horiz);
     const fimLbl = PR && PR.futuras ? wkLabelFull(PR.futuras[PR.futuras.length - 1]) : '—';
 
     doc.push({
-        t: 'head', title: 'Relatório Executivo — Gestão à Vista · Compras Ágeis',
+        t: 'head', title: `Relatório Executivo — Gestão à Vista · ${painelLabel()}`,
         sub: `${periodoLabel()} · Tipo: ${tipoLabel()} · Status: ${statusLabel()} · Comprador: ${STATE.comp === 'GERAL' ? 'Geral' : STATE.comp} · Gerado em ${new Date().toLocaleString('pt-BR')} · ${baseInfo}`
     });
 
@@ -399,7 +413,9 @@ function exportRelPDF() {
             }
             const d = new Date();
             const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-            pdf.save(`relatorio-compras-ageis-${stamp}.pdf`);
+            const ACC = { 'á': 'a', 'à': 'a', 'ã': 'a', 'â': 'a', 'é': 'e', 'ê': 'e', 'í': 'i', 'ó': 'o', 'õ': 'o', 'ô': 'o', 'ú': 'u', 'ü': 'u', 'ç': 'c' };
+            const slug = painelLabel().toLowerCase().split('').map(c => ACC[c] || c).join('').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            pdf.save(`relatorio-${slug}-${stamp}.pdf`);
         })
         .catch(() => alert('Não foi possível gerar o PDF. Tente novamente.'))
         .finally(() => { btn.textContent = label; btn.disabled = false; });

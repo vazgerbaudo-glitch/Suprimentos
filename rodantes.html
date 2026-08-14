@@ -24,6 +24,7 @@
                 <label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">Carregar CSV</label>
                 <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/>
             </div>
+            <button class="btn ghost" id="btn_rel">Relatório</button>
             <button class="btn ghost" id="btn_pend">Pendências</button>
             <hr class="fside-sep" style="margin-top:auto"/>
             <a class="side-link" href="ageis.html">Painel Ágeis</a>
@@ -475,6 +476,8 @@
         <script src="js/render_setor.js?v=20260813b"></script>
         <script src="js/filters_setor.js?v=20260730"></script>
         <script src="js/pendencias.js?v=20260811a"></script>
+        <!-- relatorio.js depende de loadHtml2Canvas (pendencias.js); SUM.proj não existe nesta página -->
+        <script src="js/relatorio.js?v=20260814b"></script>
         <script>
             const OPERACAO_EXCLUIR = ['Operação Sul'];
             // Farol pela régua de % do SLA Alvo consumido (0–30 / 31–50 / 51–99,9 / acima de 100%).
