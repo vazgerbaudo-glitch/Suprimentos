@@ -26,7 +26,7 @@ function initials(name) {
     return (name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
 }
 function compRowHTML(cp, label, metricTxt, active, isGeral) {
-    return `<div class="comp-row${active ? ' active' : ''}${isGeral ? ' geral' : ''}" data-cp="${cp}"><div class="comp-avatar">${isGeral ? '👥' : initials(cp)}</div><div class="ci"><b>${label}</b><span>${metricTxt}</span></div></div>`;
+    return `<div class="comp-row${active ? ' active' : ''}${isGeral ? ' geral' : ''}" data-cp="${cp}"><div class="comp-avatar">${isGeral ? 'GE' : initials(cp)}</div><div class="ci"><b>${label}</b><span>${metricTxt}</span></div></div>`;
 }
 function renderCompList(rows) {
     const html = compRowHTML('GERAL', 'Geral (todos)', rows.length + ' compradores', STATE.comp === 'GERAL', true) +
@@ -259,7 +259,7 @@ function renderProd() {
 
     // Leitura (texto de insight)
     const t = ating >= 100 ? `acima da meta (${ating.toFixed(0)}%)` : ating >= 80 ? `em atenção (${ating.toFixed(0)}% da meta)` : `abaixo do mínimo (${ating.toFixed(0)}%)`;
-    document.getElementById('ins-prod').innerHTML = `<b>Leitura:</b> ${ger ? 'a equipe concluiu em média' : STATE.comp + ' concluiu'} <b>${val.toFixed(2)} ${ger ? 'itens/dia/comprador' : 'itens/dia'}</b> no recorte, ${t}. 100% considera o mix real de Material e Serviço concluídos, contra as metas por classe (Material ${STATE.metaMat}/dia · Serviço ${STATE.metaServ}/dia) — ajuste-as acima se os alvos mudarem.${_fb ? ' <b style="color:#8A6D00">⚠ Valor estimado:</b> a coluna <i>Item/dia/comprador</i> está vazia na base para a(s) semana(s) do recorte, então o itens/dia/comprador foi calculado como Item/dia ÷ compradores ativos. Para o número oficial, preencha o headcount da semana na planilha.' : ''}${_fbFa && !_fb ? ' <b style="color:#8A6D00">⚠ Atingimento estimado:</b> a coluna <i>Número de funcionários ativos</i> está vazia na base para a(s) semana(s) do recorte, então o denominador da meta caiu para os compradores que concluíram algo — o que tende a superestimar o atingimento.' : ''}`;
+    document.getElementById('ins-prod').innerHTML = `<b>Leitura:</b> ${ger ? 'a equipe concluiu em média' : STATE.comp + ' concluiu'} <b>${val.toFixed(2)} ${ger ? 'itens/dia/comprador' : 'itens/dia'}</b> no recorte, ${t}. 100% considera o mix real de Material e Serviço concluídos, contra as metas por classe (Material ${STATE.metaMat}/dia · Serviço ${STATE.metaServ}/dia) — ajuste-as acima se os alvos mudarem.${_fb ? ' <b style="color:#8A6D00">Valor estimado:</b> a coluna <i>Item/dia/comprador</i> está vazia na base para a(s) semana(s) do recorte, então o itens/dia/comprador foi calculado como Item/dia ÷ compradores ativos. Para o número oficial, preencha o headcount da semana na planilha.' : ''}${_fbFa && !_fb ? ' <b style="color:#8A6D00">Atingimento estimado:</b> a coluna <i>Número de funcionários ativos</i> está vazia na base para a(s) semana(s) do recorte, então o denominador da meta caiu para os compradores que concluíram algo — o que tende a superestimar o atingimento.' : ''}`;
     SUM.prod = { ating, val, ger, concluidos: base.length, entradas: entG, weeks: cwk.map(wkLabel), weekly: cwk.map(w => cw[w] || 0), entries: cwk.map(w => ew[w] || 0), matLabels: MSc, matQ: msQ, matTot: totMS };
 }
 function renderAging() {
@@ -450,7 +450,7 @@ function renderAging() {
 
     // Leitura (texto de insight)
     const critSem = ag.filter(r => sevAg(r)[1] === 'Crítico').length;
-    document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> das <b>${ag.length} RCs em aberto</b> — que são a base de todos os gráficos desta aba — mediana <b>${med}d</b> vs média <b>${avg}d</b>: a maioria flui, mas <b>${crit} passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Os cartões de meta no topo têm outra régua: entram também as <b>${gSt.n - gSt.open} RCs já concluídas</b> com o tempo de ciclo delas, por isso o "Aging médio — Geral" (${gSt.avg}d) fica abaixo do aging só das abertas (${gSt.avgOpen}d). Use o funil e o backlog por mês para priorizar a limpeza da carteira.${mesAcumulado ? ` <b>Acumulado:</b> os cartões de meta somam desde jan/2026 até ${mLabel(STATE.mes)} (não só o mês selecionado) — reflete a tendência do ano até ali.` : ''}${agDivergentes ? ` <b style="color:#8A6D00">⚠ ${agDivergentes} RC(s) com aging divergente entre itens</b> no cálculo de meta Geral/Contrato/Spot — usado o maior aging de cada uma, para controle de qualidade.` : ''}`;
+    document.getElementById('ins-aging').innerHTML = `<b>Leitura:</b> das <b>${ag.length} RCs em aberto</b> — que são a base de todos os gráficos desta aba — mediana <b>${med}d</b> vs média <b>${avg}d</b>: a maioria flui, mas <b>${crit} passam de 30 dias</b> e <b>${critSem}</b> estão em criticidade frente ao SLA alvo. ${topAvg.length ? `Maior aging médio: <b>${topAvg[0].cp}</b> (${Math.round(topAvg[0].avg)}d). ` : ''}Os cartões de meta no topo têm outra régua: entram também as <b>${gSt.n - gSt.open} RCs já concluídas</b> com o tempo de ciclo delas, por isso o "Aging médio — Geral" (${gSt.avg}d) fica abaixo do aging só das abertas (${gSt.avgOpen}d). Use o funil e o backlog por mês para priorizar a limpeza da carteira.${mesAcumulado ? ` <b>Acumulado:</b> os cartões de meta somam desde jan/2026 até ${mLabel(STATE.mes)} (não só o mês selecionado) — reflete a tendência do ano até ali.` : ''}${agDivergentes ? ` <b style="color:#8A6D00">${agDivergentes} RC(s) com aging divergente entre itens</b> no cálculo de meta Geral/Contrato/Spot — usado o maior aging de cada uma, para controle de qualidade.` : ''}`;
     SUM.aging = { open: gSt.open, openTotal: openItemsTotal, avg: gSt.avg, meta: STATE.metaAgG, crit, faixaLabels: FA.map(x => x[0]), faixaCounts: f, faixaColors: FCOL, con: { open: cSt.open, avg: cSt.avg, meta: STATE.metaAgC, pct: cPct }, spo: { open: sSt.open, avg: sSt.avg, meta: STATE.metaAgS, pct: sPct }, gpct: gPct, matLabels: MSag, matQ: msAgQ, matAvg: msAgAvg };
 }
 function renderSLA() {
@@ -582,7 +582,7 @@ function renderSLA() {
 
     // Leitura (texto de insight)
     const pior = ca[0], melhor = ca[ca.length - 1], topcause = par[0];
-    document.getElementById('ins-sla').innerHTML = tot ? `<b>Leitura:</b> aderência de <b>${pct.toFixed(1)}%</b> (meta 90%), atraso médio de <b>${atrMed} dias</b> quando fura. ${topcause ? `A maior causa de atraso é <b>${topcause[0]}</b> (${Math.round(topcause[1] / tt * 100)}% dos casos). ` : ''}${ca.length > 1 ? `Dispersão: ${melhor[0]} em ${melhor[1].toFixed(0)}% contra ${pior[0]} em ${pior[1].toFixed(0)}%. ` : ''}A apuração é por item de RC e a partir de abr/2026 — a mesma unidade e o mesmo recorte do BI "Gestão à Vista". Use a tabela-farol para agir nas críticas.${srNegN ? ` <b style="color:#8A6D00">⚠ ${srNegN} ${srNegN > 1 ? 'itens ficaram' : 'item ficou'} fora da apuração</b> por trazer SLA Real negativo — Data Liberação posterior à Data de Conclusão na base. Corrija as datas na planilha para que ${srNegN > 1 ? 'voltem' : 'volte'} à conta.` : ''}` : '<b>Sem itens concluídos no recorte (desde abr/2026).</b>';
+    document.getElementById('ins-sla').innerHTML = tot ? `<b>Leitura:</b> aderência de <b>${pct.toFixed(1)}%</b> (meta 90%), atraso médio de <b>${atrMed} dias</b> quando fura. ${topcause ? `A maior causa de atraso é <b>${topcause[0]}</b> (${Math.round(topcause[1] / tt * 100)}% dos casos). ` : ''}${ca.length > 1 ? `Dispersão: ${melhor[0]} em ${melhor[1].toFixed(0)}% contra ${pior[0]} em ${pior[1].toFixed(0)}%. ` : ''}A apuração é por item de RC e a partir de abr/2026 — a mesma unidade e o mesmo recorte do BI "Gestão à Vista". Use a tabela-farol para agir nas críticas.${srNegN ? ` <b style="color:#8A6D00">${srNegN} ${srNegN > 1 ? 'itens ficaram' : 'item ficou'} fora da apuração</b> por trazer SLA Real negativo — Data Liberação posterior à Data de Conclusão na base. Corrija as datas na planilha para que ${srNegN > 1 ? 'voltem' : 'volte'} à conta.` : ''}` : '<b>Sem itens concluídos no recorte (desde abr/2026).</b>';
     SUM.sla = { pct, tot, fora, atrMed, crit: foraR.filter(r => r.sr - r.sa > 15).length, weeks: wk.map(wkLabel), weekly: wk.map(w => bw[w] ? Math.round(bw[w].i / bw[w].t * 100) : 0), matLabels: MS, matQ: msV, matPct: msP };
 }
 function renderSaving() {
@@ -806,9 +806,21 @@ function renderContr() {
     const pedidoConflitanteCount = base.filter(r => r.anyPedidoConflitante).length;
     const rcAmbiguaCount = base.filter(r => r.rcAmbigua).length;
 
+    // Contagem por item (linha do Spend), não por RC — só nos 2 cartões abaixo; RC com várias
+    // linhas de Contrato/Spot conta cada linha. Não mexe em nCon/nSpo/pctCon/pctSpo (RC única),
+    // que seguem alimentando os gráficos de mix, evolução e o doughnut mais abaixo.
+    let nConItens = 0, nSpoItens = 0, itensTot = 0;
+    cartAgeis.forEach(it => {
+        if (!baseRCSet.has(it.rcNorm)) return;
+        itensTot++;
+        if (it.td === 'Contrato') nConItens++;
+        else if (it.td === 'Spot') nSpoItens++;
+    });
+    const pctConItens = itensTot ? nConItens / itensTot * 100 : 0, pctSpoItens = itensTot ? nSpoItens / itensTot * 100 : 0;
+
     const kpiContr = [
-        { l: 'RCs Contrato', v: nCon.toLocaleString('pt-BR'), n: pctCon.toFixed(0) + '% do recorte' },
-        { l: 'RCs Spot', v: nSpo.toLocaleString('pt-BR'), n: pctSpo.toFixed(0) + '% do recorte' },
+        { l: 'RCs Contrato', v: nConItens.toLocaleString('pt-BR'), n: pctConItens.toFixed(0) + '% do recorte (itens)' },
+        { l: 'RCs Spot', v: nSpoItens.toLocaleString('pt-BR'), n: pctSpoItens.toFixed(0) + '% do recorte (itens)' },
         { l: 'Material', v: totMS ? Math.round(matSum / totMS * 100) + '%' : '—', n: matSum.toLocaleString('pt-BR') + ' itens' },
         { l: 'Serviço', v: totMS ? Math.round(servSum / totMS * 100) + '%' : '—', n: servSum.toLocaleString('pt-BR') + ' itens' },
         { l: 'Códigos "A" resolvidos', v: aResolvidoCount.toLocaleString('pt-BR') + ' RCs', c: 'good', n: 'Por Pedido ou por RC única' },
@@ -881,29 +893,37 @@ function renderContr() {
     // Carteira/Categoria resolvida) saíram daqui e viraram o gráfico separado "A (raiz)"
     // (c_ccd_tipo_araiz, amarelo), fracionados por G via histórico da Gestão à Vista.
     const ROOT_PRIO = { G: 0, R: 1, S: 2 };
-    const byGCar = {};
-    const byGCarA = {};
     // Só Contrato/Spot entram nesses dois gráficos — a coluna Contrato×Spot do Spend não tem outro
-    // valor válido, então RC sem um dos dois (ex.: "Mista", item de RC com os dois tipos) não conta.
-    base.forEach(r => {
-        const t = typeOf(r);
-        if (t !== 'Contrato' && t !== 'Spot') return;
-        const code = carOf(r);
-        if (ROOT_PRIO[rootLetter(code)] !== undefined) {
-            const o = byGCar[code] = byGCar[code] || {};
-            o[t] = (o[t] || 0) + 1;
-            return;
-        }
-        const dist = gcsDist[code];
-        if (!dist) return;
-        const gEntries = Object.entries(dist).filter(([c]) => rootLetter(c) === 'G');
-        const gTotal = gEntries.reduce((a, [, n]) => a + n, 0);
-        if (!gTotal) return;
-        gEntries.forEach(([c, n]) => {
-            const o = byGCarA[c] = byGCarA[c] || {};
-            o[t] = (o[t] || 0) + n / gTotal;
+    // valor válido, então RC/linha sem um dos dois (ex.: "Mista", item de RC com os dois tipos) não conta.
+    const buildGCarStats = (items, getType, getCode) => {
+        const byGCar = {}, byGCarA = {};
+        items.forEach(r => {
+            const t = getType(r);
+            if (t !== 'Contrato' && t !== 'Spot') return;
+            const code = getCode(r);
+            if (ROOT_PRIO[rootLetter(code)] !== undefined) {
+                const o = byGCar[code] = byGCar[code] || {};
+                o[t] = (o[t] || 0) + 1;
+                return;
+            }
+            const dist = gcsDist[code];
+            if (!dist) return;
+            const gEntries = Object.entries(dist).filter(([c]) => rootLetter(c) === 'G');
+            const gTotal = gEntries.reduce((a, [, n]) => a + n, 0);
+            if (!gTotal) return;
+            gEntries.forEach(([c, n]) => {
+                const o = byGCarA[c] = byGCarA[c] || {};
+                o[t] = (o[t] || 0) + n / gTotal;
+            });
         });
-    });
+        return { byGCar, byGCarA };
+    };
+    // "Por Requisição" — comportamento original, uma RC (já deduplicada) conta 1x. "Por Linha" —
+    // cada linha do Spend conta 1x (usa resolvedLines, que já tem a carteira resolvida por linha),
+    // restrita ao mesmo recorte de RCs de "base" via baseRCSet. Alterna pelo botão no painel (STATE.ccdTipoMode).
+    const { byGCar, byGCarA } = STATE.ccdTipoMode === 'linha'
+        ? buildGCarStats(resolvedLines.filter(ln => baseRCSet.has(ln.rcNorm)), ln => ln.td, ln => ln.carFinal || '')
+        : buildGCarStats(base, typeOf, carOf);
     const typeListG = ['Contrato', 'Spot'];
     const colorMapG = { Contrato: CCON, Spot: C.steel };
     const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => {
@@ -918,7 +938,15 @@ function renderContr() {
     // carteiras G, coluna fixa vira ilegível, então aqui vira scroll horizontal (ver .cv-scroll)
     const ccdTipoCv = document.getElementById('c_ccd_tipo_cv');
     if (ccdTipoCv) ccdTipoCv.style.minWidth = Math.max(gCarKeys.length * 42, 1) + 'px';
-    mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, volTotals: gCarArr.map(x => x.tot), datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), vol: gCarArr.map(x => x.o[t] || 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip('RCs', i => gCarArr[i] && gCarArr[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    const ccdTipoUn = STATE.ccdTipoMode === 'linha' ? 'itens' : 'RCs';
+    mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, volTotals: gCarArr.map(x => x.tot), datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), vol: gCarArr.map(x => x.o[t] || 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip(ccdTipoUn, i => gCarArr[i] && gCarArr[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+
+    // Botões "Por Linha" / "Por Requisição" — troca STATE.ccdTipoMode e re-renderiza (o próprio
+    // gráfico "A (raiz)" abaixo usa a mesma fonte, então acompanha o toggle junto)
+    document.querySelectorAll('#ccdTipoModeSeg button').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === STATE.ccdTipoMode);
+        b.onclick = () => { STATE.ccdTipoMode = b.dataset.mode; render(); };
+    });
 
     // % Contrato × Spot por carteira, uma coluna de gráficos por Coordenação (c_ger_N, dinâmico).
     // Rollup por RC direto do Spend (Car + Contrato/Spot do próprio RC — RC com item de Contrato E
@@ -1128,7 +1156,7 @@ function renderContr() {
     if (pedidoConflitanteCount) alerts.push(`${pedidoConflitanteCount} Pedidos conflitantes`);
     if (rcAmbiguaCount) alerts.push(`${rcAmbiguaCount} RCs ambíguas`);
     if (ndTot) alerts.push(`${ndTot} RCs (${Math.round(ndTot / base.length * 100)}%) sem Carteira/Categoria`);
-    document.getElementById('ins-contr').innerHTML = base.length ? `<b>Leitura:</b> no recorte entraram <b>${nCon} RCs de Contrato</b> e <b>${nSpo} RCs de Spot</b> (${pctCon.toFixed(0)}% / ${pctSpo.toFixed(0)}% do mix)${nMista ? `, <b>${nMista} RCs Mista</b> (Contrato e Spot na mesma RC)` : ''}${topOther ? `, além de <b>${nOut} RCs em outros tipos</b> — o mais comum é <b>${topOther}</b> (${typeCounts[topOther]}). ` : '. '}${topCat ? `Carteira com maior volume: <b>${topCat.c}</b> (${topCat.tot} RCs). ` : ''}${alerts.length ? `<b style="color:#8A6D00">⚠ ${alerts.join(' · ')}</b> — priorize o saneamento para uma leitura confiável por carteira.` : ''}` : '<b>Sem RCs no recorte.</b>';
+    document.getElementById('ins-contr').innerHTML = base.length ? `<b>Leitura:</b> no recorte entraram <b>${nCon} RCs de Contrato</b> e <b>${nSpo} RCs de Spot</b> (${pctCon.toFixed(0)}% / ${pctSpo.toFixed(0)}% do mix)${nMista ? `, <b>${nMista} RCs Mista</b> (Contrato e Spot na mesma RC)` : ''}${topOther ? `, além de <b>${nOut} RCs em outros tipos</b> — o mais comum é <b>${topOther}</b> (${typeCounts[topOther]}). ` : '. '}${topCat ? `Carteira com maior volume: <b>${topCat.c}</b> (${topCat.tot} RCs). ` : ''}${alerts.length ? `<b style="color:#8A6D00">${alerts.join(' · ')}</b> — priorize o saneamento para uma leitura confiável por carteira.` : ''}` : '<b>Sem RCs no recorte.</b>';
     SUM.contr = { nCon, nSpo, nOut, nMista, pctCon, pctSpo, total: base.length, top: top8.map(x => ({ c: x.c, tot: x.tot })) };
 }
 function renderCompradores() {
@@ -1299,7 +1327,7 @@ function renderCompIndividual(cp, team) {
 
     // RCs em aberto — acompanhamento individual (t_rcopen_ind)
     renderOpenRCPanel('t_rcopen_ind', 'sum_rcopen_ind', openRCsFor(cp), false);
-    document.getElementById('ins-individual').innerHTML = `<b>Leitura:</b> ${cp} concluiu <b>${doneP.length} itens</b> (<b>${ipdVal.toFixed(2)} itens/dia</b>, ${dIpd >= 0 ? '+' : ''}${dIpd.toFixed(0)}% vs média do time), tem <b>${openP.length} RCs abertas</b>${agingAvg != null ? ` (aging médio ${agingAvg}d)` : ''} e está em <b>${slaPct != null ? slaPct.toFixed(1) + '%' : '—'}</b> dentro do SLA. Saving capturado: <b>${Kf(savTotal)}</b>. Mix de entrada: <b>${nConP} RCs Contrato</b> e <b>${nSpoP} RCs Spot</b>.${critN > 0 ? ` <b style="color:#8A6D00">⚠ ${critN} RC(s) acima do SLA Alvo.</b>` : ''}`;
+    document.getElementById('ins-individual').innerHTML = `<b>Leitura:</b> ${cp} concluiu <b>${doneP.length} itens</b> (<b>${ipdVal.toFixed(2)} itens/dia</b>, ${dIpd >= 0 ? '+' : ''}${dIpd.toFixed(0)}% vs média do time), tem <b>${openP.length} RCs abertas</b>${agingAvg != null ? ` (aging médio ${agingAvg}d)` : ''} e está em <b>${slaPct != null ? slaPct.toFixed(1) + '%' : '—'}</b> dentro do SLA. Saving capturado: <b>${Kf(savTotal)}</b>. Mix de entrada: <b>${nConP} RCs Contrato</b> e <b>${nSpoP} RCs Spot</b>.${critN > 0 ? ` <b style="color:#8A6D00">${critN} RC(s) acima do SLA Alvo.</b>` : ''}`;
 }
 function scoreRow(t, mod, ind, val, ref, status, label) {
     return `<tr class="jump" data-t="${t}"><td>${mod}</td><td>${ind}</td><td class="num">${val}</td><td class="num">${ref}</td><td><span class="pill p-${status}">${label}</span></td></tr>`;

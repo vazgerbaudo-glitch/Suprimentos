@@ -20,6 +20,11 @@ function loadEmpty(msg) {
 }
 
 function loadLocalBase(prefix) {
+    if (window.location.protocol === 'file:') {
+        loadEmpty(prefix ? prefix + ' Arquivo local aberto; carregue o CSV manualmente.' : 'Arquivo local aberto. Carregue o CSV manualmente para visualizar os dados.');
+        return;
+    }
+
     fetch(BASE_CSV_PATH)
         .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
         .then(txt => {
@@ -31,6 +36,13 @@ function loadLocalBase(prefix) {
 }
 
 function loadSheet(url) {
+    if (!url) return loadLocalBase();
+
+    if (window.location.protocol === 'file:') {
+        loadEmpty('Arquivo local aberto. Use o botão de CSV para carregar os dados do Google Sheets.');
+        return;
+    }
+
     setSrc('', 'Buscando Google Sheets…');
     fetch(url)
         .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })

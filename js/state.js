@@ -9,5 +9,6 @@ let ALL = [], ALLRC = [], DUCAL = {}, STATE = {
     metaServ: 3,
     metaAgG: 60,
     metaAgC: 87,
-    metaAgS: 67
+    metaAgS: 67,
+    ccdTipoMode: 'linha'
 }, CH = {}, SUM = {}, compSort = { key: 'concl', dir: -1 }, rcOpenSort = { key: 'age', dir: -1 }, CARTEIRAS = [];

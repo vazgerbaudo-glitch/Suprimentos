@@ -21,7 +21,7 @@
             <div class="fg"><label>Status</label><select id="f_status"><option value="GERAL">Geral</option><option value="A">Em Aberto</option><option value="C">Concluída</option></select></div>
             <hr class="fside-sep"/>
             <div id="drop">
-                <label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">📁 Carregar CSV</label>
+                <label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">Carregar CSV</label>
                 <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/>
             </div>
             <button class="btn ghost" id="btn_rel"> Relatório</button>
@@ -496,8 +496,13 @@
             </div>
             <div class="kpis k3" id="kpi-contr"></div>
             <div class="panel">
-                <h3>% Contrato × Spot por carteira G/R/S</h3>
-                <div class="ph">Uma coluna por carteira específica (todas, ordem G &gt; R &gt; S e numérica dentro de cada letra) — % Contrato × % Spot, para comparar quem depende mais de Spot. Só RCs com carteira G/R/S já confirmada no Spend; as RCs ainda em Grupo Comprador "A..." (não resolvidas) entram no gráfico separado "A (raiz)", mais abaixo.</div>
+                <h3>% Contrato × Spot por carteira G/R/S
+                    <span class="seg2" id="ccdTipoModeSeg" style="margin-left:auto">
+                        <button type="button" data-mode="linha">Por Linha</button>
+                        <button type="button" data-mode="rc">Por Requisição</button>
+                    </span>
+                </h3>
+                <div class="ph">Uma coluna por carteira específica (todas, ordem G &gt; R &gt; S e numérica dentro de cada letra) — % Contrato × % Spot, para comparar quem depende mais de Spot. Só RCs com carteira G/R/S já confirmada no Spend; as RCs ainda em Grupo Comprador "A..." (não resolvidas) entram no gráfico separado "A (raiz)", mais abaixo. "Por Linha" conta cada linha do Spend; "Por Requisição" deduplica por RC.</div>
                 <div class="cv-scroll"><div class="cv" id="c_ccd_tipo_cv"><canvas id="c_ccd_tipo"></canvas></div></div>
             </div>
             <div class="grid g3">
@@ -584,7 +589,7 @@
                 </div>
                 <div class="panel">
                     <h3>Fila de itens em aberto — projeção por fluxo</h3>
-                    <div class="ph">Parte do saldo de hoje: o histórico da fila não é reconstruível na base atual (Canceladas e Devolvidas não têm data de saída) · a linha azul-aço é a fila se a demanda vier a +1σ · o eixo da direita é o aging implícito, em dias para zerar a fila no ritmo da semana</div>
+                    <div class="ph">Parte do saldo de hoje · fila menor é melhor, então aqui a linha otimista é a de baixo · as duas linhas finas são apoio: a fila se a demanda vier alta e, no eixo da direita, os dias para zerar a fila</div>
                     <div class="cv tall"><canvas id="c_proj_back"></canvas></div>
                 </div>
             </div>
@@ -611,10 +616,10 @@
     <script src="js/charts.js?v=20260812a"></script>
     <script src="js/render.js?v=20260814e"></script>
     <script src="js/filters.js?v=20260730"></script>
-    <script src="js/proj.js?v=20260814a"></script>
+    <script src="js/proj.js?v=20260814d"></script>
     <script src="js/pendencias.js?v=20260811a"></script>
     <!-- relatorio.js depende de loadHtml2Canvas (pendencias.js) e de SUM.proj (proj.js) -->
-    <script src="js/relatorio.js?v=20260814a"></script>
+    <script src="js/relatorio.js?v=20260814b"></script>
     <script src="js/main.js?v=20260724"></script>
     </body>
 </html>

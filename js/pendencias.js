@@ -149,7 +149,7 @@ function exportPendImage() {
     if (!target) return;
     const grid = target.querySelector('.pend-grid');
     const label = btn.textContent;
-    btn.textContent = '⏳ Gerando...';
+    btn.textContent = 'Gerando...';
     btn.disabled = true;
     const unfreeze = grid ? freezeGridForCapture(grid) : null;
     loadHtml2Canvas().then(() => window.html2canvas(target, {
@@ -176,10 +176,10 @@ function exportPendImage() {
     ov.className = 'modal-ov';
     ov.id = 'pend-ov';
     ov.innerHTML = `<div class="modal wide">
-    <h3>🔍 Pendências de preenchimento</h3>
+    <h3>Pendências de preenchimento</h3>
     <div class="ph">Considera toda a base carregada a partir de abril/2026 — exceto "Cenário SLA" e "Carteira/Categoria", que contam desde janeiro/2026 — independente dos filtros de Período/Tipo/Comprador · exclui Canceladas, Devolvidas e itens marcados como "Remover de Compras Ágeis" · passe o mouse no título de cada cartão para ver o critério exato.</div>
     <div id="pend-body" style="overflow-y:auto;flex:1;margin:10px 0"></div>
-    <div class="modal-actions"><button class="btn ghost" id="pend-export">📷 Baixar imagem</button><button class="btn ghost" id="pend-close">Fechar</button></div>
+    <div class="modal-actions"><button class="btn ghost" id="pend-export">Baixar imagem</button><button class="btn ghost" id="pend-close">Fechar</button></div>
  </div>`;
     document.body.appendChild(ov);
     document.getElementById('pend-close').onclick = () => ov.classList.remove('open');

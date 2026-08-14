@@ -63,7 +63,7 @@ function initials(name) {
     return (name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
 }
 function compRowHTML(cp, label, metricTxt, active, isGeral) {
-    return `<div class="comp-row${active ? ' active' : ''}${isGeral ? ' geral' : ''}" data-cp="${cp}"><div class="comp-avatar">${isGeral ? '👥' : initials(cp)}</div><div class="ci"><b>${label}</b><span>${metricTxt}</span></div></div>`;
+    return `<div class="comp-row${active ? ' active' : ''}${isGeral ? ' geral' : ''}" data-cp="${cp}"><div class="comp-avatar">${isGeral ? 'GE' : initials(cp)}</div><div class="ci"><b>${label}</b><span>${metricTxt}</span></div></div>`;
 }
 function renderCompList(rows) {
     const html = compRowHTML('GERAL', 'Geral (todos)', rows.length + ' compradores', STATE.comp === 'GERAL', true) +
@@ -273,7 +273,7 @@ function renderCompIndividual(cp, team) {
 
     // RCs em aberto — acompanhamento individual (t_rcopen_ind)
     renderOpenRCPanel('t_rcopen_ind', 'sum_rcopen_ind', openRCsFor(cp), false);
-    document.getElementById('ins-individual').innerHTML = `<b>Leitura:</b> ${cp} concluiu <b>${doneP.length} itens</b> (<b>${ipdVal.toFixed(2)} itens/dia</b>, ${dIpd >= 0 ? '+' : ''}${dIpd.toFixed(0)}% vs média do time), tem <b>${openP.length} RCs abertas</b>${agingAvg != null ? ` (aging médio ${agingAvg}d)` : ''} e está em <b>${slaPct != null ? slaPct.toFixed(1) + '%' : '—'}</b> dentro do SLA. Saving capturado: <b>${Kf(savTotal)}</b>. Mix de entrada: <b>${nConP} RCs Contrato</b> e <b>${nSpoP} RCs Spot</b>.${critN > 0 ? ` <b style="color:#8A6D00">⚠ ${critN} RC(s) acima do SLA Alvo.</b>` : ''}`;
+    document.getElementById('ins-individual').innerHTML = `<b>Leitura:</b> ${cp} concluiu <b>${doneP.length} itens</b> (<b>${ipdVal.toFixed(2)} itens/dia</b>, ${dIpd >= 0 ? '+' : ''}${dIpd.toFixed(0)}% vs média do time), tem <b>${openP.length} RCs abertas</b>${agingAvg != null ? ` (aging médio ${agingAvg}d)` : ''} e está em <b>${slaPct != null ? slaPct.toFixed(1) + '%' : '—'}</b> dentro do SLA. Saving capturado: <b>${Kf(savTotal)}</b>. Mix de entrada: <b>${nConP} RCs Contrato</b> e <b>${nSpoP} RCs Spot</b>.${critN > 0 ? ` <b style="color:#8A6D00">${critN} RC(s) acima do SLA Alvo.</b>` : ''}`;
 }
 
 function render() {
@@ -426,7 +426,7 @@ function renderProd() {
     const entG = ALL.filter(r => r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
     mkChart('c_esgeral', { type: 'bar', data: { labels: ['Entrada', 'Saída'], datasets: [{ data: [entG, msB.length], backgroundColor: [C.steel, C.teal], borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
-    document.getElementById('ins-prod').innerHTML = `<b>Leitura:</b> ${ger ? 'a equipe concluiu em média' : STATE.comp + ' concluiu'} <b>${val.toFixed(2)} ${ger ? 'itens/dia/comprador' : 'itens/dia'}</b> no recorte.${_fb ? ' <b style="color:#8A6D00">⚠ Valor estimado:</b> a coluna <i>Item/dia/comprador</i> está vazia na base para a(s) semana(s) do recorte, então o itens/dia/comprador foi calculado como Item/dia ÷ compradores ativos.' : ''}`;
+    document.getElementById('ins-prod').innerHTML = `<b>Leitura:</b> ${ger ? 'a equipe concluiu em média' : STATE.comp + ' concluiu'} <b>${val.toFixed(2)} ${ger ? 'itens/dia/comprador' : 'itens/dia'}</b> no recorte.${_fb ? ' <b style="color:#8A6D00">Valor estimado:</b> a coluna <i>Item/dia/comprador</i> está vazia na base para a(s) semana(s) do recorte, então o itens/dia/comprador foi calculado como Item/dia ÷ compradores ativos.' : ''}`;
     SUM.prod = { val, ger, ating, concluidos: base.length, entradas: entG, weeks: cwk.map(wkLabel), weekly: cwk.map(w => cw[w] || 0), entries: cwk.map(w => ew[w] || 0), matLabels: MSc, matQ: msQ, matTot: totMS };
 }
 

@@ -63,6 +63,85 @@ function weeksAfter(w, n) {
     return out;
 }
 
+// ── Calendário: dias úteis das semanas FUTURAS ───────────────────────────────
+// Para o passado o painel usa DUCAL, que sai da própria base (coluna "Dias Úteis na Semana") e por
+// isso já embute emendas e feriados locais da empresa. Para o futuro não há base, e o calendário
+// nacional é a melhor informação verificável que existe: uma semana com feriado produz menos, e isso
+// é sabido com antecedência. É daqui que vem boa parte da ondulação honesta da projeção — não é
+// suposição sobre o desempenho do time, é o número de dias em que o time trabalha.
+//
+// Só entram os feriados NACIONAIS (Lei 662/49, 6.802/80 e 14.759/23) mais Carnaval e Corpus Christi,
+// que não são feriado legal federal mas param o corporativo brasileiro inteiro. Feriado municipal ou
+// estadual fica de fora de propósito: erraria para a maior parte da equipe.
+function projEaster(y) {
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100;
+    const d = Math.floor(b / 4), e = b % 4;
+    const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const mes = Math.floor((h + l - 7 * m + 114) / 31);
+    const dia = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, mes - 1, dia);
+}
+
+const PROJ_HOL = {};        // cache por ano: { 'M-D': true }
+function projHolidays(y) {
+    if (PROJ_HOL[y]) return PROJ_HOL[y];
+    const set = {};
+    const put = d => { set[d.getMonth() + '-' + d.getDate()] = true; };
+    const off = n => { const d = projEaster(y); d.setDate(d.getDate() + n); return d; };
+    [[0, 1], [3, 21], [4, 1], [8, 7], [9, 12], [10, 2], [10, 15], [10, 20], [11, 25]]
+        .forEach(([m, d]) => put(new Date(y, m, d)));
+    put(off(-48)); put(off(-47));   // Carnaval (segunda e terça)
+    put(off(-2));                   // Sexta-feira Santa
+    put(off(60));                   // Corpus Christi
+    PROJ_HOL[y] = set;
+    return set;
+}
+
+// Dias úteis (seg–sex menos feriado nacional) de uma semana ISO.
+function projDuWeek(w) {
+    const d = isoWeekStart(w);
+    let n = 0;
+    for (let i = 0; i < 5; i++) {
+        const hol = projHolidays(d.getFullYear());
+        if (!hol[d.getMonth() + '-' + d.getDate()]) n++;
+        d.setDate(d.getDate() + 1);
+    }
+    return n;
+}
+
+// Dias úteis de uma semana do histórico: o real da base quando existe, o do calendário como reserva.
+const projDuHist = w => (typeof DUCAL !== 'undefined' && DUCAL[w] > 0) ? DUCAL[w] : projDuWeek(w);
+
+// Última semana ISO que começa dentro do mês — é nela que cai o esforço de fechamento.
+function projLastOfMonth(w) {
+    const d = isoWeekStart(w), n = new Date(d.getTime());
+    n.setDate(n.getDate() + 7);
+    return n.getMonth() !== d.getMonth();
+}
+
+// ── Aleatório reproduzível ───────────────────────────────────────────────────
+// As trajetórias simuladas precisam ser as MESMAS a cada render do mesmo recorte: um gráfico que
+// muda de desenho a cada clique de filtro não é leitura, é ruído visual. Daí um gerador com semente
+// derivada da própria série, em vez de Math.random.
+function projRng(seed) {
+    let s = (seed >>> 0) || 1;
+    return () => {
+        s = (s + 0x6D2B79F5) >>> 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+// Normal padrão por Box-Muller.
+function projNorm(rng) {
+    const u = Math.max(1e-12, rng()), v = rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
 // ── Motor ────────────────────────────────────────────────────────────────────
 // Regressão linear simples sobre pontos {x,y}. Devolve o desvio-padrão dos resíduos (σ), que é a
 // largura da banda dos cenários, e o R², usado só para dizer ao leitor o quanto a tendência explica
@@ -98,50 +177,201 @@ const projRnd = (v, d) => +(+v).toFixed(d || 0);
 
 // vals: array alinhado ao eixo de semanas (null = semana sem base para o indicador, ex.: nenhuma RC
 // avaliável de SLA). opt.better diz qual direção é "boa" — é o que inverte otimista e pessimista.
+//
+// A projeção não é uma reta. Uma reta pressupõe que a única coisa que acontece no futuro é a
+// tendência, e é isso que produz o desenho engessado. Aqui ela é decomposta em quatro pedaços, três
+// deles com estrutura REAL e verificável — ondulação inventada seria pior que reta, porque fingiria
+// saber quando vêm as altas e baixas:
+//
+//   1. CALENDÁRIO (opt.du / opt.duFut). Séries de volume são ajustadas por dia útil: a regressão roda
+//      sobre a taxa (itens por dia útil) e a projeção multiplica de volta pelos dias úteis REAIS da
+//      semana futura. Semana com feriado projeta menos porque tem menos dias, não porque o time piorou.
+//   2. FECHAMENTO DE MÊS (opt.weeks / opt.weeksFut). A última semana do mês costuma concentrar
+//      esforço. O efeito é medido no histórico, encolhido para o tamanho da amostra e só entra se
+//      superar o próprio ruído — com 12 semanas há ~3 fechamentos, então é sinal fraco por construção.
+//   3. INÉRCIA (AR(1) nos resíduos). A série tem memória: uma semana acima da tendência tende a ser
+//      seguida por outra acima. Sem isso a projeção SALTA do último valor observado direto para a
+//      reta, que é a maior causa do aspecto artificial. Com isso ela parte de onde a série está e
+//      converge para a tendência — e a banda começa estreita e abre, em vez de já nascer larga.
+//   4. RUÍDO. O que sobra, e que só aparece como faixa e como trajetórias simuladas, nunca como
+//      previsão de qual semana sobe.
 function projScenarios(vals, opt) {
-    const o = Object.assign({ horiz: PROJ_HORIZ, min: 0, max: Infinity, better: 'up', dec: 0 }, opt);
+    const o = Object.assign({
+        horiz: PROJ_HORIZ, min: 0, max: Infinity, better: 'up', dec: 0,
+        du: null, duFut: null, weeks: null, weeksFut: null, paths: 8
+    }, opt);
+    const off = Math.max(0, vals.length - PROJ_HIST);
     const win = vals.slice(-PROJ_HIST);
+    const duW = o.du ? o.du.slice(off) : null;          // dias úteis do histórico, alinhados à janela
+    const wkW = o.weeks ? o.weeks.slice(off) : null;    // chaves de semana, alinhadas à janela
+    const useDu = !!(duW && o.duFut);                   // só séries de volume normalizam por dia útil
+    const du = i => (duW && duW[i] > 0) ? duW[i] : DU_SEM;
+
+    // Espaço de trabalho: taxa por dia útil quando a série é de volume, valor bruto quando é taxa
+    // (SLA e atingimento já são percentuais — dividir de novo por dias úteis seria contar duas vezes).
     const pts = [];
-    win.forEach((y, i) => { if (y != null && isFinite(y)) pts.push({ x: i, y }); });
+    win.forEach((y, i) => { if (y != null && isFinite(y)) pts.push({ x: i, y: useDu ? y / du(i) : y }); });
     if (pts.length < PROJ_MIN_PTS) return { ok: false, n: pts.length };
 
     const fit = projOLS(pts);
     const ys = pts.map(p => p.y);
     const up = o.better === 'up';
     const s = up ? 1 : -1;                       // sinal da direção "boa" do indicador
-    const best = up ? Math.max.apply(null, ys) : Math.min.apply(null, ys);
-    const worst = up ? Math.min.apply(null, ys) : Math.max.apply(null, ys);
     const cl = v => Math.min(Math.max(v, o.min), o.max);   // limite de DOMÍNIO (0..100 etc.), não da banda
-    const real = [], otim = [], pess = [];
     const x0 = win.length - 1;
     const soma = a => a.reduce((x, y) => x + y, 0);
+    const media = soma(ys) / ys.length;
 
     // A inclinação só vira projeção se for distinguível de zero. Quando não é, o honesto é dizer
     // "estável no patamar de X", não extrapolar o ruído das últimas semanas para 8 semanas à frente.
     const tCrit = projTCrit(fit.n - 2);
     const trendOK = isFinite(fit.tB) && Math.abs(fit.tB) >= tCrit;
-    const media = soma(ys) / ys.length;
+    const base = xk => trendOK ? (fit.a + fit.b * xk) : media;
 
-    // Alargamento da banda com o horizonte: é o fator do intervalo de predição de OLS, que cresce com
-    // a distância ao centro da janela. Sem tendência, o patamar é a média e o fator é o da média, √(1+1/n).
-    const widen = xk => !trendOK
-        ? Math.sqrt(1 + 1 / fit.n)
-        : (fit.sxx > 0 ? Math.sqrt(1 + 1 / fit.n + Math.pow(xk - fit.xbar, 2) / fit.sxx) : 1);
+    // σ em torno do que de fato é projetado: da reta quando há tendência, da média quando é patamar.
+    // Usar sempre o resíduo da reta subestimaria a dispersão do patamar, porque a reta absorve parte
+    // da variação que, sem tendência significativa, é justamente incerteza.
+    const res0 = pts.map(p => p.y - base(p.x));
+    const dfR = Math.max(1, trendOK ? fit.n - 2 : fit.n - 1);
+    const sigma0 = Math.sqrt(soma(res0.map(e => e * e)) / dfR);
 
+    // ── Efeito de fechamento de mês ──────────────────────────────────────────
+    // Medido como diferença de resíduo médio entre as semanas de fechamento e as demais, encolhido
+    // por m/(m+4) e só aceito se passar do erro-padrão da própria diferença. Centrado, para não
+    // deslocar o nível médio da projeção.
+    let mDelta = 0, mIn = 0, mPct = 0;
+    if (wkW) {
+        const gi = [], go = [];
+        pts.forEach((p, i) => (projLastOfMonth(wkW[p.x]) ? gi : go).push(res0[i]));
+        if (gi.length >= 3 && go.length >= 3) {
+            const mi = soma(gi) / gi.length, mo = soma(go) / go.length;
+            const dRaw = mi - mo;
+            const seD = sigma0 * Math.sqrt(1 / gi.length + 1 / go.length);
+            if (Math.abs(dRaw) > seD) {
+                mDelta = dRaw * (gi.length / (gi.length + 4));
+                mIn = gi.length;
+                mPct = media ? mDelta / media * 100 : 0;
+            }
+        }
+    }
+    const pIn = wkW ? pts.filter(p => projLastOfMonth(wkW[p.x])).length / pts.length : 0;
+    const mAdj = w => !mDelta || !w ? 0 : (projLastOfMonth(w) ? mDelta * (1 - pIn) : -mDelta * pIn);
+
+    // ── Inércia (AR(1)) ──────────────────────────────────────────────────────
+    // Só com pontos contíguos: com semana nula no meio, "lag 1" nos pontos não é lag 1 no tempo, e o
+    // coeficiente mediria outra coisa.
+    //
+    // Aqui NÃO cabe teste de significância com corte seco. Em 12 semanas o r₁ amostral é enviesado
+    // para baixo em ~(1+3ρ)/n, e o limite de Bartlett (2/√12 ≈ 0,58) só deixaria passar inércia
+    // altíssima: uma série genuinamente com memória de 0,7 mede ~0,45 e seria rejeitada, e a projeção
+    // voltaria a saltar do último ponto para a reta. A pergunta certa também não é "existe memória?",
+    // é "qual o melhor palpite de memória para projetar" — então corrige-se o viés e encolhe-se a
+    // estimativa por n/(n+6), que é gradual em vez de tudo-ou-nada. A zona morta de 0,10 evita tratar
+    // resíduo de arredondamento como inércia.
+    const res = res0.map((e, i) => e - mAdj(wkW ? wkW[pts[i].x] : null));
+    const contig = pts.every((p, i) => p.x === pts[0].x + i);
+    let phi = 0;
+    if (contig && res.length >= 6) {
+        let num = 0;
+        for (let i = 1; i < res.length; i++) num += res[i] * res[i - 1];
+        const den = soma(res.map(e => e * e));
+        const r1 = den ? num / den : 0;
+        const r1c = r1 + (1 + 3 * r1) / res.length;                  // viés de amostra curta
+        const cand = r1c * (res.length / (res.length + 6));          // encolhimento
+        if (Math.abs(cand) >= .10) phi = Math.max(-0.5, Math.min(0.85, cand));
+    }
+    const eLast = res[res.length - 1];
+
+    // Uma série com memória "parece" mais calma do que é dentro de uma janela curta: semanas vizinhas
+    // se assemelham, então a variância amostral subestima a dispersão do processo. Sem desfazer esse
+    // viés a banda nasce estreita justamente nas séries mais inerciais — foi o que o backtest acusou.
+    const vBias = Math.min(1, Math.max(.4, 1 - (1 / fit.n) * (1 + phi) / Math.max(.15, 1 - phi)));
+    const sigma = sigma0 / Math.sqrt(vBias);
+    const sigE = sigma * Math.sqrt(Math.max(0, 1 - phi * phi));   // σ da inovação nova a cada semana
+
+    // ── Projeção ─────────────────────────────────────────────────────────────
+    // Variância k passos à frente = inovação acumulada do AR(1) + incerteza dos parâmetros da reta.
+    // Com phi = 0 o primeiro termo vira 1 e a fórmula recai exatamente na banda de predição de OLS.
+    const duF = k => (o.duFut && o.duFut[k - 1] > 0) ? o.duFut[k - 1] : DU_SEM;
+    const wkF = k => o.weeksFut ? o.weeksFut[k - 1] : null;
+    const lev = xk => (trendOK && fit.sxx > 0) ? Math.pow(xk - fit.xbar, 2) / fit.sxx : 0;
+    const passo = k => {
+        const xk = x0 + k, esc = useDu ? duF(k) : 1;
+        const taxa = base(xk) + mAdj(wkF(k)) + Math.pow(phi, k) * eLast;
+        const vr = (1 - Math.pow(phi, 2 * k)) + 1 / fit.n + lev(xk);
+        return { t: taxa * esc, sig: sigma * Math.sqrt(Math.max(vr, 1e-9)) * esc, esc };
+    };
+
+    // ── Ondulação visual das três linhas ─────────────────────────────────────
+    // Só para o DESENHO — nunca para o número. Sem isto a linha central achatava assim que φᵏ decaía
+    // (poucas semanas), enquanto as trajetórias simuladas ao fundo continuavam a ondular a cada semana:
+    // a régua e a paisagem contavam histórias diferentes. Aqui entra uma inovação NOVA a cada semana
+    // (mesma semente, reprodutível) — não é a decadência de eLast, que já está em `taxa` dentro de
+    // `passo`; é só o que o processo AR(1) receberia de novo se continuasse. Soma-se por igual às três
+    // linhas, então a distância entre elas (a largura da banda) não muda — balançam juntas, sem nunca
+    // se cruzar. A amplitude é atenuada linearmente até ZERO na última semana do horizonte: é o número
+    // que os cartões, a tabela e o relatório publicam, e o desenho não pode discordar dele ali.
+    const wobRng = projRng(Math.round(Math.abs(soma(ys)) * 613 + fit.n * 17 + 91));
+    let eWob = 0;
+    const wob = [];
     for (let k = 1; k <= o.horiz; k++) {
-        const xk = x0 + k;
-        const t = cl(trendOK ? (fit.a + fit.b * xk) : media);
-        const sig = fit.sigma * widen(xk);
-        real.push(projRnd(t, o.dec));
-        otim.push(projRnd(cl(t + s * sig), o.dec));
-        pess.push(projRnd(cl(t - s * sig), o.dec));
+        eWob = phi * eWob + sigE * projNorm(wobRng);
+        wob.push(eWob * (o.horiz - k) / Math.max(1, o.horiz - 1));
     }
 
+    const real = [], otim = [], pess = [], lo = [], hi = [];
+    const dispReal = [], dispOtim = [], dispPess = [], dispLo = [], dispHi = [];
+    for (let k = 1; k <= o.horiz; k++) {
+        const { t, sig, esc } = passo(k);
+        real.push(projRnd(cl(t), o.dec));
+        otim.push(projRnd(cl(t + s * sig), o.dec));
+        pess.push(projRnd(cl(t - s * sig), o.dec));
+        lo.push(projRnd(cl(t - sig), o.dec));           // lo/hi são a MESMA banda de otim/pess, só que
+        hi.push(projRnd(cl(t + sig), o.dec));           // em ordem de valor — é o que o gráfico precisa
+
+        const tw = t + wob[k - 1] * esc;                // t com a ondulação visual somada
+        dispReal.push(projRnd(cl(tw), o.dec));
+        dispOtim.push(projRnd(cl(tw + s * sig), o.dec));
+        dispPess.push(projRnd(cl(tw - s * sig), o.dec));
+        dispLo.push(projRnd(cl(tw - sig), o.dec));
+        dispHi.push(projRnd(cl(tw + sig), o.dec));
+    }
+
+    // ── Trajetórias simuladas ────────────────────────────────────────────────
+    // Não são previsões: são exemplos de como uma realização do MESMO modelo se pareceria, com o ruído
+    // semanal e a inclinação sorteada dentro do próprio erro-padrão. Servem para o leitor ver que o
+    // futuro plausível é acidentado, não liso — a faixa sozinha esconde isso.
+    const rng = projRng(Math.round(Math.abs(soma(ys)) * 997 + fit.n * 31 + o.horiz));
+    const paths = [];
+    for (let p = 0; p < o.paths; p++) {
+        const bP = isFinite(fit.seB) ? fit.b + fit.seB * projNorm(rng) : fit.b;
+        const linha = [];
+        let e = eLast;
+        for (let k = 1; k <= o.horiz; k++) {
+            const xk = x0 + k, esc = useDu ? duF(k) : 1;
+            e = phi * e + sigE * projNorm(rng);
+            const nivel = trendOK ? (fit.a + bP * xk) : media;
+            linha.push(projRnd(cl((nivel + mAdj(wkF(k)) + e) * esc), o.dec));
+        }
+        paths.push(linha);
+    }
+
+    // Melhor e pior semana já observada, de volta ao espaço de VALOR (referência para o leitor).
+    const vals0 = pts.map((p, i) => useDu ? p.y * du(p.x) : p.y);
+    const best = up ? Math.max.apply(null, vals0) : Math.min.apply(null, vals0);
+    const worst = up ? Math.min.apply(null, vals0) : Math.max.apply(null, vals0);
+
     return {
-        ok: true, n: pts.length, real, otim, pess,
-        slope: fit.b, r2: fit.r2, sigma: fit.sigma, tB: fit.tB, tCrit, trendOK,
+        ok: true, n: pts.length, real, otim, pess, lo, hi, paths,
+        // dispReal/otim/pess/lo/hi são a MESMA informação, só com a ondulação visual somada — usadas
+        // exclusivamente pelo gráfico (ver projLine). Fila, aging, KPIs, tabela e relatório continuam
+        // lendo real/otim/pess/lo/hi, que nunca levam este ruído.
+        dispReal, dispOtim, dispPess, dispLo, dispHi,
+        slope: useDu ? fit.b * DU_SEM : fit.b,      // inclinação por semana, na unidade que o leitor lê
+        r2: fit.r2, sigma, tB: fit.tB, tCrit, trendOK,
+        phi, mDelta, mPct, mIn, duFut: o.duFut, useDu,
         // best/worst são referência para o leitor (melhor e pior semana já observada), não trava da banda
-        last: ys[ys.length - 1], avg: media, best, worst, better: o.better,
+        last: vals0[vals0.length - 1], avg: soma(vals0) / vals0.length, best, worst, better: o.better,
         fim: { real: real[real.length - 1], otim: otim[otim.length - 1], pess: pess[pess.length - 1] },
         acum: { real: projRnd(soma(real), o.dec), otim: projRnd(soma(otim), o.dec), pess: projRnd(soma(pess), o.dec) }
     };
@@ -151,18 +381,38 @@ function projScenarios(vals, opt) {
 // confere se a semana i caiu dentro da banda. Para ±1σ a cobertura deveria ficar perto de 0,68 — bem
 // abaixo disso significa que a banda continua estreita (sinal típico de autocorrelação semanal), e
 // isso vira número no relatório em vez de ressalva no comentário. É o único juiz fora da amostra.
+// O backtest precisa julgar o MESMO modelo que a projeção usa, senão mede outra coisa: reproduz o
+// teste de tendência (patamar quando não passa) e a inércia AR(1) do passo à frente. O que ele não
+// reproduz é calendário e fechamento de mês — esses dependem de qual semana é, e aqui só interessa a
+// calibragem da banda. Fica um juiz levemente conservador, o que é o lado seguro de errar.
 function projBacktest(vals, opt) {
     const o = Object.assign({ minTrain: PROJ_MIN_PTS }, opt);
     const win = vals.slice(-PROJ_HIST).filter(y => y != null && isFinite(y));
     let dentro = 0, total = 0;
     const erros = [];
     for (let i = o.minTrain; i < win.length; i++) {
-        const train = win.slice(0, i).map((y, x) => ({ x, y }));
+        const ys = win.slice(0, i);
+        const train = ys.map((y, x) => ({ x, y }));
         const fit = projOLS(train);
+        const trendOK = isFinite(fit.tB) && Math.abs(fit.tB) >= projTCrit(fit.n - 2);
+        const media = ys.reduce((a, y) => a + y, 0) / ys.length;
+        const bs = x => trendOK ? (fit.a + fit.b * x) : media;
+        const res = ys.map((y, x) => y - bs(x));
+        const sigma0 = Math.sqrt(res.reduce((a, e) => a + e * e, 0) / Math.max(1, trendOK ? fit.n - 2 : fit.n - 1));
+
+        let num = 0;
+        for (let j = 1; j < res.length; j++) num += res[j] * res[j - 1];
+        const den = res.reduce((a, e) => a + e * e, 0);
+        const r1 = den ? num / den : 0;
+        const cand = (r1 + (1 + 3 * r1) / res.length) * (res.length / (res.length + 6));
+        const phi = Math.abs(cand) >= .10 ? Math.max(-0.5, Math.min(0.85, cand)) : 0;
+        const vBias = Math.min(1, Math.max(.4, 1 - (1 / fit.n) * (1 + phi) / Math.max(.15, 1 - phi)));
+        const sigma = sigma0 / Math.sqrt(vBias);
+
         const xk = i;                                        // próxima semana (1 passo à frente)
-        const pred = fit.a + fit.b * xk;
-        const widen = fit.sxx > 0 ? Math.sqrt(1 + 1 / fit.n + Math.pow(xk - fit.xbar, 2) / fit.sxx) : 1;
-        const sig = fit.sigma * widen;
+        const pred = bs(xk) + phi * res[res.length - 1];
+        const lev = (trendOK && fit.sxx > 0) ? Math.pow(xk - fit.xbar, 2) / fit.sxx : 0;
+        const sig = sigma * Math.sqrt(Math.max((1 - phi * phi) + 1 / fit.n + lev, 1e-9));
         const real = win[i];
         erros.push(real - pred);
         if (real >= pred - sig && real <= pred + sig) dentro++;
@@ -284,15 +534,26 @@ function projBuild() {
         return den > 0 ? o.cap / den * 100 : null;
     });
 
-    const concl = projScenarios(sConcl, { better: 'up' });
+    // Calendário: dias úteis reais de cada semana do histórico e de cada semana projetada. É o que
+    // permite a projeção cair numa semana de feriado sem inventar nada — ver projDuWeek.
+    const futuras = weeksAfter(fimW, PROJ_HORIZ);
+    const duP = axP.map(projDuHist), duV = axV.map(projDuHist);
+    const duFut = futuras.map(projDuWeek);
+    // Volume (itens, dinheiro) escala com dias úteis; taxa (SLA %, atingimento %) não — o atingimento
+    // já divide por dias úteis na própria fórmula, então normalizar de novo contaria duas vezes.
+    const calP = { du: duP, duFut, weeks: axP, weeksFut: futuras };
+    const calV = { du: duV, duFut, weeks: axV, weeksFut: futuras };
+    const calTaxa = { weeks: axP, weeksFut: futuras };
+
+    const concl = projScenarios(sConcl, Object.assign({ better: 'up' }, calP));
     // Entrada é a única série em que "menos é melhor" — menos demanda entrando, fila menor. Isso só
     // troca o rótulo dos cenários na tabela: a projeção de fila usa exclusivamente a entrada realista.
-    const entr = projScenarios(sEntr, { better: 'down' });
-    const ating = projScenarios(sAting, { better: 'up', dec: 1 });
-    const sla = projScenarios(sSla, { better: 'up', max: 100, dec: 1 });
+    const entr = projScenarios(sEntr, Object.assign({ better: 'down' }, calP));
+    const ating = projScenarios(sAting, Object.assign({ better: 'up', dec: 1 }, calTaxa));
+    const sla = projScenarios(sSla, Object.assign({ better: 'up', max: 100, dec: 1 }, calTaxa));
     // Saving pode ser negativo (semana que fechou pior que a 1ª proposta), então o piso 0 do default
     // censuraria justamente o risco que o cenário pessimista existe para mostrar.
-    const sav = projScenarios(sSav, { better: 'up', dec: 0, min: -Infinity });
+    const sav = projScenarios(sSav, Object.assign({ better: 'up', dec: 0, min: -Infinity }, calV));
 
     const filaHoje = uni.filter(r => r.st === 'A' && r.dl).length;
     const back = concl.ok && entr.ok ? projBacklog(filaHoje, entr, concl) : null;
@@ -313,7 +574,7 @@ function projBuild() {
 
     return {
         horiz: PROJ_HORIZ, hist: PROJ_HIST, ultima: fimW,
-        futuras: weeksAfter(fimW, PROJ_HORIZ),
+        futuras, duFut, duP,
         axP, axV,
         serie: { concl: sConcl, entr: sEntr, sla: sSla, sav: sSav, ating: sAting },
         concl, entr, ating, sla, sav, back, aging, filaHoje, ageOldestDays, bt,
@@ -332,42 +593,102 @@ function projLine(id, labels, hist, sc, opt) {
     const nH = hist.length;
     const lastReal = (() => { for (let i = nH - 1; i >= 0; i--) if (hist[i] != null) return hist[i]; return null; })();
     const emenda = vs => hist.map((_, i) => i === nH - 1 ? lastReal : null).concat(vs);
-    const ds = (label, vs, color) => ({
-        label, data: emenda(vs), borderColor: color, borderDash: [6, 4], borderWidth: 2,
-        pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: color, fill: false, tension: .25, spanGaps: false
+    // As três linhas pontilhadas são a leitura principal e precisam vencer visualmente tudo o que
+    // estiver atrás delas: a realista um pouco mais grossa, porque é o número que as tabelas e o
+    // relatório publicam. `_rank` só ordena a legenda (ver legend.labels.sort) — a ordem de desenho
+    // é a ordem do array, e por isso estas entram por último, por cima da faixa e das simulações.
+    const ds = (label, vs, color, rank, w) => ({
+        label, data: emenda(vs), borderColor: color, borderDash: [6, 4], borderWidth: w,
+        pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: color,
+        fill: false, tension: .25, spanGaps: false, _rank: rank
     });
     const sets = [{
         label: 'Histórico', data: hist.concat(new Array(sc.real.length).fill(null)),
         borderColor: PROJ_C.hist, backgroundColor: 'rgba(0,56,101,.08)', fill: true, tension: .25,
-        borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: PROJ_C.hist, spanGaps: false
-    },
-    ds('Otimista', sc.otim, PROJ_C.otim),
-    ds('Realista', sc.real, PROJ_C.real),
-    ds('Pessimista', sc.pess, PROJ_C.pess)];
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: PROJ_C.hist,
+        spanGaps: false, _rank: 0
+    }];
+
+    // As linhas exibidas usam a variante COM ondulação visual quando ela existe (ver dispReal/otim/pess
+    // em projScenarios) — é só o desenho, os números que alimentam KPI/tabela/relatório continuam
+    // vindo de sc.real/otim/pess/fim/acum, intocados. A faixa acompanha a mesma variante, para o
+    // sombreado sempre hugar as três linhas em vez de ficar "solto" atrás delas.
+    const vReal = sc.dispReal || sc.real, vOtim = sc.dispOtim || sc.otim, vPess = sc.dispPess || sc.pess;
+    const vLo = sc.dispLo || sc.lo, vHi = sc.dispHi || sc.hi;
+
+    // ── Fundo: faixa entre os cenários ───────────────────────────────────────
+    // Uma camada só, e de propósito: a área sombreada é exatamente a região entre a linha pessimista
+    // e a otimista, então ela REFORÇA as três linhas em vez de introduzir um segundo conceito. Duas
+    // faixas empilhadas (±1σ e ±2σ) davam profundidade ao olho treinado e confundiam todo o resto.
+    if (vLo && vHi) {
+        sets.push({
+            label: '', data: emenda(vLo), borderColor: 'transparent', borderWidth: 0,
+            pointRadius: 0, pointHoverRadius: 0, fill: false, tension: .25, spanGaps: false, _hide: true
+        });
+        sets.push({
+            // borderWidth 0 não desenha linha no gráfico, mas a legenda ainda pinta o símbolo com
+            // backgroundColor — daí o quadrado na cor da própria faixa, que é o que o leitor procura.
+            label: 'Faixa entre os cenários', data: emenda(vHi),
+            borderColor: 'transparent', borderWidth: 0, backgroundColor: colA(PROJ_C.real, .10),
+            fill: '-1', pointStyle: 'rect', pointRadius: 0, pointHoverRadius: 0,
+            tension: .25, spanGaps: false, _band: true, _rank: 5
+        });
+    }
+
+    // Trajetórias simuladas: textura de fundo, não leitura. Servem para o olho perceber que o futuro
+    // plausível é acidentado e não liso — quase invisíveis de propósito, para não disputar com as
+    // três linhas nem embolar na imagem exportada do relatório.
+    (sc.paths || []).slice(0, 5).forEach((p, i) => sets.push({
+        label: i === 0 ? 'Trajetórias simuladas' : '', data: emenda(p),
+        borderColor: colA(PROJ_C.pess, .13), borderWidth: 1, pointRadius: 0, pointHoverRadius: 0,
+        fill: false, tension: .3, spanGaps: false, _hide: i > 0, _sim: true, _rank: 6
+    }));
+
+    sets.push(ds('Otimista', vOtim, PROJ_C.otim, 1, 2.2));
+    sets.push(ds('Realista', vReal, PROJ_C.real, 2, 2.8));
+    sets.push(ds('Pessimista', vPess, PROJ_C.pess, 3, 2.2));
 
     if (o.meta != null) sets.push({
         label: 'Meta ' + (o.metaTxt || o.meta), data: labels.map(() => o.meta),
-        borderColor: PROJ_C.meta, borderDash: [3, 3], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 4, fill: false
+        borderColor: PROJ_C.meta, borderDash: [3, 3], borderWidth: 1.4,
+        pointRadius: 0, pointHoverRadius: 4, fill: false, _rank: 4
     });
 
     // Linhas extras da faixa projetada (estresse de demanda, aging). Não emendam no último ponto real:
-    // ou não têm histórico plotável, ou vivem em outro eixo — emendar misturaria unidades.
+    // ou não têm histórico plotável, ou vivem em outro eixo — emendar misturaria unidades. Ficam mais
+    // finas que os três cenários: são diagnóstico de apoio, não a leitura principal.
     (o.extra || []).forEach(x => sets.push({
         label: x.label, data: hist.map(() => null).concat(x.vs),
-        borderColor: x.color, borderDash: x.dash || [2, 3], borderWidth: 1.6,
+        borderColor: colA(x.color, .55), borderDash: x.dash || [2, 3], borderWidth: 1.3,
         pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: x.color,
-        fill: false, tension: .25, spanGaps: false, yAxisID: x.axis || 'y', _fmt: x.fmt
+        fill: false, tension: .25, spanGaps: false, yAxisID: x.axis || 'y', _fmt: x.fmt, _rank: 7
     }));
 
     const fmt = o.fmt || (v => v.toLocaleString('pt-BR'));
+    const rank = i => { const d = sets[i]; return d && d._rank != null ? d._rank : 9; };
     mkChart(id, {
         type: 'line', plugins: [crosshair],
         data: { labels, datasets: sets },
         options: {
             maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true, font: { size: 10 } } },
-                tooltip: { mode: 'index', intersect: false, callbacks: { title: c => 'Semana de ' + c[0].label, label: c => c.parsed.y == null ? null : c.dataset.label + ': ' + (c.dataset._fmt || fmt)(c.parsed.y) } }
+                // As bordas das faixas e as trajetórias 2..n existem só para desenhar; entrariam na
+                // legenda como entradas vazias e no tooltip como uma dúzia de linhas ilegíveis.
+                legend: {
+                    position: 'top',
+                    labels: {
+                        boxWidth: 12, usePointStyle: true, font: { size: 10 },
+                        filter: it => { const d = sets[it.datasetIndex]; return !!it.text && !(d && d._hide); },
+                        // A ordem de desenho põe as três linhas por último (para ficarem por cima), mas a
+                        // legenda precisa ler na ordem em que a gerência pensa: melhor, meio, pior.
+                        sort: (a, b) => rank(a.datasetIndex) - rank(b.datasetIndex)
+                    }
+                },
+                tooltip: {
+                    mode: 'index', intersect: false,
+                    filter: c => !c.dataset._sim && !c.dataset._band && !c.dataset._hide,
+                    callbacks: { title: c => 'Semana de ' + c[0].label, label: c => c.parsed.y == null ? null : c.dataset.label + ': ' + (c.dataset._fmt || fmt)(c.parsed.y) }
+                }
             },
             scales: {
                 x: { ...noG, ticks: { maxTicksLimit: 16, font: { size: 8 } } },
@@ -427,7 +748,14 @@ function renderProj() {
         // solto no sumário, não.
         const extra = [{ label: 'Demanda +1σ (fila)', vs: P.back.demStress, color: PROJ_C.dem, fmt: v => nf(v, 0) + ' itens' }];
         if (P.aging) extra.push({ label: 'Dias para zerar a fila (implícito)', vs: P.aging.real, color: PROJ_C.aging, dash: [4, 3], axis: 'y1', fmt: v => nf(v, 1) + 'd' });
-        projLine('c_proj_back', labels, histFila, P.back, {
+        // A fila não sai de projScenarios, então não traz lo/hi prontos. Sem eles este seria o único
+        // gráfico dos cinco sem a faixa sombreada, e a aba deixaria de ler igual em todo lugar. Fila
+        // menor é melhor, então o otimista é o piso — mas o min/max por semana evita depender disso.
+        const backSc = Object.assign({}, P.back, {
+            lo: P.back.otim.map((v, i) => Math.min(v, P.back.pess[i])),
+            hi: P.back.otim.map((v, i) => Math.max(v, P.back.pess[i]))
+        });
+        projLine('c_proj_back', labels, histFila, backSc, {
             fmt: v => nf(v, 0) + ' itens', extra,
             y1: P.aging ? { title: 'dias úteis para zerar a fila', fmt: v => nf(v, 0) + 'd' } : null
         });
@@ -476,6 +804,17 @@ function renderProj() {
         partes.push(`a fila sai de <b>${nf(P.filaHoje, 0)}</b> para <b>${nf(b, 0)}</b> itens (${d >= 0 ? '+' : ''}${nf(d, 0)}) porque entram ~<b>${nf(P.entradaReal, 0)}</b> e saem ~<b>${nf(P.vazaoReal, 0)}</b> por semana`);
     }
     if (P.sav.ok) partes.push(`o saving acumulado das ${P.horiz} semanas fica entre <b>${BRL(P.sav.acum.pess)}</b> e <b>${BRL(P.sav.acum.otim)}</b>`);
+
+    // O que faz a projeção ondular precisa estar escrito, senão o leitor atribui a curva a poder de
+    // previsão que ela não tem. Cada frase abaixo só aparece quando aquele efeito de fato entrou.
+    const curtas = P.futuras.map((w, i) => ({ w, du: P.duFut[i] })).filter(x => x.du < DU_SEM);
+    const comInercia = [P.concl, P.entr, P.sla, P.ating, P.sav].filter(s => s.ok && s.phi);
+    const comMes = [P.concl, P.entr, P.sav].filter(s => s.ok && s.mDelta);
+    const forma = [];
+    if (curtas.length) forma.push(`<b>${curtas.length === 1 ? 'uma semana do horizonte tem' : curtas.length + ' semanas do horizonte têm'} feriado</b> (${curtas.map(x => wkLabel(x.w) + ': ' + x.du + 'd').join(', ')}) — a queda da projeção nessas semanas é de calendário, não de desempenho`);
+    if (comInercia.length) forma.push(`a projeção parte de onde a série <b>está</b> e converge para a tendência ao longo de ~${nf(1 / Math.max(.15, 1 - Math.abs(comInercia[0].phi)), 0)} semanas (inércia medida no histórico)`);
+    if (comMes.length) forma.push(`a semana de <b>fechamento de mês</b> aparece ${comMes[0].mPct >= 0 ? 'acima' : 'abaixo'} das demais em ~${nf(Math.abs(comMes[0].mPct), 0)}%`);
+
     const r2Baixo = [P.ating, P.sla, P.concl].filter(s => s.ok && s.r2 < .2).length;
     const semTend = [P.ating, P.sla, P.concl, P.entr, P.sav].filter(s => s.ok && !s.trendOK).length;
     // Cobertura observada da banda no backtest de um passo à frente: com ±1σ o esperado é ~68%. Fica
@@ -483,6 +822,7 @@ function renderProj() {
     const cob = ['concl', 'sla', 'ating', 'entr', 'sav'].map(k => P.bt[k]).filter(b => b && b.cobertura != null);
     const cobMed = cob.length ? cob.reduce((a, b) => a + b.cobertura, 0) / cob.length : null;
     document.getElementById('ins-proj').innerHTML = `<b>Leitura:</b> ${partes.join('; ')}. Base: ${P.concl.n} semanas fechadas até ${wkLabelFull(P.ultima)}.` +
+        (forma.length ? ` <b>Por que a projeção ondula:</b> ${forma.join('; ')}. O resto da variação semanal não é previsível e por isso aparece só como faixa e como as trajetórias simuladas ao fundo — elas mostram como um futuro plausível se pareceria, não em que semana a alta acontece.` : '') +
         (semTend ? ` <b>Atenção:</b> ${semTend === 1 ? 'uma das séries não tem' : semTend + ' das séries não têm'} inclinação significativa a 5% — para ela${semTend === 1 ? '' : 's'} o cenário realista é o <b>patamar médio</b> das últimas ${P.hist} semanas, não uma reta subindo ou descendo.` : '') +
         (r2Baixo ? ` <b>Atenção:</b> ${r2Baixo === 1 ? 'uma das séries tem' : r2Baixo + ' das séries têm'} R² abaixo de 20% — a tendência explica pouco do que acontece semana a semana, então trate os números como faixa de possibilidades, não como previsão.` : '') +
         (cobMed != null ? ` No backtest de uma semana à frente, a banda cobriu <b>${nf(cobMed * 100, 0)}%</b> dos pontos observados (esperado ~68% para ±1σ${cobMed < .55 ? ' — abaixo disso a banda ainda está estreita' : ''}).` : '');

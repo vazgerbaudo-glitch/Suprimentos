@@ -1,8 +1,7 @@
 // Relatório executivo — retrato do recorte atual + cenários das próximas semanas.
 //
-// O relatório é montado uma vez como uma lista de blocos (o "doc") e depois renderizado duas vezes:
-// em HTML, para a tela e para a imagem exportada, e em Markdown, para o botão "Copiar texto". Isso
-// evita a armadilha de manter dois textos parecidos em paralelo e ver um deles envelhecer.
+// O relatório é montado uma vez como uma lista de blocos (o "doc") e depois renderizado em HTML,
+// para a tela e para o PDF exportado.
 //
 // Fonte dos números: SUM (preenchido pelas abas, portanto já no recorte de Período/Tipo/Comprador) e
 // SUM.proj (aba Projeções, que de propósito ignora Período e Status — ver js/proj.js).
@@ -76,7 +75,7 @@ function repAgingCell(PR, F, horiz) {
     return v == null ? '—' : repN(v, 1) + 'd';
 }
 
-// ── Doc → HTML / Markdown ────────────────────────────────────────────────────
+// ── Doc → HTML ───────────────────────────────────────────────────────────────
 function repHTML(doc) {
     return doc.map(b => {
         if (b.t === 'head') return `<div class="rep-head"><div class="rep-title">${b.title}</div><div class="rep-sub">${b.sub}</div></div>`;
@@ -88,20 +87,6 @@ function repHTML(doc) {
         if (b.t === 'note') return `<div class="rep-note">${repB(b.txt)}</div>`;
         return '';
     }).join('');
-}
-
-function repMD(doc) {
-    const strip = s => ('' + s).replace(/<[^>]+>/g, '');
-    return doc.map(b => {
-        if (b.t === 'head') return `# ${strip(b.title)}\n\n${strip(b.sub).replace(/ · /g, '\n- ')}`;
-        if (b.t === 'sec') return `\n## ${b.n}. ${strip(b.title)}${b.sub ? ` — ${strip(b.sub)}` : ''}`;
-        if (b.t === 'p') return strip(b.txt);
-        if (b.t === 'kpi') return b.items.map(k => `- **${strip(k.l)}:** ${strip(k.v)}${k.sub ? ` (${strip(k.sub)})` : ''}${k.s ? ` — ${REP_SEV[k.s]}` : ''}`).join('\n');
-        if (b.t === 'tab') return `| ${b.head.map(strip).join(' | ')} |\n|${b.head.map((_, i) => b.align && b.align[i] === 'r' ? '---:' : '---').join('|')}|\n` + b.rows.map(r => `| ${r.map(strip).join(' | ')} |`).join('\n');
-        if (b.t === 'list') return b.items.map(i => `- [${REP_SEV[i.s] || '—'}] ${strip(i.txt)}`).join('\n');
-        if (b.t === 'note') return `> ${strip(b.txt)}`;
-        return '';
-    }).filter(Boolean).join('\n\n');
 }
 
 // ── Blocos do relatório ──────────────────────────────────────────────────────
@@ -208,7 +193,7 @@ function buildRelatorio() {
     doc.push({ t: 'sec', n: 1, title: 'Sumário executivo' });
     doc.push({
         t: 'kpi', items: [
-            { l: 'Atingimento da meta', v: repN(P.ating, 0) + '%', sub: 'meta 100% · mínimo 80%', s: fProd },
+            { l: 'Meta Produtividade', v: repN(P.ating, 0) + '%', sub: 'meta 100% · mínimo 80%', s: fProd },
             { l: '% dentro do SLA', v: repN(S.pct, 1) + '%', sub: 'meta ≥ 90% · ' + repN(S.tot, 0) + ' itens avaliados', s: fSla },
             { l: 'Aging médio — Geral', v: A.avg + 'd', sub: 'meta ≤ ' + A.meta + 'd (dias úteis)', s: A.gpct <= 0 ? 'good' : 'bad' },
             { l: 'RCs críticas (>30d)', v: repN(A.crit, 0), sub: 'de ' + repN(A.open, 0) + ' RCs em aberto', s: A.crit ? 'bad' : 'good' },
@@ -303,6 +288,7 @@ function buildRelatorio() {
     } else {
         doc.push({
             t: 'p', txt: `O cenário **realista** é a reta de tendência das últimas ${PR.hist} semanas fechadas — mas só quando a inclinação passa no teste de significância a 5%; quando não passa, a série é projetada como **patamar médio**, porque extrapolar ruído por ${horiz} semanas produz número, não informação. ` +
+                `A projeção não é uma reta lisa: ela é corrigida pelos **dias úteis reais de cada semana futura** (semana com feriado produz menos porque tem menos dias, não porque o time piorou), pelo **efeito de fechamento de mês** quando ele supera o próprio ruído no histórico, e pela **inércia da série** — parte de onde o indicador está hoje e converge para a tendência, em vez de saltar direto para a reta. O que sobra é variação não previsível e aparece só como faixa, nunca como previsão de qual semana sobe. ` +
                 `**Otimista** e **pessimista** são o realista ±1 desvio-padrão dos resíduos, com a banda **alargando ao longo do horizonte** (prever a ${horiz}ª semana é mais incerto que prever a 1ª). O melhor e o pior desempenho já observados não travam mais a banda: são referência, não limite. ` +
                 `A fila não é extrapolada: ela é recalculada semana a semana como fila anterior + entradas − conclusões, sempre com a entrada realista, porque a demanda da área cliente não é escolha do time — e por isso vai junto a linha de **estresse de demanda**, que é a mesma vazão com a chegada a +1σ. ` +
                 `Estas séries ignoram os filtros de Período e de Status — projeção exige o histórico inteiro —, mas seguem Tipo de compra e Comprador. A semana corrente fica de fora por estar parcial.`
@@ -369,44 +355,53 @@ function openRelModal() {
     document.getElementById('rep-ov').classList.add('open');
 }
 
-function copyRelatorio() {
-    const doc = buildRelatorio();
-    if (!doc) return;
-    const txt = repMD(doc);
-    const b = document.getElementById('rep-copy'), label = '📋 Copiar texto';
-    const done = () => { b.textContent = '✅ Copiado!'; setTimeout(() => { b.textContent = label; }, 1800); };
-    const fallback = () => {
-        const ta = document.createElement('textarea');
-        ta.value = txt;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        done();
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback);
-    else fallback();
+let _jsPDFPromise = null;
+function loadJsPDF() {
+    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+    if (_jsPDFPromise) return _jsPDFPromise;
+    _jsPDFPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+    });
+    return _jsPDFPromise;
 }
 
-function exportRelImage() {
+// Exporta o relatório como PDF: html2canvas tira o retrato da tela (mesma captura da antiga
+// exportação em imagem) e o jsPDF fatia esse canvas em páginas A4, porque o relatório é mais
+// alto que uma página única — uma imagem só estourava a página e cortava o conteúdo de baixo.
+function exportRelPDF() {
     const btn = document.getElementById('rep-export'), target = document.getElementById('rep-shot');
     if (!target || typeof loadHtml2Canvas !== 'function') return;
     const label = btn.textContent;
-    btn.textContent = '⏳ Gerando...';
+    btn.textContent = 'Gerando...';
     btn.disabled = true;
-    loadHtml2Canvas()
+    Promise.all([loadHtml2Canvas(), loadJsPDF()])
         .then(() => window.html2canvas(target, { backgroundColor: '#FFFFFF', scale: 2 }))
         .then(canvas => {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            const pageW = pdf.internal.pageSize.getWidth(), pageH = pdf.internal.pageSize.getHeight();
+            const pageCanvasH = Math.floor(canvas.width * pageH / pageW);
+            let renderedH = 0, first = true;
+            while (renderedH < canvas.height) {
+                const sliceH = Math.min(pageCanvasH, canvas.height - renderedH);
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = canvas.width;
+                pageCanvas.height = sliceH;
+                pageCanvas.getContext('2d').drawImage(canvas, 0, renderedH, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+                if (!first) pdf.addPage();
+                pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, sliceH * pageW / canvas.width);
+                renderedH += sliceH;
+                first = false;
+            }
             const d = new Date();
             const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-            const a = document.createElement('a');
-            a.download = `relatorio-compras-ageis-${stamp}.png`;
-            a.href = canvas.toDataURL('image/png');
-            a.click();
+            pdf.save(`relatorio-compras-ageis-${stamp}.pdf`);
         })
-        .catch(() => alert('Não foi possível gerar a imagem. Tente novamente.'))
+        .catch(() => alert('Não foi possível gerar o PDF. Tente novamente.'))
         .finally(() => { btn.textContent = label; btn.disabled = false; });
 }
 
@@ -415,14 +410,13 @@ function exportRelImage() {
     ov.className = 'modal-ov';
     ov.id = 'rep-ov';
     ov.innerHTML = `<div class="modal wide">
-    <h3>📊 Relatório executivo</h3>
+    <h3>Relatório executivo</h3>
     <div class="ph">Retrato do recorte atual (filtros de Período, Tipo, Status e Comprador) com leituras de todas as abas, cenários das próximas semanas e riscos priorizados. A seção de projeções usa o histórico completo, independente do filtro de Período.</div>
     <div id="rep-body" style="overflow-y:auto;flex:1;margin:10px 0"></div>
-    <div class="modal-actions"><button class="btn" id="rep-copy">📋 Copiar texto</button><button class="btn ghost" id="rep-export">📷 Baixar imagem</button><button class="btn ghost" id="rep-close">Fechar</button></div>
+    <div class="modal-actions"><button class="btn" id="rep-export">Baixar PDF</button><button class="btn ghost" id="rep-close">Fechar</button></div>
  </div>`;
     document.body.appendChild(ov);
-    document.getElementById('rep-copy').onclick = copyRelatorio;
-    document.getElementById('rep-export').onclick = exportRelImage;
+    document.getElementById('rep-export').onclick = exportRelPDF;
     document.getElementById('rep-close').onclick = () => ov.classList.remove('open');
     ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') ov.classList.remove('open'); });
