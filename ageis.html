@@ -8,7 +8,7 @@
         <link rel="stylesheet" href="css/variables.css?v=20260724"/>
         <link rel="stylesheet" href="css/base.css?v=20260724"/>
         <link rel="stylesheet" href="css/layout.css?v=20260724"/>
-        <link rel="stylesheet" href="css/components.css?v=20260729d"/>
+        <link rel="stylesheet" href="css/components.css?v=20260814a"/>
     </head>
     <body>
         <aside class="filters-side">
@@ -24,7 +24,7 @@
                 <label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">📁 Carregar CSV</label>
                 <input id="f_file" type="file" accept=".csv,text/csv" style="display:none"/>
             </div>
-            <button class="btn ghost" id="btn_slides"> Apresentação</button>
+            <button class="btn ghost" id="btn_rel"> Relatório</button>
             <button class="btn ghost" id="btn_pend"> Pendências</button>
             <hr class="fside-sep" style="margin-top:auto"/>
             <a class="side-link" href="terminais.html">Painel Terminais</a>
@@ -44,6 +44,7 @@
                         <button data-t="sla">SLA</button>
                         <button data-t="saving">Saving</button>
                         <button data-t="contr">Contratualização</button>
+                        <button data-t="proj">Projeções</button>
                     </nav>
                 </div>
             </header>
@@ -560,18 +561,65 @@
             <div class="insight" id="ins-contr"></div>
         </section>
 
+        <section class="tab" id="proj">
+            <div class="sec-head"><h2>Projeções — cenários para as próximas 8 semanas</h2></div>
+            <div class="panel" style="margin-bottom:14px">
+                <h3>Como esta aba é calculada</h3>
+                <!-- .ph com id fica visível: upgradeHeaders() só transforma em tooltip ⓘ as descrições sem id -->
+                <div class="ph" id="proj-metodo"><b>Realista</b> = reta de tendência das últimas 12 semanas fechadas · <b>Otimista</b> e <b>Pessimista</b> = a mesma tendência ±1 desvio-padrão dos resíduos, presos ao melhor e ao pior desempenho já observado — a banda não promete patamar que a equipe nunca alcançou. A <b>fila</b> não é projetada por tendência: ela é recalculada semana a semana como fila anterior + entradas − conclusões, sempre com a entrada realista (a demanda da área cliente não é escolha do time). O <b>aging implícito</b> vem da Lei de Little (fila ÷ vazão, convertido a dias úteis). Estas séries <b>ignoram os filtros de Período e de Status</b> — projeção precisa do histórico inteiro —, mas seguem Tipo de compra e Comprador. A semana corrente fica de fora por estar parcial.</div>
+            </div>
+            <div class="kpis" id="kpi-proj"></div>
+            <div class="grid g2">
+                <div class="panel">
+                    <h3>Atingimento da meta — histórico e cenários</h3>
+                    <div class="ph">% da meta ponderada por semana · linha pontilhada = meta 100%</div>
+                    <div class="cv tall"><canvas id="c_proj_ating"></canvas></div>
+                </div>
+                <div class="panel">
+                    <h3>Itens concluídos por semana — histórico e cenários</h3>
+                    <div class="ph">Vazão da equipe · é ela que separa os três cenários da fila</div>
+                    <div class="cv tall"><canvas id="c_proj_concl"></canvas></div>
+                </div>
+            </div>
+            <div class="grid g2">
+                <div class="panel">
+                    <h3>% dentro do SLA — histórico e cenários</h3>
+                    <div class="ph">Indicador único (Contrato + Spot juntos) · linha pontilhada = meta 90%</div>
+                    <div class="cv tall"><canvas id="c_proj_sla"></canvas></div>
+                </div>
+                <div class="panel">
+                    <h3>Fila de itens em aberto — projeção por fluxo</h3>
+                    <div class="ph">Parte do saldo de hoje: o histórico da fila não é reconstruível na base atual (Canceladas e Devolvidas não têm data de saída)</div>
+                    <div class="cv tall"><canvas id="c_proj_back"></canvas></div>
+                </div>
+            </div>
+            <div class="panel">
+                <h3>Saving por semana — histórico e cenários</h3>
+                <div class="ph">Economia capturada por semana (1ª proposta × negociado) · o acumulado das 8 semanas está no cartão acima</div>
+                <div class="cv tall"><canvas id="c_proj_sav"></canvas></div>
+            </div>
+            <div class="panel">
+                <h3>Cenários em números</h3>
+                <div class="ph">Valor projetado para a última semana do horizonte · "Tendência" é a inclinação semanal da reta · "R²" é o quanto da variação da série a tendência explica — abaixo de 20% a série é errática e os cenários valem como faixa, não como previsão</div>
+                <table id="t_proj"><thead><tr><th>Indicador</th><th class="num">Hoje</th><th class="num">Pessimista</th><th class="num">Realista</th><th class="num">Otimista</th><th class="num">Tendência</th><th class="num">R²</th></tr></thead><tbody></tbody></table>
+            </div>
+            <div class="insight" id="ins-proj"></div>
+        </section>
+
                 <div class="note-box"><b>Notas de qualidade dos dados</b> 384 RCs concluídas têm "SLA Real" negativo (datas inconsistentes) — excluídas de todos os cálculos do painel de SLA (%SLA, atraso, gravidade, heatmap, comprador) · as colunas de dias por etapa têm ~30% de valores corrompidos; o Pareto de causas usa apenas valores sãos (≤400 dias) e é indicativo · "Saving/penalty" e "Cost Avoidance" próprias estão vazias, por isso o saving usa 1ª proposta vs. negociado · "Carteira/Categoria" vazia em ~64%.</div>
             </div>
         </div>
     </div>
     <script src="js/config.js?v=20260810b"></script>
     <script src="js/state.js?v=20260803"></script>
-    <script src="js/data.js?v=20260813a"></script>
+    <script src="js/data.js?v=20260814a"></script>
     <script src="js/charts.js?v=20260812a"></script>
-    <script src="js/render.js?v=20260812a"></script>
+    <script src="js/render.js?v=20260814e"></script>
     <script src="js/filters.js?v=20260730"></script>
-    <script src="js/slides.js?v=20260810b"></script>
+    <script src="js/proj.js?v=20260814a"></script>
     <script src="js/pendencias.js?v=20260811a"></script>
+    <!-- relatorio.js depende de loadHtml2Canvas (pendencias.js) e de SUM.proj (proj.js) -->
+    <script src="js/relatorio.js?v=20260814a"></script>
     <script src="js/main.js?v=20260724"></script>
     </body>
 </html>

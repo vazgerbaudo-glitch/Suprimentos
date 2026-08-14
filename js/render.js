@@ -87,6 +87,9 @@ function render() {
     renderContr();
     renderCompradores();
     renderOverview();
+    // proj.js é carregado depois deste arquivo (a chamada só acontece em runtime, com os dados já
+    // lidos); a guarda evita quebrar o painel inteiro se a aba Projeções não estiver na página.
+    if (typeof renderProj === 'function') renderProj();
 }
 function renderProd() {
     // KPI + velocímetro — atingimento da meta ponderada (Material/Serviço)
@@ -880,13 +883,15 @@ function renderContr() {
     const ROOT_PRIO = { G: 0, R: 1, S: 2 };
     const byGCar = {};
     const byGCarA = {};
+    // Só Contrato/Spot entram nesses dois gráficos — a coluna Contrato×Spot do Spend não tem outro
+    // valor válido, então RC sem um dos dois (ex.: "Mista", item de RC com os dois tipos) não conta.
     base.forEach(r => {
-        const code = carOf(r);
         const t = typeOf(r);
-        const bucket = t === 'Contrato' ? 'Contrato' : t === 'Spot' ? 'Spot' : 'Outros';
+        if (t !== 'Contrato' && t !== 'Spot') return;
+        const code = carOf(r);
         if (ROOT_PRIO[rootLetter(code)] !== undefined) {
             const o = byGCar[code] = byGCar[code] || {};
-            o[bucket] = (o[bucket] || 0) + 1;
+            o[t] = (o[t] || 0) + 1;
             return;
         }
         const dist = gcsDist[code];
@@ -896,11 +901,11 @@ function renderContr() {
         if (!gTotal) return;
         gEntries.forEach(([c, n]) => {
             const o = byGCarA[c] = byGCarA[c] || {};
-            o[bucket] = (o[bucket] || 0) + n / gTotal;
+            o[t] = (o[t] || 0) + n / gTotal;
         });
     });
-    const typeListG = ['Contrato', 'Spot', 'Outros'];
-    const colorMapG = { Contrato: CCON, Spot: C.steel, Outros: '#7A8C97' };
+    const typeListG = ['Contrato', 'Spot'];
+    const colorMapG = { Contrato: CCON, Spot: C.steel };
     const gCarArr = Object.entries(byGCar).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => {
         const ra = ROOT_PRIO[rootLetter(a.c)], rb = ROOT_PRIO[rootLetter(b.c)];
         if (ra !== rb) return ra - rb;
@@ -915,41 +920,50 @@ function renderContr() {
     if (ccdTipoCv) ccdTipoCv.style.minWidth = Math.max(gCarKeys.length * 42, 1) + 'px';
     mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, volTotals: gCarArr.map(x => x.tot), datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), vol: gCarArr.map(x => x.o[t] || 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip('RCs', i => gCarArr[i] && gCarArr[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
-    // % Contrato × Spot por carteira, uma coluna de gráficos por Gerência Final (c_ger_N, dinâmico).
+    // % Contrato × Spot por carteira, uma coluna de gráficos por Coordenação (c_ger_N, dinâmico).
     // Rollup por RC direto do Spend (Car + Contrato/Spot do próprio RC — RC com item de Contrato E
-    // Spot cai em Outros, sem categoria "Mista" própria neste gráfico), sem cruzar com a Gestão à
-    // Vista — só Compras Ágeis tem essa base para resolver códigos "A..."; as demais Gerências usam
-    // a carteira do Spend como está. Só mostra as carteiras G da lista pedida pelo time (ALLOWED_G_GER)
-    // — provisório, cor/leiaute ainda a ajustar.
+    // Spot ao mesmo tempo, ou nenhum dos dois, fica fora do gráfico, ver filtro abaixo), sem
+    // cruzar com a Gestão à Vista. A coluna "Coordenação" do Spend já traz a gerência principal
+    // resolvida por RC —
+    // inclui as RCs de Compras Ágeis já atribuídas à Coordenação correta, então aqui só agrupa,
+    // sem precisar somar/mesclar com Compras Ágeis à parte. Mostra todas as carteiras que
+    // aparecerem na Coordenação (sem filtro de lista fixa), ordenadas G > R > S e numérica
+    // dentro de cada letra (mesmo critério de gCarArr acima).
     const carBase = CARTEIRAS.filter(ln => ln.dt && ln.dt >= DATA_INI_AGING && periodHit(ln.dt) && tpHit(ln));
-    const gerSet = {};
-    carBase.forEach(ln => { (gerSet[ln.gerFinal] = gerSet[ln.gerFinal] || new Set()).add(ln.rcNorm); });
-    const gerList = Object.entries(gerSet).filter(([g]) => nrm(g) !== GERENCIA_ALVO).map(([g, set]) => [g, set.size]).sort((a, b) => b[1] - a[1]).map(x => x[0]);
     const byRCAll = {};
     carBase.forEach(ln => { if (!ln.rcNorm) return; (byRCAll[ln.rcNorm] = byRCAll[ln.rcNorm] || []).push(ln); });
-    const gerCarStats = {};
+    const coordCarStats = {};
+    const coordRCSet = {};
     Object.values(byRCAll).forEach(lines => {
         const hasCon = lines.some(l => l.td === 'Contrato'), hasSpo = lines.some(l => l.td === 'Spot');
-        const td = hasCon && hasSpo ? 'Outros' : hasCon ? 'Contrato' : hasSpo ? 'Spot' : 'Outros';
-        const g = mode(lines.map(l => l.gerFinal)) || 'N/D', car = mode(lines.map(l => l.car)) || 'N/D';
-        const gg = gerCarStats[g] = gerCarStats[g] || {};
-        const o = gg[car] = gg[car] || { Contrato: 0, Spot: 0, Outros: 0 };
+        const coord = mode(lines.map(l => l.coord)) || 'N/D';
+        (coordRCSet[coord] = coordRCSet[coord] || new Set()).add(lines[0].rcNorm);
+        // Só Contrato/Spot entram no gráfico — a coluna Contrato×Spot do Spend não tem outro valor
+        // válido, então RC com os dois tipos misturados (ou nenhum) não conta aqui.
+        if (hasCon === hasSpo) return;
+        const td = hasCon ? 'Contrato' : 'Spot';
+        const car = mode(lines.map(l => l.car)) || 'N/D';
+        const cc = coordCarStats[coord] = coordCarStats[coord] || {};
+        const o = cc[car] = cc[car] || { Contrato: 0, Spot: 0 };
         o[td]++;
     });
-    const ALLOWED_G_GER = ['G01', 'G02', 'G03', 'G04', 'G05', 'G06', 'G07', 'G08', 'G11', 'G12', 'G13', 'G15', 'G16', 'G17', 'G18', 'G19', 'G20', 'G21', 'G22', 'G23', 'G24', 'G25', 'G26', 'G27', 'G28', 'G29', 'G30', 'G31', 'G32', 'G33', 'G34', 'G35', 'G36', 'G37', 'G40', 'G41', 'G57', 'G66', 'G85', 'G86', 'G88', 'G89', 'G91', 'G92', 'G94'];
-    const GER_TYPE_COLORS = { Contrato: '#0F6B4C', Spot: '#8FD9BE', Outros: '#7A8C97' };
-    // Cada gráfico de Gerência Final soma Compras Ágeis por CÓDIGO de carteira: as RCs de G28 da
-    // Gerência e as de G28 de Ágeis viram uma coluna G28 só. Não afeta o gráfico G/R/S (c_ccd_tipo),
-    // que continua sendo exclusivamente Compras Ágeis.
-    const ageisCarStats = gerCarStats[Object.keys(gerCarStats).find(g => nrm(g) === GERENCIA_ALVO)] || {};
-    const gerCharts = gerList.map((g, gi) => {
-        const cars = gerCarStats[g] || {};
-        const merged = {};
-        [cars, ageisCarStats].forEach(src => Object.entries(src).forEach(([c, o]) => {
-            const m = merged[c] = merged[c] || { Contrato: 0, Spot: 0, Outros: 0 };
-            m.Contrato += o.Contrato; m.Spot += o.Spot; m.Outros += o.Outros;
-        }));
-        const carKeys = Object.entries(merged).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot + o.Outros })).filter(k => k.tot > 0 && ALLOWED_G_GER.includes(k.c)).sort((a, b) => b.tot - a.tot);
+    const GER_TYPE_COLORS = { Contrato: '#0F6B4C', Spot: '#8FD9BE' };
+    const sortCarKeys = (a, b) => {
+        if (a.c === 'N/D' || b.c === 'N/D') return a.c === b.c ? 0 : a.c === 'N/D' ? 1 : -1;
+        const ra = ROOT_PRIO[rootLetter(a.c)], rb = ROOT_PRIO[rootLetter(b.c)];
+        const pa = ra !== undefined ? ra : 3, pb = rb !== undefined ? rb : 3;
+        if (pa !== pb) return pa - pb;
+        if (pa === 3) return a.c.localeCompare(b.c);
+        const na = parseInt(a.c.slice(1), 10), nb = parseInt(b.c.slice(1), 10);
+        if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+        return a.c.localeCompare(b.c);
+    };
+    // Compras Ágeis sai daqui — já tem gráfico dedicado acima (c_ccd_tipo, "por carteira G/R/S"),
+    // sem sentido repetir a mesma Coordenação nesta lista.
+    const coordList = Object.entries(coordRCSet).filter(([g]) => nrm(g) !== GERENCIA_ALVO).sort((a, b) => b[1].size - a[1].size).map(x => x[0]);
+    const gerCharts = coordList.map((g, gi) => {
+        const cars = coordCarStats[g] || {};
+        const carKeys = Object.entries(cars).map(([c, o]) => ({ c, o, tot: o.Contrato + o.Spot })).filter(k => k.tot > 0).sort(sortCarKeys);
         return { g, cid: 'c_ger_' + gi, carKeys };
     }).filter(x => x.carKeys.length);
 
@@ -957,13 +971,13 @@ function renderContr() {
     // mas com o Contrato/Spot já conhecido de cada RC (não é estimado, só a carteira G é que é
     // estimada) — entra no mesmo grid das outras Gerências, em amarelo, pra não competir visualmente
     // com o gráfico confirmado por carteira G.
-    const ARAIZ_COLORS = { Contrato: '#9C7A00', Spot: '#F2D479', Outros: '#7A8C97' };
+    const ARAIZ_COLORS = { Contrato: '#9C7A00', Spot: '#F2D479' };
     const gCarAArr = Object.entries(byGCarA).map(([c, o]) => ({ c, o, tot: Object.values(o).reduce((a, v) => a + v, 0) })).sort((a, b) => b.tot - a.tot);
     const araizPanel = gCarAArr.length ? { cid: 'c_ccd_tipo_araiz', carArr: gCarAArr } : null;
 
     document.getElementById('gerfinal-charts').innerHTML = gerCharts.map(x => `<div class="panel" style="margin-bottom:0">
-<h3>% Contrato × Spot por carteira — ${x.g} + Compras Ágeis</h3>
-<div class="ph">Soma das RCs desta Gerência com as de Compras Ágeis, consolidadas por código de carteira · número acima da coluna é o total de RCs que gera o %, e o número dentro de cada faixa é a contagem daquela faixa</div>
+<h3>% Contrato × Spot por carteira — ${x.g}</h3>
+<div class="ph">RCs desta Coordenação (já inclui Compras Ágeis, atribuído pela coluna Coordenação do Spend), consolidadas por código de carteira · número acima da coluna é o total de RCs que gera o %, e o número dentro de cada faixa é a contagem daquela faixa</div>
 <div class="cv-scroll"><div class="cv" id="${x.cid}_cv"><canvas id="${x.cid}"></canvas></div></div>
 </div>`).join('') + (araizPanel ? `<div class="panel" style="margin-bottom:0">
 <h3>% Contrato × Spot — A (raiz), estimado</h3>
@@ -975,13 +989,11 @@ function renderContr() {
     gerCharts.forEach(x => setMinBarWidth(x.cid + '_cv', x.carKeys.length));
     if (araizPanel) setMinBarWidth(araizPanel.cid + '_cv', araizPanel.carArr.length);
     gerCharts.forEach(x => {
-        const hasOutros = x.carKeys.some(k => k.o.Outros > 0);
-        const types = hasOutros ? ['Contrato', 'Spot', 'Outros'] : ['Contrato', 'Spot'];
+        const types = ['Contrato', 'Spot'];
         mkChart(x.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: x.carKeys.map(k => k.c), volTotals: x.carKeys.map(k => k.tot), datasets: types.map(t => ({ label: t, data: x.carKeys.map(k => k.tot ? Math.round((k.o[t] || 0) / k.tot * 100) : 0), vol: x.carKeys.map(k => k.o[t] || 0), backgroundColor: GER_TYPE_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip('RCs', i => x.carKeys[i] && x.carKeys[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
     });
     if (araizPanel) {
-        const hasOutros = araizPanel.carArr.some(x => x.o.Outros > 0);
-        const types = hasOutros ? ['Contrato', 'Spot', 'Outros'] : ['Contrato', 'Spot'];
+        const types = ['Contrato', 'Spot'];
         mkChart(araizPanel.cid, { type: 'bar', plugins: [stackPctLabels], data: { labels: araizPanel.carArr.map(x => x.c), volTotals: araizPanel.carArr.map(x => x.tot), datasets: types.map(t => ({ label: t, data: araizPanel.carArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), vol: araizPanel.carArr.map(x => x.o[t] || 0), backgroundColor: ARAIZ_COLORS[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip('RCs', i => araizPanel.carArr[i] && araizPanel.carArr[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
     }
 

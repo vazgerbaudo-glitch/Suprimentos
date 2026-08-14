@@ -246,7 +246,7 @@ const MAP_CART = {
     'nomefornecedor': 'forn',
     'contratoxspot': 'td',
     'dtpedido': 'dt', 'statusdeliberacao': 'status',
-    'gerenciafinal': 'gerFinal'
+    'gerenciafinal': 'gerFinal', 'coordenacao': 'coord'
 };
 const GERENCIA_ALVO = 'comprasageis';
 
@@ -278,12 +278,13 @@ function fromCarteirasCSV(txt) {
         const tdRaw = ('' + (o.td || '')).trim(), tdLow = tdRaw.toLowerCase();
         const td = tdLow === 'contrato' ? 'Contrato' : tdLow === 'spot' ? 'Spot' : (tdRaw || 'N/D');
         const gerFinal = hasGerCol ? (('' + (o.gerFinal || '')).trim() || 'N/D') : 'Compras Ágeis';
+        const coord = ('' + (o.coord || '')).trim() || 'N/D';
         rows.push({
             rc, rcNorm: normRC(rc), it, car, nome, pedido, pedidoNorm: normPed(pedido),
             forn: ('' + (o.forn || '')).trim(),
             cb, cbNorm: normPed(cb),
             ms, td, tdRaw, dt: parseDate(o.dt), status: ('' + (o.status || '')).trim(),
-            gerFinal, gerFinalNorm: nrm(gerFinal)
+            gerFinal, gerFinalNorm: nrm(gerFinal), coord
         });
     });
     return rows;
