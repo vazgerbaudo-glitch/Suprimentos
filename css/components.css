@@ -84,41 +84,68 @@
     justify-content: flex-end
 }
 .modal.wide {
-    width: min(1120px,96vw)
+    width: min(1320px,96vw)
 }
 .pend-shot {
-    background: var(--paper);
-    border-radius: 20px;
-    padding: 20px
+    background: var(--card);
+    border-radius: 24px;
+    padding: 22px;
+    box-shadow: 0 1px 2px rgba(0,42,76,.05),0 12px 34px rgba(0,42,76,.10)
+}
+.pend-frame {
+    border: 1px solid var(--line-soft);
+    border-radius: 18px;
+    padding: 18px
 }
 .pend-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit,minmax(230px,1fr));
-    gap: 20px
+    grid-template-columns: repeat(auto-fit,minmax(0,1fr));
+    gap: 12px;
+    align-items: stretch
 }
 .pend-card {
     background: var(--card);
-    border: 1px solid #C9D6DD;
-    border-radius: 14px;
-    padding: 16px 18px;
-    box-shadow: 0 1px 3px rgba(0,42,76,.07),0 6px 14px rgba(0,42,76,.08);
-    min-width: 0
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,42,76,.06);
+    min-width: 0;
+    min-height: 260px
 }
+/* Altura fixa (não min-height): garante que o divisor do cabeçalho caia na mesma linha em
+   todos os cartões, mesmo com títulos de 1, 2 ou 3 linhas. */
 .pend-card h4 {
-    margin: 0 0 12px;
-    font-size: 13px;
+    margin: 0;
+    padding: 12px 10px;
+    height: 74px;
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--line);
+    font-size: 12.5px;
+    line-height: 1.25;
     font-weight: 700;
-    color: var(--brand);
+    color: var(--ink);
+    text-align: center;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 7px
+    justify-content: center;
+    gap: 3px
+}
+.pend-total {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted)
 }
 .pend-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin: 8px 0
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line-soft)
+}
+.pend-row:last-child {
+    border-bottom: 0
 }
 .pend-name {
     flex: 1 1 auto;
@@ -129,22 +156,28 @@
     overflow: hidden;
     text-overflow: ellipsis
 }
-.pend-pill {
-    height: 28px;
-    border-radius: 999px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
-    min-width: 34px;
+.pend-val {
     flex: 0 0 auto;
-    padding: 0 12px
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right
 }
 .pend-empty {
     color: var(--muted);
     font-size: 12px;
-    padding: 4px 0
+    padding: 10px 12px
+}
+/* Em telas estreitas os cartões voltam a quebrar em várias faixas — o !important é para
+   vencer o grid-template-columns inline que o render aplica para a faixa única. */
+@media (max-width:900px) {
+    .pend-grid {
+        grid-template-columns: repeat(auto-fit,minmax(180px,1fr))!important
+    }
+    .pend-card h4 {
+        height: auto;
+        min-height: 74px
+    }
 }
 .pillnav {
     position: relative;
@@ -845,4 +878,188 @@ th.num {
     .brick-enter {
         animation: none
     }
+}
+
+/* ── Relatório executivo (js/relatorio.js) ──────────────────────────────────
+   O relatório é lido na tela e exportado como imagem pelo html2canvas, que não
+   entende variáveis CSS herdadas de :root em alguns navegadores — daí as cores
+   literais da paleta Rumo neste bloco. */
+.rep-shot {
+    background: #FFFFFF;
+    color: #13303F;
+    padding: 26px 28px;
+    border-radius: 18px;
+    border: 1px solid #E5EBEE
+}
+.rep-head {
+    border-left: 5px solid #003865;
+    padding: 2px 0 2px 14px;
+    margin-bottom: 18px
+}
+.rep-title {
+    font-size: 19px;
+    font-weight: 700;
+    color: #003865;
+    letter-spacing: -.3px
+}
+.rep-sub {
+    font-size: 11.5px;
+    color: #46606F;
+    margin-top: 4px;
+    line-height: 1.5
+}
+.rep-sec {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 26px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #E5EBEE;
+    font-size: 14px;
+    font-weight: 700;
+    color: #003865
+}
+.rep-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: #003865;
+    color: #FFFFFF;
+    font-size: 11px;
+    flex: 0 0 auto
+}
+.rep-secsub {
+    font-size: 11px;
+    font-weight: 400;
+    color: #46606F
+}
+.rep-p {
+    margin: 0 0 10px;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: #13303F
+}
+.rep-p b {
+    color: #003865
+}
+.rep-note {
+    background: #F2F5F6;
+    border-left: 3px solid #5A8CAE;
+    border-radius: 0 8px 8px 0;
+    padding: 9px 12px;
+    margin: 10px 0;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: #46606F
+}
+.rep-kpis {
+    display: grid;
+    /* 182px = largura de "R$ 12.750.600" a 22px sem quebrar: valores em reais por extenso
+       partiam em duas linhas com colunas mais estreitas */
+    grid-template-columns: repeat(auto-fit,minmax(182px,1fr));
+    gap: 10px;
+    margin: 12px 0 16px
+}
+.rep-kpi {
+    border: 1px solid #E5EBEE;
+    border-top: 3px solid #CAD6DD;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0
+}
+.rep-kpi.good {
+    border-top-color: #1E9F7F
+}
+.rep-kpi.warn {
+    border-top-color: #FBD300
+}
+.rep-kpi.bad {
+    border-top-color: #D2373C
+}
+.rep-kl {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: #46606F
+}
+.rep-kv {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -.6px;
+    color: #003865;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+    white-space: nowrap
+}
+.rep-kpi.bad .rep-kv {
+    color: #D2373C
+}
+.rep-ks {
+    font-size: 10.5px;
+    color: #46606F;
+    line-height: 1.4
+}
+.rep-tab {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0 12px;
+    font-size: 11.5px
+}
+.rep-tab th {
+    text-align: left;
+    padding: 7px 9px;
+    background: #F2F5F6;
+    color: #003865;
+    font-weight: 700;
+    border-bottom: 1px solid #D7E0E5;
+    white-space: nowrap
+}
+.rep-tab td {
+    padding: 6px 9px;
+    border-bottom: 1px solid #E5EBEE;
+    color: #13303F
+}
+.rep-tab th.num, .rep-tab td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums
+}
+.rep-tab tbody tr:last-child td {
+    border-bottom: 0
+}
+.rep-list {
+    margin: 6px 0 12px;
+    padding: 0;
+    list-style: none
+}
+.rep-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid #E5EBEE;
+    font-size: 12.5px;
+    line-height: 1.6
+}
+.rep-list li:last-child {
+    border-bottom: 0
+}
+.rep-list .farol {
+    margin-top: 6px;
+    flex: 0 0 auto;
+    background: #CAD6DD
+}
+.rep-list .farol.good {
+    background: #1E9F7F
+}
+.rep-list .farol.warn {
+    background: #FBD300
+}
+.rep-list .farol.bad {
+    background: #D2373C
 }

@@ -8,12 +8,9 @@ const isBlankOrCancelada = v => {
     return !s || s.toLowerCase() === 'cancelada';
 };
 
+// A ordem dos cartões é a ordem de preenchimento pedida pela área — da pendência que trava o
+// fechamento do indicador para a que é só inconsistência de data.
 const PEND_RULES = [
-    {
-        label: 'Falta "Data Início 2"',
-        desc: 'RCs em aberto sem a data de início da etapa 2 (Análise de Escopo) — processo ainda não avançou.',
-        hit: r => r.st === 'A' && !r.di2
-    },
     {
         label: 'Falta "Data de Conclusão"',
         desc: 'RCs marcadas como Concluída mas sem a data de conclusão preenchida.',
@@ -37,15 +34,20 @@ const PEND_RULES = [
         hit: r => r.st !== '?' && !isBlankOrCancelada(r.td) && !isBlankOrCancelada(r.cl) && !r.ac
     },
     {
-        label: 'SLA Real negativo',
-        desc: 'Itens com SLA Real negativo — inconsistência de datas a corrigir.',
-        hit: r => r.sr < 0
-    },
-    {
         label: 'Falta "Carteira/Categoria"',
         desc: 'Itens sem o código de Carteira/Categoria preenchido — exclui Status RC, Tipo e Classificação vazios ou "Cancelada". Considera desde janeiro/2026 (mesmo início da aba Contratualização), diferente das demais regras (abril/2026).',
         hit: r => r.st !== '?' && !isBlankOrCancelada(r.td) && !isBlankOrCancelada(r.cl) && !('' + (r.cat || '')).trim(),
         floor: DATA_INI_AGING
+    },
+    {
+        label: 'Falta "Data Início 2"',
+        desc: 'RCs em aberto sem a data de início da etapa 2 (Análise de Escopo) — processo ainda não avançou.',
+        hit: r => r.st === 'A' && !r.di2
+    },
+    {
+        label: 'SLA Real negativo',
+        desc: 'Itens com SLA Real negativo — inconsistência de datas a corrigir.',
+        hit: r => r.sr < 0
     }
 ];
 
@@ -57,15 +59,16 @@ function computePend(rule) {
     return { total: rows.length, top };
 }
 
+// A intensidade do vermelho acompanha o volume: o maior responsável fica no tom cheio
+// e os menores desbotam, para o olho ranquear a lista sem precisar ler os números.
 function pendBars(rows) {
     if (!rows.length) return '<div class="pend-empty">Nenhuma pendência no recorte atual.</div>';
     const max = rows[0].n;
     return rows.map(r => {
-        const w = Math.max(18, Math.round(r.n / max * 70));
-        const a = .18 + .64 * r.n / max;
+        const a = .35 + .65 * r.n / max;
         return `<div class="pend-row">
 <span class="pend-name" title="${r.cp}">${r.cp}</span>
-<span class="pend-pill" style="width:${w}%;background:rgba(210,55,60,${a.toFixed(2)});color:${a > .5 ? '#FFFFFF' : 'var(--ink)'}">${r.n}</span>
+<span class="pend-val" style="color:rgba(210,55,60,${a.toFixed(2)})">${r.n.toLocaleString('pt-BR')}</span>
 </div>`;
     }).join('');
 }
@@ -74,11 +77,14 @@ function renderPendencias() {
     const cards = PEND_RULES.map(rule => {
         const data = computePend(rule);
         return `<div class="pend-card">
-<h4 title="${rule.desc}">${rule.label} <span class="tag-sev s-rd">${data.total.toLocaleString('pt-BR')}</span></h4>
+<h4 title="${rule.desc}">${rule.label}<span class="pend-total">${data.total.toLocaleString('pt-BR')} itens</span></h4>
 ${pendBars(data.top)}
 </div>`;
     }).join('');
-    document.getElementById('pend-body').innerHTML = `<div class="pend-shot" id="pend-shot"><div class="pend-grid">${cards}</div></div>`;
+    // Colunas fixas pelo nº de regras (e não auto-fit): todos os cartões ficam lado a lado numa
+    // única faixa, que é o que mantém os cabeçalhos e as linhas alinhados entre si.
+    const cols = `repeat(${PEND_RULES.length},minmax(0,1fr))`;
+    document.getElementById('pend-body').innerHTML = `<div class="pend-shot" id="pend-shot"><div class="pend-frame"><div class="pend-grid" style="grid-template-columns:${cols}">${cards}</div></div></div>`;
 }
 
 function openPendModal() {
@@ -123,6 +129,9 @@ function freezeGridForCapture(grid) {
         card.style.left = p.left + 'px';
         card.style.top = p.top + 'px';
         card.style.width = p.width + 'px';
+        // A altura precisa vir junto: fora do grid o cartão perde o stretch e encolhe até o
+        // conteúdo, que era o motivo dos cartões saírem desalinhados só na imagem exportada.
+        card.style.height = p.height + 'px';
         card._prevStyle = prev;
     });
     return () => {
