@@ -19,6 +19,7 @@
             <div class="fg" id="wrap_sem" style="display:none"><label>Semana</label><select id="f_sem"></select></div>
             <div class="fg"><label>Tipo de compra</label><select id="f_tipo"><option value="GERAL">Geral</option><option value="CS">Visão COE</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option></select></div>
             <div class="fg"><label>Status</label><select id="f_status"><option value="GERAL">Geral</option><option value="A">Em Aberto</option><option value="C">Concluída</option></select></div>
+            <div class="fg"><label>Carteira</label><select id="f_car" title="Carteira/Categoria carregada pela base Gestão à Vista — filtra todas as abas"><option value="GERAL">Geral</option></select></div>
             <hr class="fside-sep"/>
             <div id="drop">
                 <label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">Carregar CSV</label>
@@ -534,7 +535,7 @@
             </div>
             <div class="panel">
                 <h3>Base detalhada — Carteira × Tipo</h3>
-                <div class="ph">Quantidade de RCs da carteira selecionada no painel "Consulta por carteira" logo abaixo, separadas por tipo · troque a carteira ali, ou clique numa coluna do gráfico "% Contrato × Spot por carteira G/R/S" mais acima, para atualizar esta linha</div>
+                <div class="ph">Direto do Spend, sem cruzar com a Gestão à Vista — mesmas linhas e mesmo Escopo do painel "Consulta por carteira" logo abaixo, só que somadas por tipo para a carteira selecionada ali · troque a carteira ou o Escopo no painel abaixo, ou clique numa coluna do gráfico "% Contrato × Spot por carteira G/R/S" mais acima, para atualizar esta linha</div>
                 <table id="t_contr"><thead></thead><tbody></tbody></table>
             </div>
             <div class="panel">
@@ -610,11 +611,11 @@
         </div>
     </div>
     <script src="js/config.js?v=20260810b"></script>
-    <script src="js/state.js?v=20260803"></script>
-    <script src="js/data.js?v=20260814a"></script>
+    <script src="js/state.js?v=20260817a"></script>
+    <script src="js/data.js?v=20260817a"></script>
     <script src="js/charts.js?v=20260812a"></script>
-    <script src="js/render.js?v=20260814e"></script>
-    <script src="js/filters.js?v=20260730"></script>
+    <script src="js/render.js?v=20260817a"></script>
+    <script src="js/filters.js?v=20260817a"></script>
     <script src="js/proj.js?v=20260814d"></script>
     <script src="js/pendencias.js?v=20260811a"></script>
     <!-- relatorio.js depende de loadHtml2Canvas (pendencias.js) e de SUM.proj (proj.js) -->
