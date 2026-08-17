@@ -204,8 +204,7 @@ function fromCSV(txt) {
         const ccd = ci > -1 ? catRaw.slice(0, ci).trim().toUpperCase() : '';
         const catd = ci > -1 ? catRaw.slice(ci + 3).trim() : catRaw;
         // RCs Canceladas chegam do SAP com as colunas "RC" e "Item RC" preenchidas com o texto do
-        // status em vez do número (mesma anomalia documentada e corrigida só para o Corporativo em
-        // js/data_corp.js). Sem isso, rollupRC agrupa todas as canceladas da base numa única RC falsa
+        // status em vez do número. Sem isso, rollupRC agrupa todas as canceladas da base numa única RC falsa
         // "Cancelada" — hoje inofensivo (toda métrica filtra por Status ≠ Cancelada), mas incorreto.
         // Reconstrói a partir de "Chave (RC+Item)" (RC + Item concatenados, últimos 2 dígitos = item).
         let rc = ('' + (o.rc || '')).trim(), it = ('' + (o.it || '')).trim();
@@ -251,7 +250,7 @@ const MAP_CART = {
 const GERENCIA_ALVO = 'comprasageis';
 
 // Retorna a lista de linhas do Spend (uma por linha do arquivo, sem deduplicar) — de TODAS as
-// Gerências Finais (Compras Ágeis, Rodantes, Corporativo, Terminais etc.), cada uma marcada em
+// Gerências Finais (Compras Ágeis, Rodantes, Terminais etc.), cada uma marcada em
 // gerFinal/gerFinalNorm. renderContr (js/render.js) filtra para Compras Ágeis onde precisa (KPIs,
 // resolução contra a Gestão à Vista, que só existe para Ágeis) e usa a base completa só no gráfico
 // por Gerência Final. Sem coluna de Gerência Final no arquivo, assume tudo como Compras Ágeis
