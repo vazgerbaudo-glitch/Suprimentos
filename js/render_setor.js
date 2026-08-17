@@ -1,7 +1,9 @@
 // Versão "Setores" do motor de renderização — mesma leitura de CSV e os mesmos gráficos/tabelas
 // do painel Compras Ágeis, mas sem metas estabelecidas: nada de metas configuráveis (Material/Serviço,
 // Aging Geral/Contrato/Spot, linhas de meta de SLA/Saving) e sem os cartões/pills que comparam contra elas.
-// Abas mantidas: Visão Geral, Compradores, Aging, SLA, Saving, Produtividade (Contratualização não entra aqui).
+// Abas mantidas: Visão Geral, Compradores, Aging, SLA, Saving, Produtividade. A aba Contratualização é
+// a mesma dos dois painéis e mora em js/contr.js — aqui só é chamada por render(), com a gerência alvo
+// já apontada para Terminais via data-painel no <body> (ver js/config.js).
 
 function kpiCardHTML(k) {
     return `<div class="kpi ${k.c || ''}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div>${k.p ? `<span class="pill ${k.pc}">${k.p}</span>` : ''}</div>`;
@@ -52,7 +54,7 @@ function renderCompList(rows) {
 }
 // RCs abertas para acompanhamento (aba Compradores) — mesma base da aba Aging (2025+2026, sem corte de data); cp=null traz todo o time
 function openRCsFor(cp) {
-    return ALLRC.filter(r => r.st === 'A' && r.dl && periodHitAging(r.dl) && tpHit(r) && stHit(r) && (!cp || r.cp === cp))
+    return ALLRC.filter(r => r.st === 'A' && r.dl && periodHitAging(r.dl) && tpHit(r) && carHit(r) && stHit(r) && (!cp || r.cp === cp))
         .map(r => ({ ...r, age: agingOf(r.dl, HOJE, r.devHold) }))
         .filter(r => r.age >= 0)
         .sort((a, b) => b.age - a.age);
@@ -88,10 +90,10 @@ function renderOpenRCPanel(tblId, sumId, rcs, showComp, showExtra = true, sortab
 }
 function renderCompradores() {
     // Base independente do filtro Comprador (compHit) — para permitir comparação entre todos
-    const doneBase = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && stHit(r));
-    const openBase = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && tpHit(r) && stHit(r));
-    const slaBase = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && stHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
-    const savBase = ALL.filter(r => r.vp > 0 && r.vn > 0 && r.st !== 'X' && r.st !== 'D' && periodHit(r.dc) && tpHit(r) && stHit(r));
+    const doneBase = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && carHit(r) && stHit(r));
+    const openBase = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && tpHit(r) && carHit(r) && stHit(r));
+    const slaBase = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && carHit(r) && stHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
+    const savBase = ALL.filter(r => r.vp > 0 && r.vn > 0 && r.st !== 'X' && r.st !== 'D' && periodHit(r.dc) && tpHit(r) && carHit(r) && stHit(r));
     const comps = [...new Set([...doneBase, ...openBase, ...slaBase, ...savBase].map(r => r.cp))].filter(c => c && c !== 'N/D').sort();
     const rows = comps.map(cp => {
         const done = doneBase.filter(r => r.cp === cp);
@@ -175,14 +177,14 @@ function renderCompIndividual(cp, team) {
     const faIdx = a => { for (let i = 0; i < FA.length; i++) if (a >= FA[i][1] && a <= FA[i][2]) return i; return FA.length - 1; };
 
     // Concluídos — recorte (KPI) e ano completo (tendência semanal)
-    const doneP = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && stHit(r) && r.cp === cp);
-    const doneY = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && inY(r.dc) && tpHit(r) && stHit(r) && r.cp === cp);
+    const doneP = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && carHit(r) && stHit(r) && r.cp === cp);
+    const doneY = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && inY(r.dc) && tpHit(r) && carHit(r) && stHit(r) && r.cp === cp);
     const cw = {};
     doneY.forEach(r => { const w = isoWeek(r.dc); cw[w] = (cw[w] || 0) + 1; });
     const cwk = Object.keys(cw).sort();
 
     // Média do time por semana (ano completo) — mesma base, todos os compradores
-    const doneYAll = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && inY(r.dc) && tpHit(r) && stHit(r));
+    const doneYAll = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && inY(r.dc) && tpHit(r) && carHit(r) && stHit(r));
     const cwAll = {}, cwBuyers = {};
     doneYAll.forEach(r => { const w = isoWeek(r.dc); cwAll[w] = (cwAll[w] || 0) + 1; (cwBuyers[w] = cwBuyers[w] || new Set()).add(r.cp); });
     const teamAvg = w => cwBuyers[w] && cwBuyers[w].size ? +(cwAll[w] / cwBuyers[w].size).toFixed(2) : 0;
@@ -194,7 +196,7 @@ function renderCompIndividual(cp, team) {
     const ipdVal = wksI.length ? wksI.reduce((a, w) => a + byWI[w], 0) / wksI.length : 0;
 
     // Aging — RCs abertas no recorte
-    const openP = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && tpHit(r) && stHit(r) && r.cp === cp);
+    const openP = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && tpHit(r) && carHit(r) && stHit(r) && r.cp === cp);
     const openPAged = openP.map(r => ({ age: agingOf(r.dl, HOJE, r.devHold), sa: r.sa, sr: r.sr })).filter(o => o.age >= 0);
     const agesP = openPAged.map(o => o.age);
     const agingAvg = agesP.length ? Math.round(agesP.reduce((a, b) => a + b, 0) / agesP.length) : null;
@@ -204,22 +206,22 @@ function renderCompIndividual(cp, team) {
     agesP.forEach(a => fCounts[faIdx(a)]++);
 
     // SLA — recorte (KPI) e ano completo (tendência semanal)
-    const slaP = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && stHit(r) && r.cp === cp && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
+    const slaP = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && carHit(r) && stHit(r) && r.cp === cp && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
     const slaPct = slaP.length ? slaP.filter(r => r.ss === 'I').length / slaP.length * 100 : null;
-    const slaY = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && tpHit(r) && stHit(r) && r.cp === cp && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
+    const slaY = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && tpHit(r) && carHit(r) && stHit(r) && r.cp === cp && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
     const bwS = {};
     slaY.forEach(r => { const w = isoWeek(r.dc); (bwS[w] = bwS[w] || { i: 0, t: 0 }); bwS[w].t++; if (r.ss === 'I') bwS[w].i++; });
     const wkS = Object.keys(bwS).sort();
 
     // Saving — recorte
-    const savP = ALL.filter(r => r.vp > 0 && r.vn > 0 && r.st !== 'X' && r.st !== 'D' && periodHit(r.dc) && tpHit(r) && stHit(r) && r.cp === cp);
+    const savP = ALL.filter(r => r.vp > 0 && r.vn > 0 && r.st !== 'X' && r.st !== 'D' && periodHit(r.dc) && tpHit(r) && carHit(r) && stHit(r) && r.cp === cp);
     const savTotal = savP.reduce((a, r) => a + (r.vp - r.vn), 0);
     const bwV = {};
     savP.forEach(r => { if (!r.dc) return; const w = isoWeek(r.dc); bwV[w] = (bwV[w] || 0) + (r.vp - r.vn); });
     const wkV = Object.keys(bwV).sort();
 
     // Mix Contrato x Spot — RCs liberadas no recorte
-    const relP = ALLRC.filter(r => r.dl && r.dl >= DATA_INI && periodHit(r.dl) && tpHit(r) && stHit(r) && r.cp === cp);
+    const relP = ALLRC.filter(r => r.dl && r.dl >= DATA_INI && periodHit(r.dl) && tpHit(r) && carHit(r) && stHit(r) && r.cp === cp);
     const nConP = relP.filter(r => (r.td || '').trim() === 'Contrato').length, nSpoP = relP.filter(r => (r.td || '').trim() === 'Spot').length;
     const pctConP = relP.length ? nConP / relP.length * 100 : 0;
 
@@ -262,12 +264,15 @@ function render() {
     renderAging();
     renderSLA();
     renderSaving();
+    // contr.js é carregado depois deste arquivo (a chamada só acontece em runtime, com os dados já
+    // lidos); a guarda evita quebrar o painel inteiro se a aba Contratualização não estiver na página.
+    if (typeof renderContr === 'function') renderContr();
     renderCompradores();
     renderOverview();
 }
 
 function renderProd() {
-    const base = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r));
+    const base = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && compHit(r) && tpHit(r) && carHit(r) && stHit(r));
     const CAP = { 'Material': STATE.metaMat, 'Serviço': STATE.metaServ };
     const byW = {};
     base.forEach(r => {
@@ -294,7 +299,7 @@ function renderProd() {
     const ating = totDenom > 0 ? totCap / totDenom * 100 : 0;
     // Negociações em aberto (WS) — nenhuma base destes painéis traz coluna WS, então conta
     // 1 por RC em aberto no recorte.
-    const wsOpen = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
+    const wsOpen = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r) && carHit(r) && stHit(r)).length;
     kpi('kpi-prod', [
         { l: ger ? 'Itens/dia/comprador' : 'Itens/dia', v: val.toFixed(2), n: 'média do recorte' },
         { l: 'Itens concluídos', v: base.length.toLocaleString('pt-BR'), n: 'no recorte' },
@@ -303,11 +308,11 @@ function renderProd() {
     ]);
 
     // Itens concluídos por semana (c_psem) — Entrada x Concluídos
-    const ctx = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && inY(r.dc) && compHit(r) && tpHit(r) && stHit(r));
+    const ctx = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && inY(r.dc) && compHit(r) && tpHit(r) && carHit(r) && stHit(r));
     const cw = {};
     ctx.forEach(r => { const w = isoWeek(r.dc); cw[w] = (cw[w] || 0) + 1; });
     const ew = {};
-    ALL.filter(r => r.dl && r.dl >= DATA_INI && inY(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { const w = isoWeek(r.dl); ew[w] = (ew[w] || 0) + 1; });
+    ALL.filter(r => r.dl && r.dl >= DATA_INI && inY(r.dl) && compHit(r) && tpHit(r) && carHit(r) && stHit(r)).forEach(r => { const w = isoWeek(r.dl); ew[w] = (ew[w] || 0) + 1; });
     const cwk = [...new Set([...Object.keys(cw), ...Object.keys(ew)])].sort();
     mkChart('c_psem', { type: 'bar', data: { labels: cwk.map(w => wkLabel(w)), datasets: [{ label: 'Entrada', data: cwk.map(w => ew[w] || 0), backgroundColor: C.steel, borderRadius: 18 }, { label: 'Concluídos', data: cwk.map(w => cw[w] || 0), backgroundColor: C.teal, borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 13, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
 
@@ -320,7 +325,7 @@ function renderProd() {
     mkChart('c_ipdsem', { type: 'line', plugins: [crosshair], data: { labels: wkY.map(wkLabel), datasets: [{ label: ger ? 'Itens/dia/comprador' : 'Itens/dia', data: ipdW, borderColor: C.blue, backgroundColor: 'rgba(14,83,140,.08)', fill: true, tension: .3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.blue }, { label: 'Média do período', data: wkY.map(() => +avgY.toFixed(2)), borderColor: C.mist, borderDash: [6, 4], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.mist, fill: false }] }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { tooltip: { mode: 'index', intersect: false, callbacks: { title: c => 'Semana de ' + c[0].label, label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + ' itens/dia' } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 13, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } } });
 
     // Concluídos por comprador (c_pcomp)
-    const pcb = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && stHit(r));
+    const pcb = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && carHit(r) && stHit(r));
     const pc = {};
     pcb.forEach(r => { pc[r.cp] = (pc[r.cp] || 0) + 1; });
     const pca = Object.entries(pc).sort((a, b) => b[1] - a[1]).slice(0, 12);
@@ -330,7 +335,7 @@ function renderProd() {
     mkChart('c_pcomp', { type: 'bar', data: { labels: pca.map(x => x[0]), datasets: [{ data: pca.map(x => x[1]), backgroundColor: pca.map(x => x[0] === STATE.comp ? C.accent : classColorP(x[0])), borderRadius: 18, barPercentage: 1, categoryPercentage: .85 }] }, options: { legendChips: [['Material', C.steel], ['Serviço', C.blue], ['Selecionado', C.accent]], indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x.toLocaleString('pt-BR') + ' itens' } } }, scales: { x: { ...soG, beginAtZero: true }, y: { ...noG, ticks: { font: { size: 10 } } } } } });
 
     // Produtividade por tipo de demanda (c_tipo)
-    const ctxL = ALL.filter(r => r.dl && r.dl >= DATA_INI && inY(r.dl) && compHit(r) && tpHit(r) && stHit(r));
+    const ctxL = ALL.filter(r => r.dl && r.dl >= DATA_INI && inY(r.dl) && compHit(r) && tpHit(r) && carHit(r) && stHit(r));
     const TIPOS = ['Spot', 'Urgente', 'MRP', 'Determinada', 'Contrato', 'Regularização'];
     const TCOL = { Spot: '#5A8CAE', Urgente: '#D2373C', MRP: '#1E9F7F', Determinada: '#D9A400', Contrato: '#003865', 'Regularização': '#7A8C97', Outros: '#CAD6DD' };
     const wkset = [...new Set(ctx.map(r => isoWeek(r.dc)))].sort();
@@ -344,14 +349,14 @@ function renderProd() {
     ctxL.forEach(r => { const w = isoWeek(r.dl); ent[w] = (ent[w] || 0) + 1; });
     ctx.forEach(r => { const w = isoWeek(r.dc); sai[w] = (sai[w] || 0) + 1; });
     const entC = {}, saiC = {}, devC = {};
-    ALL.filter(r => r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { entC[r.cp] = (entC[r.cp] || 0) + 1; });
-    ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { saiC[r.cp] = (saiC[r.cp] || 0) + 1; });
-    ALL.filter(r => r.st === 'D' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).forEach(r => { devC[r.cp] = (devC[r.cp] || 0) + 1; });
+    ALL.filter(r => r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && carHit(r) && stHit(r)).forEach(r => { entC[r.cp] = (entC[r.cp] || 0) + 1; });
+    ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && compHit(r) && tpHit(r) && carHit(r) && stHit(r)).forEach(r => { saiC[r.cp] = (saiC[r.cp] || 0) + 1; });
+    ALL.filter(r => r.st === 'D' && r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && carHit(r) && stHit(r)).forEach(r => { devC[r.cp] = (devC[r.cp] || 0) + 1; });
     const compsES = [...new Set([...Object.keys(entC), ...Object.keys(saiC), ...Object.keys(devC)])].sort((a, b) => (saiC[b] || 0) - (saiC[a] || 0)).slice(0, 12);
     mkChart('c_escomp', { type: 'bar', data: { labels: compsES, datasets: [{ label: 'Entrada', data: compsES.map(c => entC[c] || 0), backgroundColor: C.steel, borderRadius: 18 }, { label: 'Saída', data: compsES.map(c => saiC[c] || 0), backgroundColor: C.teal, borderRadius: 18 }, { label: 'Devolvida', data: compsES.map(c => devC[c] || 0), backgroundColor: C.red, borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } } }, scales: { x: { ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { ...soG, beginAtZero: true } } } });
 
     // Itens por faixa de valor de entrada (c_valfaixa)
-    const valB = ALL.filter(r => r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r));
+    const valB = ALL.filter(r => r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && carHit(r) && stHit(r));
     const VF = [['≤ 200k', C.steel], ['200k – 300k', C.blue], ['> 300k', '#003865']];
     const vfIdx = v => v <= 200000 ? 0 : v <= 300000 ? 1 : 2;
     const vfCnt = [0, 0, 0];
@@ -359,7 +364,7 @@ function renderProd() {
     mkChart('c_valfaixa', { type: 'bar', data: { labels: VF.map(x => x[0]), datasets: [{ data: vfCnt, backgroundColor: VF.map(x => x[1]), borderRadius: 18 }] }, options: { maintainAspectRatio: false, layout: { padding: { top: 14 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' itens' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
     // Mapa de calor — produtividade por dia da semana (heat_prod)
-    const ctxH = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r));
+    const ctxH = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && compHit(r) && tpHit(r) && carHit(r) && stHit(r));
     const DOW = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
     const hp = {};
     ctxH.forEach(r => { const wd = r.dc.getDay(); if (wd < 1 || wd > 5) return; (hp[r.cp] = hp[r.cp] || [0, 0, 0, 0, 0])[wd - 1]++; });
@@ -369,7 +374,7 @@ function renderProd() {
     document.getElementById('heat_prod').innerHTML = `<table><thead><tr><th class="rl"></th>${DOW.map(d => `<th>${d}</th>`).join('')}<th>Total</th></tr></thead><tbody>${rowsP.map(r => `<tr><td class="rl">${r[0]}</td>${r[1].map(cellP).join('')}<td class="cell" style="background:#FBD300;color:#1F2933">${r[2]}</td></tr>`).join('') || '<tr><td class="rl" colspan=7 style="color:#46606F">Sem conclusões no recorte.</td></tr>'}</tbody></table>`;
 
     // Itens/dia por comprador — taxa individual (c_ipdcomp), sem linhas de meta
-    const ipdBase = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && stHit(r));
+    const ipdBase = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && tpHit(r) && carHit(r) && stHit(r));
     const ipdMap = {};
     ipdBase.forEach(r => { const m = ipdMap[r.cp] = ipdMap[r.cp] || {}; const w = isoWeek(r.dc); m[w] = (m[w] || 0) + r.ipd; });
     const ipdAvg = {};
@@ -381,7 +386,7 @@ function renderProd() {
     mkChart('c_ipdcomp', { type: 'bar', data: { labels: ipdArr.map(x => x[0]), datasets: [{ data: ipdArr.map(x => +x[1].toFixed(2)), backgroundColor: ipdArr.map(x => x[0] === STATE.comp ? C.accent : classColorI(x[0])), borderRadius: 18, barPercentage: 1, categoryPercentage: .85 }] }, options: { legendChips: [['Material', C.steel], ['Serviço', C.blue], ['Selecionado', C.accent]], indexAxis: 'y', maintainAspectRatio: false, layout: { padding: { top: 14 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x.toFixed(2) + ' itens/dia' } } }, scales: { x: { ...soG, beginAtZero: true }, y: { ...noG, ticks: { font: { size: 10 } } } } } });
 
     // Material x Serviço — quantidade e % (c_mat_qtd, c_mat_pct)
-    const msB = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r));
+    const msB = ALL.filter(r => r.st === 'C' && r.dc >= DATA_INI && periodHit(r.dc) && compHit(r) && tpHit(r) && carHit(r) && stHit(r));
     const MSc = ['Material', 'Serviço'];
     const msQ = MSc.map(c => msB.filter(r => r.cl === c).length);
     const totMS = msQ[0] + msQ[1];
@@ -389,7 +394,7 @@ function renderProd() {
     mkChart('c_mat_pct', { type: 'doughnut', data: { labels: MSc, datasets: [{ data: msQ, backgroundColor: [C.steel, C.blue], borderWidth: 2, borderColor: '#FFFFFF' }] }, options: { maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, usePointStyle: true } }, centerText: { label: 'Itens' }, tooltip: { callbacks: { label: c => c.parsed.toLocaleString('pt-BR') + ' (' + (totMS ? Math.round(c.parsed / totMS * 100) : 0) + '%)' } } } } });
 
     // Entrada x Saída total no recorte (c_esgeral)
-    const entG = ALL.filter(r => r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
+    const entG = ALL.filter(r => r.dl && r.dl >= DATA_INI && periodHit(r.dl) && compHit(r) && tpHit(r) && carHit(r) && stHit(r)).length;
     mkChart('c_esgeral', { type: 'bar', data: { labels: ['Entrada', 'Saída'], datasets: [{ data: [entG, msB.length], backgroundColor: [C.steel, C.teal], borderRadius: 18 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: noG, y: { ...soG, beginAtZero: true } } } });
 
     document.getElementById('ins-prod').innerHTML = `<b>Leitura:</b> ${ger ? 'a equipe concluiu em média' : STATE.comp + ' concluiu'} <b>${val.toFixed(2)} ${ger ? 'itens/dia/comprador' : 'itens/dia'}</b> no recorte.${_fb ? ' <b style="color:#8A6D00">Valor estimado:</b> a coluna <i>Item/dia/comprador</i> está vazia na base para a(s) semana(s) do recorte, então o itens/dia/comprador foi calculado como Item/dia ÷ compradores ativos.' : ''}`;
@@ -397,7 +402,7 @@ function renderProd() {
 }
 
 function renderAging() {
-    const base = ALLRC.filter(r => r.st === 'A' && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r) && stHit(r));
+    const base = ALLRC.filter(r => r.st === 'A' && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r) && carHit(r) && stHit(r));
     const ag = base.map(r => ({ ...r, age: agingOf(r.dl, HOJE, r.devHold) })).filter(r => r.age >= 0);
     const FA = [['0-3', 0, 3], ['4-7', 4, 7], ['8-15', 8, 15], ['16-30', 16, 30], ['>30', 31, 1e9]];
     const FCOL = ['#1E9F7F', '#7FE06C', '#FBD300', '#C79100', '#D2373C'];
@@ -487,7 +492,7 @@ function renderAging() {
     document.getElementById('box_aging').innerHTML = boxComps.length ? svg : '<div style="color:#46606F;font-size:12px">Dados insuficientes para boxplot no recorte.</div>';
 
     // Evolução do tempo de ciclo (c_agevol) — visão geral, ano completo · Contrato e Spot em séries próprias
-    const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r) && stHit(r)).map(r => ({ w: isoWeek(r.dc), td: r.td, cyc: agingOf(r.dl, r.dc, r.devHold) })).filter(r => r.cyc >= 0);
+    const concl = ALLRC.filter(r => r.st === 'C' && r.dc && r.dl && inYAging(r.dc) && compHit(r) && tpHit(r) && carHit(r) && stHit(r)).map(r => ({ w: isoWeek(r.dc), td: r.td, cyc: agingOf(r.dl, r.dc, r.devHold) })).filter(r => r.cyc >= 0);
     const byW = {};
     concl.forEach(r => { (byW[r.w] = byW[r.w] || []).push(r.cyc); });
     const wk = Object.keys(byW).sort();
@@ -513,7 +518,7 @@ function renderAging() {
 
     // Tabela detalhada — semáforo de aging (t_aging)
     const sevAg = r => sevOpen(r);
-    const tabAll = ALLRC.filter(r => (r.st === 'A' || r.st === 'C') && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r) && stHit(r)).map(r => { const isOpen = r.st === 'A'; const age = isOpen ? agingOf(r.dl, HOJE, r.devHold) : (r.dc ? agingOf(r.dl, r.dc, r.devHold) : null); return { ...r, age, isOpen }; }).filter(r => r.age != null && r.age >= 0);
+    const tabAll = ALLRC.filter(r => (r.st === 'A' || r.st === 'C') && r.dl && periodHitAging(r.dl) && compHit(r) && tpHit(r) && carHit(r) && stHit(r)).map(r => { const isOpen = r.st === 'A'; const age = isOpen ? agingOf(r.dl, HOJE, r.devHold) : (r.dc ? agingOf(r.dl, r.dc, r.devHold) : null); return { ...r, age, isOpen }; }).filter(r => r.age != null && r.age >= 0);
     const tab = tabAll.slice().sort((a, b) => b.age - a.age).slice(0, 40);
     document.querySelector('#t_aging tbody').innerHTML = tab.map(r => { const s = sevAg(r); const stBadge = `<span class="tag-sev" style="background:${r.isOpen ? '#E1EDF5' : '#DFF2EA'};color:${r.isOpen ? '#0E538C' : '#14705A'}">${r.isOpen ? 'Em Aberto' : 'Concluída'}</span>`; return `<tr><td>${r.rc || '-'}</td><td>${r.it || '-'}</td><td>${r.cp}</td><td>${stBadge}</td><td>${r.et.replace(/^\d+\.?\s*/, '') || '-'}</td><td class="num">${r.sa || '-'}</td><td class="num">${r.age}</td><td>${farolHTML(s)}</td></tr>`; }).join('') || '<tr><td colspan=8 style="color:#46606F">Nenhuma RC no recorte.</td></tr>';
 
@@ -530,7 +535,7 @@ function renderSLA() {
     if (pnlTrend) pnlTrend.style.display = stAberto ? 'none' : '';
     if (pnlAberto) pnlAberto.style.display = stAberto ? '' : 'none';
 
-    const base = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
+    const base = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && periodHit(r.dc) && compHit(r) && tpHit(r) && carHit(r) && stHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg);
     const ins = base.filter(r => r.ss === 'I').length, foraR = base.filter(r => r.ss === 'F'), fora = foraR.length, tot = ins + fora, pct = tot ? ins / tot * 100 : 0;
     const atrasos = foraR.map(r => r.sr - r.sa).filter(d => d > 0);
     const atrMed = atrasos.length ? Math.round(atrasos.reduce((a, b) => a + b, 0) / atrasos.length) : 0;
@@ -574,7 +579,7 @@ function renderSLA() {
         // Evolução do % dentro do SLA (c_slatrend) — segue o filtro de Período: Geral mantém o ano por
         // semana; Mês restringe ao mês selecionado (ainda por semana); Semana/Atual muda a granularidade p/ dia
         const trendPorDia = STATE.modo === 'semana' || STATE.modo === 'atual';
-        const baseTrend = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && compHit(r) && tpHit(r) && stHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg && periodHit(r.dc));
+        const baseTrend = ALLRC.filter(r => r.st === 'C' && r.dc && r.dc >= DATA_INI && inY(r.dc) && compHit(r) && tpHit(r) && carHit(r) && stHit(r) && (r.ss === 'I' || r.ss === 'F') && !r.srNeg && periodHit(r.dc));
         baseTrend.forEach(r => { const k = trendPorDia ? ymdKey(r.dc) : isoWeek(r.dc); (bw[k] = bw[k] || { i: 0, t: 0 }); bw[k].t++; if (r.ss === 'I') bw[k].i++; });
         wk = Object.keys(bw).sort();
         const wkLbl = trendPorDia ? ymdLabel : wkLabel;
@@ -651,7 +656,7 @@ function renderSLA() {
 }
 
 function renderSaving() {
-    const base = ALL.filter(r => r.vp > 0 && r.vn > 0 && r.st !== 'X' && r.st !== 'D' && periodHit(r.dc) && compHit(r) && tpHit(r) && stHit(r));
+    const base = ALL.filter(r => r.vp > 0 && r.vn > 0 && r.st !== 'X' && r.st !== 'D' && periodHit(r.dc) && compHit(r) && tpHit(r) && carHit(r) && stHit(r));
     const tot = base.reduce((a, r) => a + (r.vp - r.vn), 0), prop = base.reduce((a, r) => a + r.vp, 0), taxa = prop ? tot / prop * 100 : 0;
     kpi('kpi-saving', [
         { l: 'Saving total', v: Kf(tot), n: BRL(tot) },
@@ -725,7 +730,7 @@ function renderOverview() {
     if (!P || !A || !S || !V) return;
 
     // Mix Contrato × Spot — direto da base principal (classificação própria "tp" de cada item), informativo
-    const mixBase = ALLRC.filter(r => r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r));
+    const mixBase = ALLRC.filter(r => r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r) && carHit(r) && stHit(r));
     const mixCounts = {};
     mixBase.forEach(r => { mixCounts[r.tp] = (mixCounts[r.tp] || 0) + 1; });
     const mCon = mixCounts['Contrato'] || 0, mSpo = mixCounts['Spot'] || 0, mOut = mixBase.length - mCon - mSpo;

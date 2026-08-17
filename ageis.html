@@ -10,7 +10,7 @@
         <link rel="stylesheet" href="css/layout.css?v=20260724"/>
         <link rel="stylesheet" href="css/components.css?v=20260814a"/>
     </head>
-    <body>
+    <body data-painel="ageis">
         <aside class="filters-side">
             <div class="fside-brand">Ágeis<span>2026</span></div>
             <hr class="fside-sep"/>
@@ -545,7 +545,7 @@
                     <div class="fg"><label for="f_cart_tbl">Carteira</label><select id="f_cart_tbl" style="max-width:230px"></select></div>
                     <div class="fg"><label for="f_cart_ger">Escopo</label><select id="f_cart_ger">
                         <option value="todas">Todas as Gerências Finais</option>
-                        <option value="ageis">Somente Compras Ágeis</option>
+                        <option value="alvo">Somente Compras Ágeis</option>
                     </select></div>
                     <div class="fg"><label for="f_cart_ord">Ordenar por</label><select id="f_cart_ord">
                         <option value="forn_asc">Fornecedor (A → Z)</option>
@@ -560,7 +560,12 @@
             </div>
             <div class="panel">
                 <h3>RCs pendentes por Grupo Comprador (Sistema)</h3>
-                <div class="ph">Só informativo — RCs cujo código do Spend ainda é "A..." (não resolvido por Pedido, Contrato básico nem RC única), uma linha por RC, para conferência manual. Não altera a classificação nos gráficos/KPIs.</div>
+                <div class="ph">RCs cujo código do Spend ainda é "A..." (não resolvido por Pedido, Contrato básico nem RC única), uma linha por RC, para conferência manual. A lista segue o recorte de Período/Tipo/Carteira e nunca some — mesmo com a exclusão marcada, é ela que mostra o que saiu da conta.</div>
+                <div class="metabar" style="margin-top:0">
+                    <label for="f_excl_pend" style="display:flex;align-items:center;gap:7px;cursor:pointer;font-weight:600"><input id="f_excl_pend" type="checkbox"/> Excluir RCs pendentes por Grupo Comprador (Sistema) de todo o arquivo</label>
+                    <span class="ph" id="excl_pend_status" style="margin:0"></span>
+                </div>
+                <div class="ph">Marcada, tira essas RCs de todos os gráficos, KPIs e tabelas desta aba — em todo o arquivo Spend, não só no recorte em tela, e em todas as Gerências Finais (nas outras não há Gestão à Vista aqui para resolver o "A...", então vale o código do próprio Spend). As demais abas do painel usam a Gestão à Vista e não mudam.</div>
                 <table id="t_gcs"><thead><tr><th>A</th><th>RC</th><th>Pedido</th><th>Contrato</th></tr></thead><tbody></tbody></table>
             </div>
             <div class="insight" id="ins-contr"></div>
@@ -610,16 +615,18 @@
             </div>
         </div>
     </div>
-    <script src="js/config.js?v=20260810b"></script>
-    <script src="js/state.js?v=20260817a"></script>
-    <script src="js/data.js?v=20260817a"></script>
+    <script src="js/config.js?v=20260817b"></script>
+    <script src="js/state.js?v=20260817b"></script>
+    <script src="js/data.js?v=20260817b"></script>
     <script src="js/charts.js?v=20260812a"></script>
-    <script src="js/render.js?v=20260817a"></script>
+    <!-- contr.js: aba Contratualização, compartilhada com terminais.html (usa kpi/fmtDia de render.js em runtime) -->
+    <script src="js/contr.js?v=20260817b"></script>
+    <script src="js/render.js?v=20260817b"></script>
     <script src="js/filters.js?v=20260817a"></script>
     <script src="js/proj.js?v=20260814d"></script>
     <script src="js/pendencias.js?v=20260811a"></script>
     <!-- relatorio.js depende de loadHtml2Canvas (pendencias.js) e de SUM.proj (proj.js) -->
     <script src="js/relatorio.js?v=20260814b"></script>
-    <script src="js/main.js?v=20260724"></script>
+    <script src="js/main.js?v=20260817b"></script>
     </body>
 </html>

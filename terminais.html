@@ -8,9 +8,9 @@
         <link rel="stylesheet" href="css/variables.css?v=20260724"/>
         <link rel="stylesheet" href="css/base.css?v=20260724"/>
         <link rel="stylesheet" href="css/layout.css?v=20260724"/>
-        <link rel="stylesheet" href="css/components.css?v=20260729d"/>
+        <link rel="stylesheet" href="css/components.css?v=20260817b"/>
     </head>
-    <body>
+    <body data-painel="terminais">
         <aside class="filters-side">
             <div class="fside-brand">Terminais<span>2026</span></div>
             <hr class="fside-sep"/>
@@ -19,6 +19,7 @@
             <div class="fg" id="wrap_sem" style="display:none"><label>Semana</label><select id="f_sem"></select></div>
             <div class="fg"><label>Tipo de compra</label><select id="f_tipo"><option value="GERAL">Geral</option><option value="CS">Visão COE</option><option value="Contrato">Contrato</option><option value="Spot">Spot</option></select></div>
             <div class="fg"><label>Status</label><select id="f_status"><option value="GERAL">Geral</option><option value="A">Em Aberto</option><option value="C">Concluída</option></select></div>
+            <div class="fg"><label>Carteira</label><select id="f_car" title="Carteira/Categoria carregada pela base Gestão à Vista — filtra todas as abas"><option value="GERAL">Geral</option></select></div>
             <hr class="fside-sep"/>
             <div id="drop">
                 <label for="f_file" class="btn" style="display:block;text-align:center" title="ou arraste o arquivo CSV aqui">Carregar Gestão à Vista (CSV)</label>
@@ -41,6 +42,7 @@
                         <button data-t="sla">SLA</button>
                         <button data-t="saving">Saving</button>
                         <button data-t="prod">Produtividade</button>
+                        <button data-t="contr">Contratualização</button>
                     </nav>
                 </div>
             </header>
@@ -73,9 +75,9 @@
                     <div class="ph">Economia capturada no recorte</div>
                     <div class="cv" style="height:190px"><canvas id="c_ov_saving"></canvas></div>
                 </div>
-                <div class="panel">
-                    <h3>Mix Contrato × Spot</h3>
-                    <div class="ph">RCs liberadas no recorte, por tipo (informativo)</div>
+                <div class="panel jump" data-t="contr">
+                    <h3>Mix Contrato × Spot <span class="link-tab" data-t="contr">Contratualização →</span></h3>
+                    <div class="ph">RCs liberadas no recorte, por tipo (informativo) — vem da Gestão à Vista, não do Spend da aba Contratualização</div>
                     <div class="cv" style="height:190px"><canvas id="c_ov_contr"></canvas></div>
                 </div>
             </div>
@@ -464,18 +466,108 @@
             <div class="insight" id="ins-prod"></div>
         </section>
 
+        <section class="tab" id="contr">
+            <div class="sec-head"><h2>Contratualização — Carteira × Tipo</h2></div>
+            <div class="panel" style="margin-bottom:14px">
+                <h3>Base de Carteiras / Spend (RC → G/S/R)</h3>
+                <div class="ph">Fonte principal desta aba — só linhas com Gerência Final = Terminais; período usa a Data do Pedido; sem filtro de Comprador nem de Status RC (o Spend não tem esses campos). O campo "Item" é o item do PEDIDO, não o "Item RC" da Gestão à Vista — por isso as duas bases só são cruzadas por Pedido ou por RC, nunca por Item.</div>
+                <div class="metabar" style="margin-top:0">
+                    <label for="f_cart" class="btn ghost" style="cursor:pointer"> Carregar base de carteiras</label>
+                    <input id="f_cart" type="file" accept=".csv,text/csv" style="display:none"/>
+                    <span class="ph" id="cart_status" style="margin:0"></span>
+                </div>
+            </div>
+            <div class="kpis k3" id="kpi-contr"></div>
+            <div class="panel">
+                <h3>% Contrato × Spot por carteira G/R/S
+                    <span class="seg2" id="ccdTipoModeSeg" style="margin-left:auto">
+                        <button type="button" data-mode="linha">Por Linha</button>
+                        <button type="button" data-mode="rc">Por Requisição</button>
+                    </span>
+                </h3>
+                <div class="ph">Uma coluna por carteira específica (todas, ordem G &gt; R &gt; S e numérica dentro de cada letra) — % Contrato × % Spot, para comparar quem depende mais de Spot. Só RCs de Gerência Final = Terminais com carteira G/R/S já confirmada no Spend; as RCs ainda em Grupo Comprador "A..." (não resolvidas) entram no gráfico separado "A (raiz)", mais abaixo. "Por Linha" conta cada linha do Spend; "Por Requisição" deduplica por RC.</div>
+                <div class="cv-scroll"><div class="cv" id="c_ccd_tipo_cv"><canvas id="c_ccd_tipo"></canvas></div></div>
+            </div>
+            <div class="grid g3">
+                <div class="panel">
+                    <h3>Contrato × Spot — Geral</h3>
+                    <div class="ph">Soma de todas as carteiras — % Contrato × % Spot no recorte</div>
+                    <div class="cv"><canvas id="c_contrmix"></canvas></div>
+                </div>
+                <div class="panel">
+                    <h3>Contrato × Spot — Material</h3>
+                    <div class="ph">Só itens Material — % Contrato × % Spot no recorte</div>
+                    <div class="cv"><canvas id="c_contrmix_mat"></canvas></div>
+                </div>
+                <div class="panel">
+                    <h3>Contrato × Spot — Serviço</h3>
+                    <div class="ph">Só itens Serviço — % Contrato × % Spot no recorte</div>
+                    <div class="cv"><canvas id="c_contrmix_serv"></canvas></div>
+                </div>
+            </div>
+            <div class="grid g2" id="gerfinal-charts"></div>
+            <div class="panel">
+                <h3>RCs por Código de Carteira</h3>
+                <div class="ph">Quantidade de RCs por raiz de carteira (G / S / R) e demais — total do recorte</div>
+                <div class="cv"><canvas id="c_ccd"></canvas></div>
+            </div>
+            <div class="panel">
+                <h3>Evolução semanal — Contrato × Spot</h3>
+                <div class="ph">RCs liberadas por semana, por tipo</div>
+                <div class="cv tall"><canvas id="c_contrevol"></canvas></div>
+            </div>
+            <div class="panel">
+                <h3>Base detalhada — Carteira × Tipo</h3>
+                <div class="ph">Direto do Spend, sem cruzar com a Gestão à Vista — mesmas linhas e mesmo Escopo do painel "Consulta por carteira" logo abaixo, só que somadas por tipo para a carteira selecionada ali · troque a carteira ou o Escopo no painel abaixo, ou clique numa coluna do gráfico "% Contrato × Spot por carteira G/R/S" mais acima, para atualizar esta linha</div>
+                <table id="t_contr"><thead></thead><tbody></tbody></table>
+            </div>
+            <div class="panel">
+                <h3>Consulta por carteira — Fornecedor, RC, Tipo, Pedido e Contrato</h3>
+                <div class="ph">Selecione uma carteira para ver as RCs dela no recorte, direto do Spend · uma linha por combinação de RC, fornecedor, pedido e contrato básico · o Escopo alterna entre todas as Gerências Finais e só Terminais</div>
+                <div class="metabar" style="margin-top:0">
+                    <div class="fg"><label for="f_cart_tbl">Carteira</label><select id="f_cart_tbl" style="max-width:230px"></select></div>
+                    <div class="fg"><label for="f_cart_ger">Escopo</label><select id="f_cart_ger">
+                        <option value="todas">Todas as Gerências Finais</option>
+                        <option value="alvo">Somente Terminais</option>
+                    </select></div>
+                    <div class="fg"><label for="f_cart_ord">Ordenar por</label><select id="f_cart_ord">
+                        <option value="forn_asc">Fornecedor (A → Z)</option>
+                        <option value="forn_desc">Fornecedor (Z → A)</option>
+                        <option value="rc_asc">RC (crescente)</option>
+                        <option value="rc_desc">RC (decrescente)</option>
+                        <option value="tipo_asc">Tipo (Contrato → Spot)</option>
+                    </select></div>
+                    <span class="ph" id="cart_tbl_status" style="margin:0"></span>
+                </div>
+                <table id="t_cart_forn"><thead><tr><th>Fornecedor</th><th>RC</th><th>Tipo</th><th>Pedido</th><th>Contrato</th><th>Dt Pedido</th></tr></thead><tbody></tbody></table>
+            </div>
+            <div class="panel">
+                <h3>RCs pendentes por Grupo Comprador (Sistema)</h3>
+                <div class="ph">RCs cujo código do Spend ainda é "A..." (não resolvido por Pedido, Contrato básico nem RC única), uma linha por RC, para conferência manual. A lista segue o recorte de Período/Tipo/Carteira e nunca some — mesmo com a exclusão marcada, é ela que mostra o que saiu da conta.</div>
+                <div class="metabar" style="margin-top:0">
+                    <label for="f_excl_pend" style="display:flex;align-items:center;gap:7px;cursor:pointer;font-weight:600"><input id="f_excl_pend" type="checkbox"/> Excluir RCs pendentes por Grupo Comprador (Sistema) de todo o arquivo</label>
+                    <span class="ph" id="excl_pend_status" style="margin:0"></span>
+                </div>
+                <div class="ph">Marcada, tira essas RCs de todos os gráficos, KPIs e tabelas desta aba — em todo o arquivo Spend, não só no recorte em tela, e em todas as Gerências Finais (nas outras não há Gestão à Vista aqui para resolver o "A...", então vale o código do próprio Spend). As demais abas do painel usam a Gestão à Vista e não mudam.</div>
+                <table id="t_gcs"><thead><tr><th>A</th><th>RC</th><th>Pedido</th><th>Contrato</th></tr></thead><tbody></tbody></table>
+            </div>
+            <div class="insight" id="ins-contr"></div>
+        </section>
+
                 </div>
             </div>
         </div>
-        <script src="js/config.js?v=20260810b"></script>
-        <script src="js/state.js?v=20260803"></script>
-        <script src="js/data.js?v=20260813a"></script>
+        <script src="js/config.js?v=20260817b"></script>
+        <script src="js/state.js?v=20260817b"></script>
+        <script src="js/data.js?v=20260817b"></script>
         <script src="js/charts.js?v=20260812a"></script>
-        <script src="js/render_setor.js?v=20260810b"></script>
-        <script src="js/filters_setor.js?v=20260730"></script>
+        <!-- contr.js: aba Contratualização, compartilhada com ageis.html (usa kpi/fmtDia de render_setor.js em runtime) -->
+        <script src="js/contr.js?v=20260817b"></script>
+        <script src="js/render_setor.js?v=20260817b"></script>
+        <script src="js/filters_setor.js?v=20260817b"></script>
         <script src="js/pendencias.js?v=20260811a"></script>
         <!-- relatorio.js depende de loadHtml2Canvas (pendencias.js); SUM.proj não existe nesta página -->
         <script src="js/relatorio.js?v=20260814b"></script>
-        <script src="js/main_setor.js?v=20260813a"></script>
+        <script src="js/main_setor.js?v=20260817b"></script>
     </body>
 </html>

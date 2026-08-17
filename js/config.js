@@ -2,6 +2,14 @@ const SHEET_CSV_URL = ""; // cole aqui o link CSV publicado para atualização a
 const BASE_CSV_PATH = "base.csv"; // arquivo local lido automaticamente se existir (deploy)
 const EMB = { cols: [], rows: [] };
 
+// Identidade da página (data-painel no <body>; sem o atributo assume "ageis"). Define qual Gerência
+// Final do Spend é a "gerência alvo" da aba Contratualização: é a única cujas RCs a Gestão à Vista
+// carregada na página cobre, então é ela que resolve/valida carteira, alimenta os KPIs e o gráfico
+// "% Contrato × Spot por carteira G/R/S". As outras Gerências entram só nos gráficos por Coordenação —
+// e a própria gerência alvo sai de lá, para não repetir o gráfico dedicado (ver js/contr.js).
+const PAINEL = (document.body && document.body.dataset.painel) || 'ageis';
+const GER_ALVO_LABEL = { ageis: 'Compras Ágeis', terminais: 'Terminais' }[PAINEL] || 'Compras Ágeis';
+
 // Recortes de apuração. DATA_INI é o corte histórico (abr/2026) e continua valendo para os painéis de
 // setor (render_setor.js), que não mudaram. O painel Compras Ágeis passou a separar recortes por
 // indicador para bater com o BI "Gestão à Vista", que usa escopos diferentes por indicador: entradas/

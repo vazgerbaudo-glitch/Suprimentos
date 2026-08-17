@@ -82,28 +82,8 @@ function readFile(file) {
 
 f_file.onchange = e => readFile(e.target.files[0]);
 
-function loadCarteirasFile(file) {
-    if (!file) return;
-    const rd = new FileReader();
-    rd.onload = () => {
-        const st = document.getElementById('cart_status');
-        try {
-            const rows = fromCarteirasCSV(rd.result);
-            const n = rows.length;
-            if (!n) throw new Error('nenhuma linha reconhecida (confira as colunas Requisição de compra/Car)');
-            CARTEIRAS = rows;
-            st.textContent = n.toLocaleString('pt-BR') + ' linhas do Spend carregadas de ' + file.name;
-            st.style.color = '';
-            render();
-        } catch (err) {
-            st.textContent = 'Falha ao ler o CSV (' + err.message + ').';
-            st.style.color = '#C0272D';
-        }
-    };
-    rd.onerror = () => { document.getElementById('cart_status').textContent = 'Erro ao abrir o arquivo.'; };
-    rd.readAsText(file, 'UTF-8');
-}
-f_cart.onchange = e => loadCarteirasFile(e.target.files[0]);
+// O 2º arquivo (base de Carteiras / Spend) é carregado por js/contr.js — é o mesmo fluxo nos dois
+// painéis, e este arquivo cuida só da base Gestão à Vista.
 
 const drop = document.getElementById('drop');
 ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.opacity = .6; }));

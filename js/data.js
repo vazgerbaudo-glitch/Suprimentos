@@ -246,14 +246,16 @@ const MAP_CART = {
     'dtpedido': 'dt', 'statusdeliberacao': 'status',
     'gerenciafinal': 'gerFinal', 'coordenacao': 'coord'
 };
-const GERENCIA_ALVO = 'comprasageis';
+// Gerência Final alvo da página, já normalizada para comparar com ln.gerFinalNorm — "comprasageis" no
+// painel Ágeis, "terminais" no painel Terminais (ver PAINEL/GER_ALVO_LABEL em js/config.js).
+const GERENCIA_ALVO = nrm(GER_ALVO_LABEL);
 
 // Retorna a lista de linhas do Spend (uma por linha do arquivo, sem deduplicar) — de TODAS as
 // Gerências Finais (Compras Ágeis, Terminais etc.), cada uma marcada em
 // gerFinal/gerFinalNorm. renderContr (js/render.js) filtra para Compras Ágeis onde precisa (KPIs,
 // resolução contra a Gestão à Vista, que só existe para Ágeis) e usa a base completa só no gráfico
-// por Gerência Final. Sem coluna de Gerência Final no arquivo, assume tudo como Compras Ágeis
-// (mesmo comportamento de antes da coluna existir). Preserva todas as linhas — nenhum valor é
+// por Gerência Final. Sem coluna de Gerência Final no arquivo, assume tudo como a gerência alvo da
+// página (mesmo comportamento de antes da coluna existir). Preserva todas as linhas — nenhum valor é
 // somado ou descartado aqui; o rollup por RC acontece depois, em renderContr.
 function fromCarteirasCSV(txt) {
     const g = parseCSV(txt).filter(r => r.length > 1);
@@ -275,7 +277,7 @@ function fromCarteirasCSV(txt) {
         const ms = msRaw.indexOf('mat') > -1 ? 'Material' : msRaw.indexOf('serv') > -1 ? 'Serviço' : '';
         const tdRaw = ('' + (o.td || '')).trim(), tdLow = tdRaw.toLowerCase();
         const td = tdLow === 'contrato' ? 'Contrato' : tdLow === 'spot' ? 'Spot' : (tdRaw || 'N/D');
-        const gerFinal = hasGerCol ? (('' + (o.gerFinal || '')).trim() || 'N/D') : 'Compras Ágeis';
+        const gerFinal = hasGerCol ? (('' + (o.gerFinal || '')).trim() || 'N/D') : GER_ALVO_LABEL;
         const coord = ('' + (o.coord || '')).trim() || 'N/D';
         rows.push({
             rc, rcNorm: normRC(rc), it, car, nome, pedido, pedidoNorm: normPed(pedido),
