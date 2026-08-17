@@ -12,6 +12,14 @@ function buildFilters() {
     if (sems.length) { STATE.sem = sems[sems.length - 1]; f_sem.value = STATE.sem; }
     m_mat.value = STATE.metaMat; m_serv.value = STATE.metaServ;
     m_agg.value = STATE.metaAgG; m_agc.value = STATE.metaAgC; m_ags.value = STATE.metaAgS;
+    // Filtro lateral "Carteira" — opções vêm da própria base Gestão à Vista carregada (r.ccd/r.cat),
+    // rótulo "Código — Nome"; mantém a carteira escolhida se ela ainda existir na base recarregada.
+    const carNomeF = {};
+    ALL.forEach(r => { if (r.ccd && r.cat && !carNomeF[r.ccd]) carNomeF[r.ccd] = r.cat; });
+    const carOptsF = [...new Set(ALL.map(r => r.ccd).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    if (STATE.car !== 'GERAL' && carOptsF.indexOf(STATE.car) === -1) STATE.car = 'GERAL';
+    f_car.innerHTML = '<option value="GERAL">Geral</option>' + carOptsF.map(c => `<option value="${c}">${c}${carNomeF[c] ? ' — ' + carNomeF[c] : ''}</option>`).join('');
+    f_car.value = STATE.car;
 }
 
 f_modo.onchange = e => {
@@ -24,6 +32,7 @@ f_mes.onchange = e => { STATE.mes = e.target.value; render(); };
 f_sem.onchange = e => { STATE.sem = e.target.value; render(); };
 f_tipo.onchange = e => { STATE.tp = e.target.value; render(); };
 f_status.onchange = e => { STATE.st = e.target.value; render(); };
+f_car.onchange = e => { STATE.car = e.target.value; render(); };
 document.getElementById('ind-voltar').onclick = () => { STATE.comp = 'GERAL'; render(); };
 m_apply.onclick = () => {
     STATE.metaMat = parseFloat(m_mat.value) || STATE.metaMat;

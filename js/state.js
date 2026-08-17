@@ -5,6 +5,7 @@ let ALL = [], ALLRC = [], DUCAL = {}, STATE = {
     comp: 'GERAL',
     tp: 'GERAL',
     st: 'GERAL',
+    car: 'GERAL',
     metaMat: 11,
     metaServ: 3,
     metaAgG: 60,
