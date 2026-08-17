@@ -5,7 +5,7 @@
 //
 // Fonte dos números: SUM (preenchido pelas abas, portanto já no recorte de Período/Tipo/Comprador) e
 // SUM.proj (aba Projeções, que de propósito ignora Período e Status — ver js/proj.js). Compartilhado
-// entre os 4 painéis (Ágeis, Corporativo, Rodantes, Terminais); só o Ágeis carrega proj.js, então o
+// entre os 3 painéis (Ágeis, Rodantes, Terminais); só o Ágeis carrega proj.js, então o
 // bloco de Projeções e o mix Contrato × Spot (SUM.contr) degradam para "sem dados" nos demais — ver
 // as guardas em `PR &&` e `if (K)` abaixo.
 

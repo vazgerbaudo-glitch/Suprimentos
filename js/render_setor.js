@@ -31,7 +31,7 @@ function sevPct(dias, alvo) {
     return ['s-gn', 'Baixo risco', 'f-gn', p];
 }
 // FAROL_PCT é declarado inline no HTML (mesmo padrão do OPERACAO_EXCLUIR) e hoje só o Rodantes liga.
-// Terminais e Coorporativo continuam na régua antiga de dias, por isso o typeof em vez de constante.
+// Terminais continua na régua antiga de dias, por isso o typeof em vez de constante.
 function farolPorPct() {
     return typeof FAROL_PCT !== 'undefined' && FAROL_PCT;
 }
@@ -313,22 +313,9 @@ function renderProd() {
     const totCap = weeks.reduce((a, w) => a + byW[w].cap, 0);
     const totDenom = weeks.reduce((a, w) => { const o = byW[w]; const du = modeM3(o.duM, 5); const buyers = ger ? (o.bs.size || 1) : 1; return a + du * buyers; }, 0);
     const ating = totDenom > 0 ? totCap / totDenom * 100 : 0;
-    // Negociações em aberto (WS) — em bases com coluna WS (Corporativo): 1 por negociação,
-    // não por linha/item nem por RC — quando o mesmo WS se repete em várias linhas/RCs, só a
-    // linha de Data Liberação mais antiga representa a negociação, as demais são descartadas.
-    // Em bases sem WS (Terminais), mantém a contagem antiga (1 por RC em aberto).
-    let wsOpen;
-    if (ALL.some(r => r.ws)) {
-        const wsFirst = {};
-        ALL.forEach(r => {
-            const w = r.ws;
-            if (!w || !r.dl) return;
-            if (!wsFirst[w] || r.dl < wsFirst[w].dl) wsFirst[w] = r;
-        });
-        wsOpen = Object.values(wsFirst).filter(r => r.st === 'A' && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
-    } else {
-        wsOpen = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
-    }
+    // Negociações em aberto (WS) — nenhuma base destes painéis traz coluna WS, então conta
+    // 1 por RC em aberto no recorte.
+    const wsOpen = ALLRC.filter(r => r.st === 'A' && r.dl && r.dl >= DATA_INI_AGING && periodHit(r.dl) && compHit(r) && tpHit(r) && stHit(r)).length;
     kpi('kpi-prod', [
         { l: ger ? 'Itens/dia/comprador' : 'Itens/dia', v: val.toFixed(2), n: 'média do recorte' },
         { l: 'Itens concluídos', v: base.length.toLocaleString('pt-BR'), n: 'no recorte' },
@@ -769,9 +756,6 @@ function renderSaving() {
 function overviewRow(t, mod, ind, val) {
     return `<tr class="jump" data-t="${t}"><td>${mod}</td><td>${ind}</td><td class="num">${val}</td></tr>`;
 }
-function scoreRow(t, mod, ind, val, ref, status, label) {
-    return `<tr class="jump" data-t="${t}"><td>${mod}</td><td>${ind}</td><td class="num">${val}</td><td class="num">${ref}</td><td><span class="pill p-${status}">${label}</span></td></tr>`;
-}
 
 function renderOverview() {
     const P = SUM.prod, A = SUM.aging, S = SUM.sla, V = SUM.saving;
@@ -812,18 +796,12 @@ function renderOverview() {
     mkChart('c_ov_aging_mat_qtd', { type: 'bar', data: { labels: A.matLabels, datasets: [{ data: A.matQ, backgroundColor: [C.steel, C.blue], borderRadius: 18 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: { ...soG, beginAtZero: true }, y: noG } } });
     mkChart('c_ov_aging_mat_avg', { type: 'bar', data: { labels: A.matLabels, datasets: [{ data: A.matAvg, backgroundColor: C.blue, borderRadius: 18 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x + 'd' } } }, scales: { x: { ...soG, beginAtZero: true }, y: noG } } });
 
-    // Tabela — resumo por módulo · Meta/Referência e Status só aparecem se a página tiver essas colunas no cabeçalho (ex.: coorporativo.html)
-    const pCor = P.ating >= 100 ? 'good' : P.ating >= 80 ? 'warn' : 'bad';
-    const aCor = A.avg <= A.meta ? 'good' : A.avg <= A.meta * 1.3 ? 'warn' : 'bad';
-    const sCor = S.pct >= 90 ? 'good' : S.pct >= 80 ? 'warn' : 'bad';
-    const vCor = V.total >= 0 ? 'good' : 'bad';
-    const hasMeta = document.querySelectorAll('#t_overview thead th').length > 3;
-    const rowFn = hasMeta ? scoreRow : overviewRow;
+    // Tabela — resumo por módulo · Módulo · Indicador · Valor (Terminais e Rodantes não expõem Meta/Status)
     document.querySelector('#t_overview tbody').innerHTML = [
-        rowFn('prod', 'Produtividade', 'Itens/dia' + (P.ger ? '/comprador' : ''), P.val.toFixed(2), P.ating.toFixed(0) + '% da meta ponderada (mín. 80%)', pCor, pCor === 'good' ? 'Na meta' : pCor === 'warn' ? 'Atenção' : 'Abaixo'),
-        rowFn('aging', 'Aging', 'Aging médio (RCs abertas)', A.avg + 'd', '≤ ' + A.meta + 'd', aCor, aCor === 'good' ? 'Na meta' : aCor === 'warn' ? 'Atenção' : 'Crítico'),
-        rowFn('sla', 'SLA', '% dentro do prazo', S.pct.toFixed(1) + '%', '≥ 90%', sCor, sCor === 'good' ? 'Na meta' : sCor === 'warn' ? 'Atenção' : 'Crítico'),
-        rowFn('saving', 'Saving', 'Economia capturada', Kf(V.total) + ' (' + V.taxa.toFixed(1) + '%)', V.taxa.toFixed(1) + '% de taxa', vCor, vCor === 'good' ? 'Positivo' : 'Negativo')
+        overviewRow('prod', 'Produtividade', 'Itens/dia' + (P.ger ? '/comprador' : ''), P.val.toFixed(2)),
+        overviewRow('aging', 'Aging', 'Aging médio (RCs abertas)', A.avg + 'd'),
+        overviewRow('sla', 'SLA', '% dentro do prazo', S.pct.toFixed(1) + '%'),
+        overviewRow('saving', 'Saving', 'Economia capturada', Kf(V.total) + ' (' + V.taxa.toFixed(1) + '%)')
     ].join('');
 
     document.getElementById('ins-overview').innerHTML = `<b>Leitura:</b> produtividade de <b>${P.val.toFixed(2)} itens/dia${P.ger ? '/comprador' : ''}</b>, aging médio de <b>${A.avg} dias</b> (${A.openRCs} RCs em aberto no total · ${A.openTotal} itens, ${A.crit} críticas), SLA em <b>${S.pct.toFixed(1)}%</b> e saving de <b>${Kf(V.total)}</b> no recorte. Mix de entrada: <b>${K.pctCon.toFixed(0)}% Contrato</b> e <b>${K.pctSpo.toFixed(0)}% Spot</b>. Abra a aba correspondente para detalhar cada indicador.`;
