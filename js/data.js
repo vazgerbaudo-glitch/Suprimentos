@@ -139,7 +139,7 @@ const MAP = {
     'areacliente': 'ac', 'datainicio2analisedeescopo': 'di2',
     'contratosappedido': 'ped',
     'datadadevolucaoparaat': 'dev', 'dataretornosupri': 'ret',
-    'chavercitem': 'chv', 'operacao': 'op'
+    'chavercitem': 'chv'
 };
 
 function computeGar(o) {
@@ -223,8 +223,7 @@ function fromCSV(txt) {
             gar: computeGar(o), cl: (o.cl || '').trim(), td: (o.tpc || '').trim(),
             fa: parseNum(o.fa), du: parseNum(o.du), rm: rm,
             ac: (o.ac || '').trim(), di2: parseDate(o.di2), ped: (o.ped || '').trim(),
-            dev: parseDate(o.dev), ret: parseDate(o.ret), ssDerived, stRaw,
-            op: (o.op || '').trim()
+            dev: parseDate(o.dev), ret: parseDate(o.ret), ssDerived, stRaw
         };
     });
 }
@@ -250,7 +249,7 @@ const MAP_CART = {
 const GERENCIA_ALVO = 'comprasageis';
 
 // Retorna a lista de linhas do Spend (uma por linha do arquivo, sem deduplicar) — de TODAS as
-// Gerências Finais (Compras Ágeis, Rodantes, Terminais etc.), cada uma marcada em
+// Gerências Finais (Compras Ágeis, Terminais etc.), cada uma marcada em
 // gerFinal/gerFinalNorm. renderContr (js/render.js) filtra para Compras Ágeis onde precisa (KPIs,
 // resolução contra a Gestão à Vista, que só existe para Ágeis) e usa a base completa só no gráfico
 // por Gerência Final. Sem coluna de Gerência Final no arquivo, assume tudo como Compras Ágeis
