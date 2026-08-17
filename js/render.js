@@ -939,7 +939,19 @@ function renderContr() {
     const ccdTipoCv = document.getElementById('c_ccd_tipo_cv');
     if (ccdTipoCv) ccdTipoCv.style.minWidth = Math.max(gCarKeys.length * 42, 1) + 'px';
     const ccdTipoUn = STATE.ccdTipoMode === 'linha' ? 'itens' : 'RCs';
-    mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, volTotals: gCarArr.map(x => x.tot), datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), vol: gCarArr.map(x => x.o[t] || 0), backgroundColor: colorMapG[t], stack: 's' })) }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip(ccdTipoUn, i => gCarArr[i] && gCarArr[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
+    // Pré-seleciona STATE.cartTbl (se ainda não houver escolha) com a 1ª carteira do escopo, mesmo
+    // critério do fillCarOpts do painel "Consulta por carteira" mais abaixo — sem isso, no 1º render
+    // da página o destaque desta coluna e a linha da tabela "Base detalhada — Carteira × Tipo" só
+    // apareceriam depois da 1ª interação do usuário (o painel abaixo é quem normalmente define
+    // STATE.cartTbl, mas ele roda depois deste gráfico no mesmo render).
+    if (!STATE.cartTbl) {
+        const scopeCars = CARTEIRAS.filter(ln => ln.dt && ln.dt >= DATA_INI_AGING && periodHit(ln.dt) && tpHit(ln) && (STATE.cartTblGer === 'ageis' ? ln.gerFinalNorm === GERENCIA_ALVO : true)).map(ln => (ln.car || '').trim()).filter(Boolean);
+        STATE.cartTbl = [...new Set(scopeCars)].sort((a, b) => a.localeCompare(b, 'pt-BR'))[0] || '';
+    }
+    // Coluna da carteira selecionada (STATE.cartTbl, mesma seleção da tabela "Consulta por carteira"
+    // e de "Base detalhada — Carteira × Tipo" abaixo) ganha borda pra destacar a seleção em comum;
+    // clicar numa coluna também seleciona a carteira, do mesmo jeito que o dropdown.
+    mkChart('c_ccd_tipo', { type: 'bar', plugins: [stackPctLabels], data: { labels: gCarKeys, volTotals: gCarArr.map(x => x.tot), datasets: typeListG.map(t => ({ label: t, data: gCarArr.map(x => x.tot ? Math.round((x.o[t] || 0) / x.tot * 100) : 0), vol: gCarArr.map(x => x.o[t] || 0), backgroundColor: colorMapG[t], borderColor: gCarKeys.map(c => c === STATE.cartTbl ? '#13303F' : 'transparent'), borderWidth: gCarKeys.map(c => c === STATE.cartTbl ? 2 : 0), stack: 's' })) }, options: { maintainAspectRatio: false, onClick: (evt, els) => { if (els.length) { const car = gCarKeys[els[0].index]; if (car) { STATE.cartTbl = car; render(); } } }, onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; }, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: volTooltip(ccdTipoUn, i => gCarArr[i] && gCarArr[i].tot) }, scales: { x: { stacked: true, ...noG, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 35 } }, y: { stacked: true, ...soG, min: 0, max: 100, ticks: { callback: v => v + '%' } } } } });
 
     // Botões "Por Linha" / "Por Requisição" — troca STATE.ccdTipoMode e re-renderiza (o próprio
     // gráfico "A (raiz)" abaixo usa a mesma fonte, então acompanha o toggle junto)
@@ -1049,8 +1061,9 @@ function renderContr() {
             if (ln.nome && !carNome[car]) carNome[car] = ln.nome;
             const k = car + '|' + ln.rcNorm + '|' + ln.forn + '|' + ln.pedido + '|' + ln.cb;
             let r = byKey.get(k);
-            if (!r) { r = { car, forn: ln.forn || '', rc: ln.rc, rcNorm: ln.rcNorm, pedido: ln.pedido || '', cb: ln.cb || '', ageis: false, tds: new Set() }; byKey.set(k, r); }
+            if (!r) { r = { car, forn: ln.forn || '', rc: ln.rc, rcNorm: ln.rcNorm, pedido: ln.pedido || '', cb: ln.cb || '', dt: null, ageis: false, tds: new Set() }; byKey.set(k, r); }
             r.tds.add(ln.td || 'N/D');
+            if (ln.dt && (!r.dt || ln.dt < r.dt)) r.dt = ln.dt;
             if (ln.gerFinalNorm === GERENCIA_ALVO) r.ageis = true;
         });
         const allRows = [...byKey.values()];
@@ -1092,7 +1105,7 @@ function renderContr() {
             const rows = (map[STATE.cartTbl] || []).slice();
             rows.sort(ORD[STATE.cartTblOrd] || ORD.forn_asc);
             const shown = rows.slice(0, CART_TBL_MAX);
-            cartTblBody.innerHTML = shown.map(r => `<tr><td>${r.forn || '—'}</td><td>${r.rc}</td><td><span class="tpill ${TIPO_CLS[r.tipo] || 't-nd'}">${r.tipo}</span></td><td>${r.pedido || '—'}</td><td>${r.cb || '—'}</td></tr>`).join('') || '<tr><td colspan="5" style="color:#46606F">Sem linhas para esta carteira no recorte.</td></tr>';
+            cartTblBody.innerHTML = shown.map(r => `<tr><td>${r.forn || '—'}</td><td>${r.rc}</td><td><span class="tpill ${TIPO_CLS[r.tipo] || 't-nd'}">${r.tipo}</span></td><td>${r.pedido || '—'}</td><td>${r.cb || '—'}</td><td>${fmtDia(r.dt)}</td></tr>`).join('') || '<tr><td colspan="6" style="color:#46606F">Sem linhas para esta carteira no recorte.</td></tr>';
             const st = document.getElementById('cart_tbl_status');
             if (st) {
                 const nRC = new Set(rows.map(r => r.rcNorm)).size, nForn = new Set(rows.filter(r => r.forn).map(r => r.forn)).size;
@@ -1100,9 +1113,12 @@ function renderContr() {
                 st.textContent = rows.length ? `${rows.length.toLocaleString('pt-BR')} linhas · ${nRC.toLocaleString('pt-BR')} RCs · ${nForn.toLocaleString('pt-BR')} fornecedores · ${nCon.toLocaleString('pt-BR')} Contrato / ${nSpo.toLocaleString('pt-BR')} Spot${rows.length > CART_TBL_MAX ? ` · mostrando as ${CART_TBL_MAX} primeiras nesta ordenação` : ''}` : 'Sem linhas neste escopo.';
             }
         };
-        cartTblSel.onchange = drawCartTbl;
-        cartTblOrd.onchange = drawCartTbl;
-        if (cartTblGer) cartTblGer.onchange = drawCartTbl;
+        // Troca de carteira/escopo passa por render() completo (não só drawCartTbl) porque a seleção
+        // (STATE.cartTbl) também dirige o destaque no gráfico acima e a linha única da tabela
+        // "Base detalhada — Carteira × Tipo", mais abaixo neste mesmo render.
+        cartTblSel.onchange = () => { STATE.cartTbl = cartTblSel.value; render(); };
+        cartTblOrd.onchange = () => { STATE.cartTblOrd = cartTblOrd.value; render(); };
+        if (cartTblGer) cartTblGer.onchange = () => { STATE.cartTblGer = cartTblGer.value; render(); };
         drawCartTbl();
     }
 
@@ -1131,10 +1147,19 @@ function renderContr() {
         }, options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { boxWidth: 11, usePointStyle: true, font: { size: 10 } } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: c => 'Semana de ' + c[0].label, label: c => c.dataset.label + ': ' + c.parsed.y.toLocaleString('pt-BR') + ' RCs' } } }, scales: { x: { ...noG, ticks: { maxTicksLimit: 13, font: { size: 8 } } }, y: { ...soG, beginAtZero: true } } }
     });
 
-    // Tabela detalhada — Carteira x Tipo, uma coluna por tipo (t_contr) — ordenada por quantidade de Spot, maior para menor
-    const catsBySpot = [...cats].sort((a, b) => (b.o['Spot'] || 0) - (a.o['Spot'] || 0));
+    // Tabela detalhada — Carteira x Tipo, uma coluna por tipo (t_contr) — amarrada à mesma carteira
+    // selecionada em "Consulta por carteira" (STATE.cartTbl, painel logo abaixo na página, embora o
+    // código dele rode antes deste no JS), então mostra só a linha dessa carteira, não mais a lista
+    // inteira. byCat tem todos os códigos (não só o top 15 de cats).
     document.querySelector('#t_contr thead').innerHTML = `<tr><th>Carteira/Categoria</th>${typeList.map(t => `<th class="num">${t}</th>`).join('')}<th class="num">Total</th><th class="num">% Contrato</th></tr>`;
-    document.querySelector('#t_contr tbody').innerHTML = catsBySpot.map(x => `<tr><td>${x.c}</td>${typeList.map(t => `<td class="num">${x.o[t] || 0}</td>`).join('')}<td class="num">${x.tot}</td><td class="num">${x.tot ? Math.round((x.o['Contrato'] || 0) / x.tot * 100) : 0}%</td></tr>`).join('') || `<tr><td colspan="${typeList.length + 3}" style="color:#46606F">Nenhuma RC no recorte.</td></tr>`;
+    const selCar = STATE.cartTbl || '';
+    const selCarRow = selCar ? byCat[selCar] : null;
+    if (selCarRow) {
+        const selTot = typeList.reduce((a, t) => a + (selCarRow[t] || 0), 0);
+        document.querySelector('#t_contr tbody').innerHTML = `<tr><td>${selCar}</td>${typeList.map(t => `<td class="num">${selCarRow[t] || 0}</td>`).join('')}<td class="num">${selTot}</td><td class="num">${selTot ? Math.round((selCarRow['Contrato'] || 0) / selTot * 100) : 0}%</td></tr>`;
+    } else {
+        document.querySelector('#t_contr tbody').innerHTML = `<tr><td colspan="${typeList.length + 3}" style="color:#46606F">${selCar ? `Nenhuma RC de "${selCar}" no recorte.` : 'Selecione uma carteira em "Consulta por carteira" para ver o detalhamento.'}</td></tr>`;
+    }
 
     // RCs pendentes de resolução (código do Spend ainda "A...", não resolvido por Pedido, Contrato
     // básico nem RC única) — listagem individual pra conferência manual: Grupo Comprador (Sistema),
