@@ -2,7 +2,7 @@
 // independente dos filtros de Período/Tipo/Comprador do painel, mas exclui itens marcados
 // como "Remover de Compras Ágeis", RCs Canceladas/Devolvidas e itens liberados antes de
 // DATA_INI (abril/2026) — salvo nas regras com `floor` próprio, que usam outro corte.
-// Compartilhado entre os painéis Ágeis, Rodantes e Terminais.
+// Compartilhado entre os painéis Ágeis e Terminais.
 const isBlankOrCancelada = v => {
     const s = ('' + (v || '')).trim();
     return !s || s.toLowerCase() === 'cancelada';
